@@ -27,7 +27,7 @@ const App: React.FC = () => {
                 <Layout>
                   <Routes>
                     <Route path="/" element={<Home />} />
-                    <Route path="/:username" element={<Profile />} />
+                    <Route path="/profile/:username" element={<Profile />} />
                     <Route path="/accounts/edit" element={<Settings />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>

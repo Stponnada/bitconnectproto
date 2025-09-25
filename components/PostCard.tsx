@@ -55,7 +55,7 @@ const PostCard: React.FC<{ post: PostType }> = ({ post }) => {
         <article className="bg-dark-secondary rounded-lg mb-6">
             <div className="p-4">
                 <div className="flex items-center">
-                    <Link to={`/${post.profiles?.username}`}>
+                    <Link to={`/profile/${post.profiles?.username}`}>
                         <img
                             src={post.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${post.profiles?.username}&background=E53E3E&color=fff`}
                             alt={post.profiles?.username}
@@ -63,7 +63,7 @@ const PostCard: React.FC<{ post: PostType }> = ({ post }) => {
                         />
                     </Link>
                     <div className="ml-3">
-                        <Link to={`/${post.profiles?.username}`} className="font-bold text-white">
+                        <Link to={`/profile/${post.profiles?.username}`} className="font-bold text-white">
                             {post.profiles?.full_name}
                         </Link>
                         <div className="text-xs text-gray-400">

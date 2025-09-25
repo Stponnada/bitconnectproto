@@ -18,13 +18,20 @@ export interface Profile {
   email?: string;
 }
 
+export interface PostAuthor {
+  user_id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
 export interface Post {
   id: number;
   user_id: string;
   content: string;
   image_url: string | null;
   created_at: string;
-  profiles: Profile | null;
+  profiles: PostAuthor | null;
   like_count: number;
   comment_count: number;
   user_has_liked: boolean;

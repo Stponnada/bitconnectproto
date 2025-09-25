@@ -74,8 +74,7 @@ const Header: React.FC = () => {
                     <div className="absolute top-full mt-2 w-full bg-dark-secondary border border-dark-tertiary rounded-md shadow-lg overflow-hidden">
                         {searchResults.length > 0 ? (
                            searchResults.map(p => (
-                             // FIX: Use `user_id` as the key, as `id` does not exist on the Profile type. `user_id` is a unique identifier for the profile.
-                             <Link to={`/${p.username}`} key={p.user_id} onClick={onResultClick} className="flex items-center p-3 hover:bg-dark-tertiary">
+                             <Link to={`/profile/${p.username}`} key={p.user_id} onClick={onResultClick} className="flex items-center p-3 hover:bg-dark-tertiary">
                                 <img src={p.avatar_url || `https://ui-avatars.com/api/?name=${p.username}`} alt={p.username} className="w-8 h-8 rounded-full object-cover" />
                                 <div className="ml-3">
                                   <p className="text-sm font-semibold">{p.full_name}</p>
@@ -94,7 +93,7 @@ const Header: React.FC = () => {
                 </button>
                 {dropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-dark-secondary border border-dark-tertiary rounded-md shadow-lg py-1">
-                        <Link to={`/${profile?.username}`} onClick={() => setDropdownOpen(false)} className="block px-4 py-2 text-sm text-gray-300 hover:bg-dark-tertiary">My Profile</Link>
+                        <Link to={`/profile/${profile?.username}`} onClick={() => setDropdownOpen(false)} className="block px-4 py-2 text-sm text-gray-300 hover:bg-dark-tertiary">My Profile</Link>
                         <Link to="/accounts/edit" onClick={() => setDropdownOpen(false)} className="block px-4 py-2 text-sm text-gray-300 hover:bg-dark-tertiary">Edit Profile</Link>
                         <button onClick={handleSignOut} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-dark-tertiary">Logout</button>
                     </div>

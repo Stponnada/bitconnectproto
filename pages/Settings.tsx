@@ -105,7 +105,7 @@ const Settings: React.FC = () => {
             if (error) throw error;
 
             setMessage('Profile updated successfully!');
-            setTimeout(() => navigate(`/${formData.username}`), 1000);
+            setTimeout(() => navigate(`/profile/${formData.username}`), 1000);
         } catch (error: any) {
             setError(`Error: ${error.message}`);
         } finally {
