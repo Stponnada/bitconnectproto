@@ -3,7 +3,6 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header'; // Assuming you have a Header component
 import LeftSidebar from './LeftSidebar'; // Assuming you have these components
-import RightSidebar from './RightSidebar'; // Assuming you have these components
 
 const Layout = () => {
   return (
@@ -22,7 +21,6 @@ const Layout = () => {
           */}
           <Outlet />
         </main>
-        <RightSidebar />
       </div>
     </div>
   );
