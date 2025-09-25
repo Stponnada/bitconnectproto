@@ -34,7 +34,7 @@ const Profile: React.FC = () => {
 
                 const { data: postsData, error: postsError } = await supabase
                     .rpc('get_posts_with_likes')
-                    .eq('user_id', profileData.id)
+                    .eq('user_id', profileData.user_id)
                     .order('created_at', { ascending: false });
 
                 if (postsError) throw postsError;
@@ -54,7 +54,7 @@ const Profile: React.FC = () => {
     if (error) return <div className="text-center text-red-400 mt-20">{error}</div>;
     if (!profile) return <div className="text-center text-gray-500 mt-20">User not found.</div>;
 
-    const isOwnProfile = currentProfile?.id === profile.id;
+    const isOwnProfile = currentProfile?.user_id === profile.user_id;
 
     const InfoField = ({ label, value }: { label: string; value?: string | number | null }) => (
       value ? <div><span className="font-semibold text-gray-200">{label}:</span> <span className="text-gray-400">{value}</span></div> : null

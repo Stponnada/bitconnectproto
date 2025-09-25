@@ -54,7 +54,7 @@ const ProfileSetup: React.FC = () => {
         setError(null);
 
         const updates = {
-            id: user.id,
+            user_id: user.id,
             ...formData,
             admission_year: parseInt(formData.admission_year, 10),
             profile_complete: true,

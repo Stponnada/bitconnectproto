@@ -51,7 +51,8 @@ const LeftSidebar: React.FC = () => {
                 </button>
                  {profile && (
                     <div className="flex items-center space-x-3 mt-4 p-2 rounded-full hover:bg-gray-800">
-                        <img src={profile.avatar_url || `https://picsum.photos/seed/${profile.id}/40`} alt="avatar" className="w-10 h-10 rounded-full bg-gray-700" />
+                        {/* FIX: Use `user_id` instead of `id` for the profile image seed, as `id` does not exist on the Profile type. */}
+                        <img src={profile.avatar_url || `https://picsum.photos/seed/${profile.user_id}/40`} alt="avatar" className="w-10 h-10 rounded-full bg-gray-700" />
                         <div>
                             <p className="font-semibold text-sm">{profile.full_name || profile.username}</p>
                             <p className="text-xs text-gray-400">@{profile.username}</p>

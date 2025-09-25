@@ -60,7 +60,8 @@ const SearchPanel: React.FC<SearchPanelProps> = ({ onNavigate }) => {
                 {!loading && results.length > 0 && (
                     <div className="space-y-2">
                         {results.map(profile => (
-                            <Link to={`/${profile.username}`} onClick={onNavigate} key={profile.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-800">
+                            // FIX: Use `user_id` as the key, as `id` does not exist on the Profile type. `user_id` is a unique identifier for the profile.
+                            <Link to={`/${profile.username}`} onClick={onNavigate} key={profile.user_id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-800">
                                 <img src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.username}&background=0D8ABC&color=fff&size=50`} alt={profile.username} className="w-11 h-11 rounded-full object-cover" />
                                 <div>
                                     <p className="font-semibold text-sm">{profile.username}</p>

@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const { data: userProfile } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', currentUser.id)
+          .eq('user_id', currentUser.id)
           .single();
         setProfile(userProfile ?? null);
         setProfileComplete(userProfile?.profile_complete ?? false);
@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const { data: userProfile } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', currentUser.id)
+            .eq('user_id', currentUser.id)
             .single();
           setProfile(userProfile ?? null);
           setProfileComplete(userProfile?.profile_complete ?? false);

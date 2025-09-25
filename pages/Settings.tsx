@@ -84,7 +84,7 @@ const Settings: React.FC = () => {
             }
 
             const updates = {
-                id: user.id,
+                user_id: user.id,
                 full_name: formData.fullName,
                 username: formData.username,
                 bio: formData.bio,

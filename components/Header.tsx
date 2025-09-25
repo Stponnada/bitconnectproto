@@ -74,7 +74,8 @@ const Header: React.FC = () => {
                     <div className="absolute top-full mt-2 w-full bg-dark-secondary border border-dark-tertiary rounded-md shadow-lg overflow-hidden">
                         {searchResults.length > 0 ? (
                            searchResults.map(p => (
-                             <Link to={`/${p.username}`} key={p.id} onClick={onResultClick} className="flex items-center p-3 hover:bg-dark-tertiary">
+                             // FIX: Use `user_id` as the key, as `id` does not exist on the Profile type. `user_id` is a unique identifier for the profile.
+                             <Link to={`/${p.username}`} key={p.user_id} onClick={onResultClick} className="flex items-center p-3 hover:bg-dark-tertiary">
                                 <img src={p.avatar_url || `https://ui-avatars.com/api/?name=${p.username}`} alt={p.username} className="w-8 h-8 rounded-full object-cover" />
                                 <div className="ml-3">
                                   <p className="text-sm font-semibold">{p.full_name}</p>

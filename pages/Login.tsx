@@ -61,7 +61,7 @@ const Login: React.FC = () => {
         if (error) throw error;
         if (data.user) {
            const { error: profileError } = await supabase.from('profiles').insert({
-            id: data.user.id,
+            user_id: data.user.id,
             username: username,
             email: data.user.email,
           });
