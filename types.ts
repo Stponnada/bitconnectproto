@@ -1,40 +1,44 @@
 export interface Profile {
   user_id: string;
-  username?: string;
-  avatar_url?: string;
-  banner_url?: string;
-  full_name?: string;
-  bio?: string;
+  updated_at?: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  banner_url: string | null;
+  bio: string | null;
+  campus: string | null;
+  admission_year: number | null;
+  branch: string | null;
+  relationship_status: string | null;
+  dorm_building: string | null;
+  dorm_room: string | null;
+  dining_hall: string | null;
+  clubs: string | null;
+  profile_complete: boolean;
   email?: string;
-  campus?: string;
-  admission_year?: number;
-  branch?: string;
-  relationship_status?: string;
-  dorm_building?: string;
-  dorm_room?: string;
-  dining_hall?: string;
-  clubs?: string;
-  profile_complete?: boolean;
+}
+
+export interface Post {
+  id: number;
+  user_id: string;
+  content: string;
+  image_url: string | null;
+  created_at: string;
+  profiles: Profile | null;
+  like_count: number;
+  comment_count: number;
+  user_has_liked: boolean;
 }
 
 export interface Comment {
   id: number;
   content: string;
-  created_at: string;
   user_id: string;
   post_id: number;
-  profiles: Pick<Profile, 'username' | 'avatar_url' | 'full_name'>;
-}
-
-export interface Post {
-  id: number;
-  content: string;
-  image_url: string;
   created_at: string;
-  user_id: string;
-  profiles: Profile;
-  like_count: number;
-  user_has_liked: boolean;
-  comment_count: number;
-  comments?: Comment[];
+  profiles: {
+    username: string;
+    full_name: string | null;
+    avatar_url: string | null;
+  } | null;
 }

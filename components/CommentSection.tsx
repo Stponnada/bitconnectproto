@@ -79,12 +79,21 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, onCommentPosted
                     <Spinner isRed/>
                 ) : (
                     comments.map(comment => (
+                        // FIX: Add a null check for comment.profiles to handle cases where the author's profile might not exist.
                         <div key={comment.id} className="flex items-start space-x-3 text-sm">
-                             <Link to={`/${comment.profiles.username}`}>
-                                <img src={comment.profiles.avatar_url || `https://ui-avatars.com/api/?name=${comment.profiles.username}`} alt="commenter avatar" className="w-8 h-8 rounded-full object-cover" />
-                             </Link>
+                             {comment.profiles ? (
+                                <Link to={`/${comment.profiles.username}`}>
+                                    <img src={comment.profiles.avatar_url || `https://ui-avatars.com/api/?name=${comment.profiles.username}`} alt="commenter avatar" className="w-8 h-8 rounded-full object-cover" />
+                                </Link>
+                             ) : (
+                                <img src={`https://ui-avatars.com/api/?name=D`} alt="commenter avatar" className="w-8 h-8 rounded-full object-cover" />
+                             )}
                              <div className="flex-1 bg-dark-tertiary p-2 rounded-lg">
-                                <Link to={`/${comment.profiles.username}`} className="font-semibold text-white mr-2">{comment.profiles.username}</Link>
+                                {comment.profiles ? (
+                                    <Link to={`/${comment.profiles.username}`} className="font-semibold text-white mr-2">{comment.profiles.username}</Link>
+                                ) : (
+                                    <span className="font-semibold text-gray-400 mr-2">Deleted User</span>
+                                )}
                                 <span className="text-gray-300">{comment.content}</span>
                             </div>
                         </div>
