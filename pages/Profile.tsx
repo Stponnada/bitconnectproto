@@ -17,7 +17,12 @@ const Profile: React.FC = () => {
 
   useEffect(() => {
     const fetchProfileAndPosts = async () => {
-      if (!username) return;
+      if (!username || username === 'undefined') {
+        setError('Invalid profile URL.');
+        setLoadingProfile(false);
+        setLoadingPosts(false);
+        return;
+      }
       setLoadingProfile(true);
       setLoadingPosts(true);
       setError(null);
@@ -42,7 +47,7 @@ const Profile: React.FC = () => {
       setLoadingProfile(false);
 
       if (profileData) {
-        const { data: postsData, error: postsError } = await supabase.rpc('get_posts_with_likes', { profile_id: profileData.user_id });
+        const { data: postsData, error: postsError } = await supabase.rpc('get_posts_with_likes', { p_profile_id: profileData.user_id });
         if (postsError) {
           setError('Could not load posts.');
           console.error(postsError);
