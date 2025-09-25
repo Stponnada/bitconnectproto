@@ -1,21 +1,21 @@
-
 import React from 'react';
-import { Outlet } from 'react-router-dom';
-import LeftSidebar from './LeftSidebar';
-import RightSidebar from './RightSidebar';
+import Header from './Header';
 
-const Layout: React.FC = () => {
-  return (
-    <div className="min-h-screen bg-black text-gray-100 flex justify-center">
-      <div className="w-full max-w-screen-xl flex">
-        <LeftSidebar />
-        <main className="flex-grow w-full md:w-1/2 lg:w-2/4 border-x border-gray-800">
-          <Outlet />
-        </main>
-        <RightSidebar />
-      </div>
-    </div>
-  );
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
+    return (
+        <div className="min-h-screen bg-dark">
+            <Header />
+            <main className="pt-20">
+               <div className="w-full max-w-2xl mx-auto px-4">
+                 {children}
+               </div>
+            </main>
+        </div>
+    );
 };
 
 export default Layout;

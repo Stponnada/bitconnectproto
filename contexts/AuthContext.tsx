@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
@@ -8,6 +7,7 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  profileComplete: boolean | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -18,49 +18,58 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const { data: userProfile, error } = await supabase
+    const getActiveSession = async () => {
+      const { data: { session: activeSession }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+          console.error("Error getting session:", error);
+          setLoading(false);
+          return;
+      }
+      
+      setSession(activeSession);
+      const currentUser = activeSession?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        const { data: userProfile } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', session.user.id)
+          .eq('id', currentUser.id)
           .single();
-        if (error) {
-          console.error('Error fetching profile:', error);
-        } else {
-          setProfile(userProfile);
-        }
+        setProfile(userProfile ?? null);
+        setProfileComplete(userProfile?.profile_complete ?? false);
       }
       setLoading(false);
     };
     
-    getSession();
+    getActiveSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          setLoading(true);
-          const { data: userProfile, error } = await supabase
+      async (_event, newSession) => {
+        setSession(newSession);
+        const currentUser = newSession?.user ?? null;
+        setUser(currentUser);
+
+        if (currentUser) {
+          const { data: userProfile } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', session.user.id)
+            .eq('id', currentUser.id)
             .single();
-          if (error) {
-            console.error('Error fetching profile on state change:', error);
-          } else {
-            setProfile(userProfile);
-          }
-          setLoading(false);
+          setProfile(userProfile ?? null);
+          setProfileComplete(userProfile?.profile_complete ?? false);
         } else {
           setProfile(null);
+          setProfileComplete(null);
+        }
+        // Small delay to prevent flashing content
+        if (_event === 'INITIAL_SESSION') {
+          setLoading(false);
         }
       }
     );
@@ -78,6 +87,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     session,
     user,
     profile,
+    profileComplete,
     loading,
     signOut,
   };
