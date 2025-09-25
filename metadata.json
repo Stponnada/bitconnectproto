@@ -1,0 +1,5 @@
+{
+  "name": "BitsConnect",
+  "description": "A social media platform for BITS Pilani students to connect, share posts, and interact with each other. This application features user authentication, a post feed, profile management, and image uploads, all powered by a Supabase backend.",
+  "requestFramePermissions": []
+}
