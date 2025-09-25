@@ -6,40 +6,32 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
-import ProfileSetup from './pages/ProfileSetup'; // Assuming you have this page too
+import ProfileSetup from './pages/ProfileSetup'; // Make sure this is imported
 import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout'; // Using a layout for consistent UI is good practice
+import Layout from './components/Layout';
 
 const App = () => {
   return (
-    // The AuthProvider wraps the entire app, making user data available everywhere
     <AuthProvider>
       <Router>
         <Routes>
-          {/* ============================================= */}
-          {/* PUBLIC ROUTES                                 */}
-          {/* These routes can be accessed by anyone.     */}
-          {/* ============================================= */}
+          {/* Public Route */}
           <Route path="/login" element={<Login />} />
 
-
-          {/* ============================================= */}
-          {/* PROTECTED ROUTES                              */}
-          {/* These routes are protected by the             */}
-          {/* ProtectedRoute component. If a user is not    */}
-          {/* logged in, they will be redirected to /login. */}
-          {/* ============================================= */}
+          {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
-            {/* The Layout component can provide a consistent header, sidebar, etc. */}
             <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/profile" element={<Profile />} />
-                
-                {/* This is the route you were missing for the edit profile page */}
                 <Route path="/settings" element={<Settings />} />
+                
+                {/* 
+                  HERE IS THE FIX:
+                  This is the line that was missing. It tells the router
+                  to render the ProfileSetup component for the /setup path.
+                */}
+                <Route path="/setup" element={<ProfileSetup />} /> 
 
-                {/* You can also add other protected routes here */}
-                <Route path="/profile-setup" element={<ProfileSetup />} />
             </Route>
           </Route>
 
