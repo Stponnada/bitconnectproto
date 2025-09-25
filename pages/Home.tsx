@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Post as PostComponent } from '../components/Post';
+import PostComponent from '../components/Post';
 import { Post as PostType, Profile } from '../types';
 
 // ==================================================================
