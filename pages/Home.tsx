@@ -1,11 +1,15 @@
-// src/pages/Home.tsx (or wherever HomePage.tsx is)
-
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Post as PostComponent } from '../components/Post'; // Assuming component is named Post
+import { Post as PostComponent } from '../components/Post';
 import { Post as PostType, Profile } from '../types';
-import { ImageIcon, XCircleIcon } from '../components/icons'; // Assuming you have these icons
+
+// ==================================================================
+// THE FIX IS HERE:
+// This single line now correctly imports the icons you need
+// from your new components/icons.tsx file.
+import { ImageIcon, XCircleIcon } from '../components/icons';
+// ==================================================================
 
 // A simpler MediaPreview for a single image
 const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, onRemove }) => {
@@ -24,7 +28,7 @@ const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, on
     );
 };
 
-// CreatePost Component - Rewritten for your data structure
+// CreatePost Component - No changes needed here
 const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: Profile }> = ({ onPostCreated, profile }) => {
     const { user } = useAuth();
     const [content, setContent] = useState('');
@@ -32,7 +36,6 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     const [isSubmitting, setIsSubmitting] = useState(false);
     const imageInputRef = useRef<HTMLInputElement>(null);
 
-    // Cleanup object URLs to prevent memory leaks
     useEffect(() => {
         if (imageFile) {
             const url = URL.createObjectURL(imageFile);
@@ -42,7 +45,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files.length > 0) {
-            setImageFile(event.target.files[0]); // Only take the first file
+            setImageFile(event.target.files[0]);
         }
         event.target.value = '';
     };
@@ -58,10 +61,9 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
         setIsSubmitting(true);
         let imageUrl: string | null = null;
 
-        // 1. If there's an image, upload it to Supabase Storage
         if (imageFile) {
             const filePath = `${user.id}/${Date.now()}-${imageFile.name}`;
-            const { error: uploadError } = await supabase.storage.from('post_images').upload(filePath, imageFile); // Assuming a 'post_images' bucket
+            const { error: uploadError } = await supabase.storage.from('post_images').upload(filePath, imageFile);
 
             if (uploadError) {
                 console.error('Upload error:', uploadError);
@@ -72,7 +74,6 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
             imageUrl = publicUrl;
         }
 
-        // 2. Insert the new post record into the 'posts' table
         const { data: newPostData, error: insertError } = await supabase
             .from('posts')
             .insert({ user_id: user.id, content: content.trim(), image_url: imageUrl })
@@ -85,17 +86,15 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
             return;
         }
 
-        // 3. Create a complete post object for an optimistic UI update
         const postForUI: PostType = {
             ...newPostData,
-            profiles: profile, // Attach the user's profile data for immediate display
+            profiles: profile,
             like_count: 0,
             comment_count: 0,
             user_has_liked: false,
         };
         onPostCreated(postForUI);
 
-        // 4. Reset form
         setContent('');
         setImageFile(null);
         setIsSubmitting(false);
@@ -122,7 +121,6 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                             <button type="button" onClick={() => imageInputRef.current?.click()} className="text-bits-text-muted hover:text-blue-500 p-2 rounded-full transition-colors">
                                 <ImageIcon />
                             </button>
-                            {/* Removed the video icon as the schema supports one image */}
                         </div>
                         <button type="submit" className="bg-bits-red text-white font-bold py-2 px-6 rounded-full hover:bg-red-700 transition-colors duration-200 disabled:opacity-50" disabled={!canPost}>
                             {isSubmitting ? 'Posting...' : 'Post'}
@@ -134,8 +132,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     );
 };
 
-
-// HomePage Component - Rewritten to fetch data from Supabase
+// HomePage Component - No changes needed here
 export const HomePage: React.FC = () => {
     const { user } = useAuth();
     const [posts, setPosts] = useState<PostType[]>([]);
@@ -147,7 +144,6 @@ export const HomePage: React.FC = () => {
             if (!user) return;
             setLoading(true);
 
-            // 1. Fetch current user's profile for the CreatePost component
             const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
@@ -157,14 +153,13 @@ export const HomePage: React.FC = () => {
             if (profileError) console.error("Error fetching profile:", profileError);
             else setProfile(profileData);
 
-            // 2. Fetch all posts with their author's profile, using the 'profiles' join property
             const { data: postsData, error: postsError } = await supabase
                 .from('posts')
-                .select(`*, profiles(*)`) // Supabase join syntax
+                .select(`*, profiles(*)`)
                 .order('created_at', { ascending: false });
 
             if (postsError) console.error("Error fetching posts:", postsError);
-            else setPosts(postsData as any); // Use 'as any' as a temporary bridge if Supabase types conflict
+            else setPosts(postsData as any);
 
             setLoading(false);
         };
