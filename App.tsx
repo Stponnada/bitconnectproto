@@ -6,7 +6,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
-import ProfileSetup from './pages/ProfileSetup'; // Make sure this is imported
+import ProfileSetup from './pages/ProfileSetup';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
@@ -23,14 +23,14 @@ const App = () => {
             <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/profile" element={<Profile />} />
-                <Route path="/settings" element={<Settings />} />
-                
+                <Route path="/setup" element={<ProfileSetup />} /> 
+
                 {/* 
                   HERE IS THE FIX:
-                  This is the line that was missing. It tells the router
-                  to render the ProfileSetup component for the /setup path.
+                  We've changed the path from "/settings" to "/accounts/edit"
+                  to match where your "Edit Page" button is pointing.
                 */}
-                <Route path="/setup" element={<ProfileSetup />} /> 
+                <Route path="/accounts/edit" element={<Settings />} />
 
             </Route>
           </Route>

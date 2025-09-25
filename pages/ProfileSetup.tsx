@@ -1,146 +1,92 @@
-import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../services/supabase';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../services/supabase';
+import { useAuth } from '../contexts/AuthContext'; // <--- IMPORT THE NEW HOOK
 import Spinner from '../components/Spinner';
 
-// Moved components outside of the ProfileSetup function to prevent re-creation on every render.
-// This is the standard React practice and fixes the input field focus loss bug.
-const Input = ({ name, label, required = false, value, onChange, ...props }: any) => (
-  <div>
-    <label htmlFor={name} className="block text-sm font-medium text-gray-300 mb-1">{label} {required && '*'}</label>
-    <input name={name} id={name} required={required} onChange={onChange} value={value} {...props} className="w-full p-2 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red" />
-  </div>
-);
+const ProfileSetup = () => {
+  const { user } = useAuth(); // <--- 1. GET THE USER FROM THE CONTEXT.
+  const navigate = useNavigate();
 
-const Select = ({ name, label, required = false, value, onChange, children }: any) => (
-   <div>
-    <label htmlFor={name} className="block text-sm font-medium text-gray-300 mb-1">{label} {required && '*'}</label>
-    <select name={name} id={name} required={required} onChange={onChange} value={value} className="w-full p-2 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red">
-      {children}
-    </select>
-  </div>
-);
+  // State for your setup form
+  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
-const ProfileSetup: React.FC = () => {
-    const { user } = useAuth();
-    const navigate = useNavigate();
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [formData, setFormData] = useState({
-        full_name: '',
-        campus: '',
-        admission_year: '',
-        branch: '',
-        relationship_status: '',
-        dorm_building: '',
-        dorm_room: '',
-        dining_hall: '',
-        bio: ''
-    });
+  // This check is optional but good practice. The ProtectedRoute should handle this,
+  // but it ensures the page doesn't crash if something unexpected happens.
+  useEffect(() => {
+    if (!user) {
+      console.error("ProfileSetup page loaded without a user. This shouldn't happen.");
+      navigate('/login'); // Redirect to login if user is missing
+    }
+  }, [user, navigate]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
+  const handleProfileSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return; // Safety check
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!user) {
-            setError('User not found. Please log in again.');
-            return;
-        }
-        setLoading(true);
-        setError(null);
+    setLoading(true);
+    setMessage('');
+    try {
+      // Assuming your 'profiles' table has 'id', 'username', and 'full_name' columns
+      const { error } = await supabase.from('profiles').insert({
+        id: user.id, // Link the profile to the authenticated user
+        username: username,
+        full_name: fullName,
+        updated_at: new Date(),
+      });
 
-        const updates = {
-            user_id: user.id,
-            ...formData,
-            admission_year: parseInt(formData.admission_year, 10),
-            profile_complete: true,
-            updated_at: new Date().toISOString(),
-        };
+      if (error) {
+        throw error;
+      }
 
-        const { error } = await supabase.from('profiles').upsert(updates);
+      setMessage('Profile created successfully! Redirecting...');
+      // Redirect to the user's new profile page or home page after setup
+      setTimeout(() => navigate('/profile'), 2000);
 
-        if (error) {
-            setError(error.message);
-        } else {
-            // Force a reload of the auth context state if possible, or just navigate
-            // Navigating will trigger a profile refresh in the main app layout
-            navigate(0); // Force refresh to get new profile state
-        }
-        setLoading(false);
-    };
+    } catch (error: any) {
+      console.error('Error setting up profile:', error);
+      setMessage(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
-
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-dark p-4">
-            <div className="w-full max-w-2xl">
-                <div className="text-center mb-8">
-                    <h1 className="text-3xl font-extrabold text-bits-red">Almost there!</h1>
-                    <p className="text-gray-400 mt-2">Let's set up your profile so others can find you.</p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="bg-dark-secondary p-8 rounded-lg shadow-lg space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="md:col-span-3"><Input name="full_name" label="Full Name" required value={formData.full_name} onChange={handleChange} /></div>
-                        <Select name="campus" label="Campus" required value={formData.campus} onChange={handleChange}>
-                            <option value="">Select Campus</option>
-                            <option value="Pilani">Pilani</option>
-                            <option value="Goa">Goa</option>
-                            <option value="Hyderabad">Hyderabad</option>
-                            <option value="Dubai">Dubai</option>
-                        </Select>
-                        <Select name="admission_year" label="Admission Year" required value={formData.admission_year} onChange={handleChange}>
-                           <option value="">Select Year</option>
-                           {years.map(y => <option key={y} value={y}>{y}</option>)}
-                        </Select>
-                         <Select name="branch" label="Branch" value={formData.branch} onChange={handleChange}>
-                           <option value="">Select Branch</option>
-                           <option value="Computer Science">Computer Science</option>
-                           <option value="Electronics & Communication">Electronics & Communication</option>
-                           <option value="Electrical & Electronics">Electrical & Electronics</option>
-                           <option value="Mechanical">Mechanical</option>
-                           <option value="Chemical">Chemical</option>
-                           <option value="Civil">Civil</option>
-                           <option value="Manufacturing">Manufacturing</option>
-                           <option value="Economics">Economics</option>
-                           <option value="Mathematics">Mathematics</option>
-                           <option value="Physics">Physics</option>
-                           <option value="Chemistry">Chemistry</option>
-                           <option value="Biology">Biology</option>
-                        </Select>
-                    </div>
-                     <Select name="relationship_status" label="Relationship Status" value={formData.relationship_status} onChange={handleChange}>
-                        <option value="">Select Status</option>
-                        <option value="Single">Single</option>
-                        <option value="In a relationship">In a relationship</option>
-                        <option value="It's complicated">It's complicated</option>
-                    </Select>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Input name="dorm_building" label="Dorm Building" placeholder="e.g. Ram Bhawan" value={formData.dorm_building} onChange={handleChange} />
-                        <Input name="dorm_room" label="Dorm Room" placeholder="e.g. 101" value={formData.dorm_room} onChange={handleChange} />
-                        <Input name="dining_hall" label="Dining Hall" placeholder="e.g. Mess 1" value={formData.dining_hall} onChange={handleChange} />
-                    </div>
-                     <div>
-                        <label htmlFor="bio" className="block text-sm font-medium text-gray-300 mb-1">Bio</label>
-                        <textarea name="bio" id="bio" onChange={handleChange} value={formData.bio} rows={3} placeholder="Tell us a little about yourself..." className="w-full p-2 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red"></textarea>
-                    </div>
-                    
-                    {error && <p className="text-red-400 text-center text-sm">{error}</p>}
-                    
-                    <div className="pt-4">
-                        <button type="submit" disabled={loading} className="w-full bg-bits-red text-white font-semibold rounded-md py-3 transition duration-300 ease-in-out hover:bg-red-700 disabled:bg-red-900">
-                            {loading ? <Spinner /> : 'Save Profile & Continue'}
-                        </button>
-                    </div>
-                </form>
-            </div>
+  // Render the form
+  return (
+    <div>
+      <h2>Complete Your Profile</h2>
+      <p>Set up your public username and name.</p>
+      <form onSubmit={handleProfileSetup}>
+        <div>
+          <label htmlFor="username">Username</label>
+          <input
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
         </div>
-    );
+        <div>
+          <label htmlFor="fullName">Full Name</label>
+          <input
+            id="fullName"
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit" disabled={loading}>
+          {loading ? <Spinner /> : 'Save and Continue'}
+        </button>
+      </form>
+      {message && <p>{message}</p>}
+    </div>
+  );
 };
 
 export default ProfileSetup;
