@@ -1,32 +1,22 @@
-import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import Spinner from './Spinner'; // Assuming you have a loading spinner component
 
-interface ProtectedRouteProps {
-  children: React.ReactElement;
-}
+const ProtectedRoute = () => {
+  const { user, isLoading } = useAuth();
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { session, loading, profileComplete } = useAuth();
-  const location = useLocation();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-dark">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bits-red"></div>
-      </div>
-    );
+  // 1. While we're checking for a user, show a loading spinner
+  if (isLoading) {
+    return <Spinner />; // Or any loading indicator
   }
 
-  if (!session) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-  
-  if (!profileComplete && location.pathname !== '/setup') {
-     return <Navigate to="/setup" replace />;
+  // 2. After loading, if there's a user, show the requested page
+  if (user) {
+    return <Outlet />; // Renders the child route (e.g., Home, Profile)
   }
 
-  return children;
+  // 3. If there's no user, redirect to the login page
+  return <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

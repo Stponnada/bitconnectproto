@@ -1,42 +1,33 @@
-import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import Home from './pages/Home';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-import Login from './pages/Login';
-import ProfileSetup from './pages/ProfileSetup';
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
 
-const App: React.FC = () => {
+// Import your pages and components
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Profile from './pages/Profile';
+import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout'; // A layout component is good practice
+
+const App = () => {
   return (
     <AuthProvider>
-      <HashRouter>
+      <Router>
         <Routes>
+          {/* Public Route: Anyone can see the login page */}
           <Route path="/login" element={<Login />} />
-          <Route path="/setup" element={
-            <ProtectedRoute>
-              <ProfileSetup />
-            </ProtectedRoute>
-          } />
-          <Route 
-            path="/*"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/profile/:username" element={<Profile />} />
-                    <Route path="/accounts/edit" element={<Settings />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+
+          {/* Protected Routes: Only logged-in users can see these */}
+          <Route element={<ProtectedRoute />}>
+            {/* You can wrap protected routes in a layout if you want */}
+            <Route element={<Layout />}>
+                <Route path="/" element={<Home />} />
+                <Route path="/profile" element={<Profile />} />
+                {/* Add other protected routes here */}
+            </Route>
+          </Route>
+
         </Routes>
-      </HashRouter>
+      </Router>
     </AuthProvider>
   );
 };
