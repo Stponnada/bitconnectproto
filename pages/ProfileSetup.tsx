@@ -4,6 +4,24 @@ import { supabase } from '../services/supabase';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
 
+// Moved components outside of the ProfileSetup function to prevent re-creation on every render.
+// This is the standard React practice and fixes the input field focus loss bug.
+const Input = ({ name, label, required = false, value, onChange, ...props }: any) => (
+  <div>
+    <label htmlFor={name} className="block text-sm font-medium text-gray-300 mb-1">{label} {required && '*'}</label>
+    <input name={name} id={name} required={required} onChange={onChange} value={value} {...props} className="w-full p-2 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red" />
+  </div>
+);
+
+const Select = ({ name, label, required = false, value, onChange, children }: any) => (
+   <div>
+    <label htmlFor={name} className="block text-sm font-medium text-gray-300 mb-1">{label} {required && '*'}</label>
+    <select name={name} id={name} required={required} onChange={onChange} value={value} className="w-full p-2 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red">
+      {children}
+    </select>
+  </div>
+);
+
 const ProfileSetup: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -58,22 +76,6 @@ const ProfileSetup: React.FC = () => {
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
-    const Input = ({ name, label, required = false, ...props }: any) => (
-      <div>
-        <label htmlFor={name} className="block text-sm font-medium text-gray-300 mb-1">{label} {required && '*'}</label>
-        <input name={name} id={name} required={required} onChange={handleChange} value={formData[name as keyof typeof formData]} {...props} className="w-full p-2 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red" />
-      </div>
-    );
-
-    const Select = ({ name, label, required = false, children }: any) => (
-       <div>
-        <label htmlFor={name} className="block text-sm font-medium text-gray-300 mb-1">{label} {required && '*'}</label>
-        <select name={name} id={name} required={required} onChange={handleChange} value={formData[name as keyof typeof formData]} className="w-full p-2 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red">
-          {children}
-        </select>
-      </div>
-    );
-
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-dark p-4">
             <div className="w-full max-w-2xl">
@@ -84,19 +86,19 @@ const ProfileSetup: React.FC = () => {
 
                 <form onSubmit={handleSubmit} className="bg-dark-secondary p-8 rounded-lg shadow-lg space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="md:col-span-3"><Input name="full_name" label="Full Name" required /></div>
-                        <Select name="campus" label="Campus" required>
+                        <div className="md:col-span-3"><Input name="full_name" label="Full Name" required value={formData.full_name} onChange={handleChange} /></div>
+                        <Select name="campus" label="Campus" required value={formData.campus} onChange={handleChange}>
                             <option value="">Select Campus</option>
                             <option value="Pilani">Pilani</option>
                             <option value="Goa">Goa</option>
                             <option value="Hyderabad">Hyderabad</option>
                             <option value="Dubai">Dubai</option>
                         </Select>
-                        <Select name="admission_year" label="Admission Year" required>
+                        <Select name="admission_year" label="Admission Year" required value={formData.admission_year} onChange={handleChange}>
                            <option value="">Select Year</option>
                            {years.map(y => <option key={y} value={y}>{y}</option>)}
                         </Select>
-                         <Select name="branch" label="Branch">
+                         <Select name="branch" label="Branch" value={formData.branch} onChange={handleChange}>
                            <option value="">Select Branch</option>
                            <option value="Computer Science">Computer Science</option>
                            <option value="Electronics & Communication">Electronics & Communication</option>
@@ -112,16 +114,16 @@ const ProfileSetup: React.FC = () => {
                            <option value="Biology">Biology</option>
                         </Select>
                     </div>
-                     <Select name="relationship_status" label="Relationship Status">
+                     <Select name="relationship_status" label="Relationship Status" value={formData.relationship_status} onChange={handleChange}>
                         <option value="">Select Status</option>
                         <option value="Single">Single</option>
                         <option value="In a relationship">In a relationship</option>
                         <option value="It's complicated">It's complicated</option>
                     </Select>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Input name="dorm_building" label="Dorm Building" placeholder="e.g. Ram Bhawan" />
-                        <Input name="dorm_room" label="Dorm Room" placeholder="e.g. 101" />
-                        <Input name="dining_hall" label="Dining Hall" placeholder="e.g. Mess 1" />
+                        <Input name="dorm_building" label="Dorm Building" placeholder="e.g. Ram Bhawan" value={formData.dorm_building} onChange={handleChange} />
+                        <Input name="dorm_room" label="Dorm Room" placeholder="e.g. 101" value={formData.dorm_room} onChange={handleChange} />
+                        <Input name="dining_hall" label="Dining Hall" placeholder="e.g. Mess 1" value={formData.dining_hall} onChange={handleChange} />
                     </div>
                      <div>
                         <label htmlFor="bio" className="block text-sm font-medium text-gray-300 mb-1">Bio</label>
