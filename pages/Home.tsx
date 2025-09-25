@@ -11,10 +11,7 @@ const Home: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const fetchPosts = useCallback(async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .rpc('get_posts_with_likes')
-            .order('created_at', { ascending: false });
+        const { data, error } = await supabase.rpc('get_posts_with_likes');
         
         if (error) {
             setError(error.message);
@@ -26,10 +23,10 @@ const Home: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        fetchPosts();
+        fetchPosts(); // Initial fetch
 
         const channel = supabase
-          .channel('posts-feed')
+          .channel('public-feed')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
             fetchPosts();
           })
@@ -45,7 +42,8 @@ const Home: React.FC = () => {
             supabase.removeChannel(channel);
         };
     }, [fetchPosts]);
-
+    
+    // Provides instant UI feedback for the user who created the post.
     const handlePostCreated = (newPost: PostType) => {
       setPosts(currentPosts => [newPost, ...currentPosts]);
     }
@@ -59,16 +57,18 @@ const Home: React.FC = () => {
     }
 
     return (
-        <div>
+        <div className="space-y-6">
             <CreatePost onPostCreated={handlePostCreated} />
-            <div className="mt-6">
+            <div>
                 {posts.length > 0 ? (
                     posts.map(post => <PostCard key={post.id} post={post} />)
                 ) : (
-                    <div className="text-center text-gray-500 mt-20">
-                        <h2 className="text-2xl font-semibold">Welcome to BITS Connect</h2>
-                        <p>No posts yet. Be the first to share something!</p>
-                    </div>
+                    !loading && (
+                      <div className="text-center text-gray-500 mt-20">
+                          <h2 className="text-2xl font-semibold">Welcome to BITS Connect</h2>
+                          <p>No posts yet. Be the first to share something!</p>
+                      </div>
+                    )
                 )}
             </div>
         </div>
