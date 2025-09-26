@@ -51,26 +51,23 @@ const Login: React.FC = () => {
             throw new Error("Please use a valid BITS Pilani email address.");
         }
 
-        const { data, error } = await supabase.auth.signUp({ 
+        // ============================ THE FIX IS HERE ============================
+        // We now ONLY sign up the user and pass the username.
+        // The database trigger will automatically create the profile.
+        // The manual .insert() call has been removed.
+        // =======================================================================
+        const { error } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
-            data: { username: username }
+            data: { username: username } // This is perfect
           }
         });
+
         if (error) throw error;
-        if (data.user) {
-           const { error: profileError } = await supabase.from('profiles').insert({
-            user_id: data.user.id,
-            username: username,
-            email: data.user.email,
-          });
-          if (profileError) throw profileError;
-        }
-        // On successful sign-up, Supabase sends a confirmation email.
-        // For this app, we'll log them in and forward to setup.
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw signInError;
+        
+        // After successful sign-up, the user is now automatically
+        // sent to the profile setup page, just like you wanted.
         navigate('/setup');
       }
     } catch (error: any) {
@@ -83,7 +80,7 @@ const Login: React.FC = () => {
   if (authLoading || session) {
     return (
       <div className="flex items-center justify-center h-screen bg-dark">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bits-red"></div>
+        <Spinner />
       </div>
     );
   }
