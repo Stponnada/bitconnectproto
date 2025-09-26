@@ -1,17 +1,14 @@
+// src/pages/Home.tsx (Final Version with Image Uploads)
+
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import PostComponent from '../components/Post';
+import { Post as PostComponent } from '../components/Post';
 import { Post as PostType, Profile } from '../types';
-
-// ==================================================================
-// THE FIX IS HERE:
-// This single line now correctly imports the icons you need
-// from your new components/icons.tsx file.
 import { ImageIcon, XCircleIcon } from '../components/icons';
-// ==================================================================
+import Spinner from '../components/Spinner';
 
-// A simpler MediaPreview for a single image
+// MediaPreview Component to show the selected image
 const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, onRemove }) => {
     const url = URL.createObjectURL(file);
     return (
@@ -28,7 +25,7 @@ const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, on
     );
 };
 
-// CreatePost Component - No changes needed here
+// CreatePost Component - Now with file upload logic
 const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: Profile }> = ({ onPostCreated, profile }) => {
     const { user } = useAuth();
     const [content, setContent] = useState('');
@@ -61,43 +58,56 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
         setIsSubmitting(true);
         let imageUrl: string | null = null;
 
-        if (imageFile) {
-            const filePath = `${user.id}/${Date.now()}-${imageFile.name}`;
-            const { error: uploadError } = await supabase.storage.from('post_images').upload(filePath, imageFile);
+        try {
+            // Step 1: If an image is selected, upload it to Supabase Storage.
+            if (imageFile) {
+                // Create a unique file path for the image.
+                const filePath = `${user.id}/${Date.now()}-${imageFile.name}`;
+                
+                // Upload the file to the 'post-images' bucket.
+                const { error: uploadError } = await supabase.storage
+                    .from('post-images') // Make sure this matches your bucket name EXACTLY
+                    .upload(filePath, imageFile);
 
-            if (uploadError) {
-                console.error('Upload error:', uploadError);
-                setIsSubmitting(false);
-                return;
+                if (uploadError) throw uploadError;
+
+                // Get the public URL of the uploaded file.
+                const { data: { publicUrl } } = supabase.storage
+                    .from('post-images')
+                    .getPublicUrl(filePath);
+                
+                imageUrl = publicUrl;
             }
-            const { data: { publicUrl } } = supabase.storage.from('post_images').getPublicUrl(filePath);
-            imageUrl = publicUrl;
-        }
 
-        const { data: newPostData, error: insertError } = await supabase
-            .from('posts')
-            .insert({ user_id: user.id, content: content.trim(), image_url: imageUrl })
-            .select()
-            .single();
+            // Step 2: Insert the post data (including the image URL) into the 'posts' table.
+            const { data: newPostData, error: insertError } = await supabase
+                .from('posts')
+                .insert({ user_id: user.id, content: content.trim(), image_url: imageUrl })
+                .select()
+                .single();
 
-        if (insertError) {
-            console.error('Database error:', insertError);
+            if (insertError) throw insertError;
+
+            // Step 3: Optimistically update the UI with the new post.
+            const postForUI: PostType = {
+                ...newPostData,
+                profiles: profile, // Attach the author's profile for immediate display
+                like_count: 0,
+                comment_count: 0,
+                user_has_liked: false,
+            };
+            onPostCreated(postForUI);
+
+            // Step 4: Reset the form.
+            setContent('');
+            setImageFile(null);
+
+        } catch (error: any) {
+            console.error('Error creating post:', error);
+            // You can add a user-friendly error message here
+        } finally {
             setIsSubmitting(false);
-            return;
         }
-
-        const postForUI: PostType = {
-            ...newPostData,
-            profiles: profile,
-            like_count: 0,
-            comment_count: 0,
-            user_has_liked: false,
-        };
-        onPostCreated(postForUI);
-
-        setContent('');
-        setImageFile(null);
-        setIsSubmitting(false);
     };
 
     const canPost = (content.trim() || imageFile) && !isSubmitting;
@@ -123,7 +133,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                             </button>
                         </div>
                         <button type="submit" className="bg-bits-red text-white font-bold py-2 px-6 rounded-full hover:bg-red-700 transition-colors duration-200 disabled:opacity-50" disabled={!canPost}>
-                            {isSubmitting ? 'Posting...' : 'Post'}
+                            {isSubmitting ? <Spinner /> : 'Post'}
                         </button>
                     </div>
                 </form>
@@ -132,7 +142,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     );
 };
 
-// HomePage Component - No changes needed here
+// HomePage Component - Fetches all data
 export const HomePage: React.FC = () => {
     const { user } = useAuth();
     const [posts, setPosts] = useState<PostType[]>([]);
@@ -143,24 +153,15 @@ export const HomePage: React.FC = () => {
         const fetchData = async () => {
             if (!user) return;
             setLoading(true);
-
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('user_id', user.id)
-                .single();
-
+            
+            const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
             if (profileError) console.error("Error fetching profile:", profileError);
             else setProfile(profileData);
 
-            const { data: postsData, error: postsError } = await supabase
-                .from('posts')
-                .select(`*, profiles(*)`)
-                .order('created_at', { ascending: false });
-
+            const { data: postsData, error: postsError } = await supabase.from('posts').select(`*, profiles(*)`).order('created_at', { ascending: false });
             if (postsError) console.error("Error fetching posts:", postsError);
             else setPosts(postsData as any);
-
+            
             setLoading(false);
         };
         fetchData();
@@ -171,16 +172,14 @@ export const HomePage: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="text-center p-8 text-white">Loading BITS Connect feed...</div>;
+        return <div className="text-center p-8 text-white"><Spinner /></div>;
     }
-
+    
     return (
         <div className="w-full max-w-2xl mx-auto py-6">
             {profile && <CreatePost onPostCreated={handlePostCreated} profile={profile} />}
             {posts.length > 0 ? (
-                posts.map(post => (
-                    <PostComponent key={post.id} post={post} />
-                ))
+                posts.map(post => <PostComponent key={post.id} post={post} />)
             ) : (
                 <div className="bg-bits-light-dark rounded-lg p-8 text-center text-bits-text-muted">
                     <h3 className="text-xl font-semibold text-bits-text">Welcome to BITS Connect!</h3>
@@ -190,3 +189,5 @@ export const HomePage: React.FC = () => {
         </div>
     );
 };
+
+export default HomePage;
