@@ -1,30 +1,22 @@
-// src/components/ProtectedRoute.tsx (Corrected Architecture)
-
-import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import Spinner from './Spinner';
+import Spinner from './Spinner'; // Assuming you have a loading spinner component
 
-const ProtectedRoute: React.FC = () => {
-  const { user, loading } = useAuth();
+const ProtectedRoute = () => {
+  const { user, isLoading } = useAuth();
 
-  // THIS IS THE NEW, 3-STEP LOGIC:
-  // 1. If the context is still loading, show the spinner.
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-dark">
-        <Spinner />
-      </div>
-    );
+  // 1. While we're checking for a user, show a loading spinner
+  if (isLoading) {
+    return <Spinner />; // Or any loading indicator
   }
 
-  // 2. If loading is finished AND there is no user, redirect to login.
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  // 2. After loading, if there's a user, show the requested page
+  if (user) {
+    return <Outlet />; // Renders the child route (e.g., Home, Profile)
   }
 
-  // 3. If loading is finished AND there is a user, show the requested page.
-  return <Outlet />;
+  // 3. If there's no user, redirect to the login page
+  return <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

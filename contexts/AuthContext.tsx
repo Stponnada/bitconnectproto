@@ -1,51 +1,68 @@
-// src/contexts/AuthContext.tsx (Corrected Architecture)
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../services/supabase';
 import type { Session, User } from '@supabase/supabase-js';
-import { Profile } from '../types';
 
+// Define the shape of your context data
 interface AuthContextType {
+  session: Session | null;
   user: User | null;
-  profile: Profile | null;
-  loading: boolean;
+  isLoading: boolean;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Create the context with a default value
+export const AuthContext = createContext<AuthContextType>({
+  session: null,
+  user: null,
+  isLoading: true, // Start in a loading state
+});
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// Create a provider component
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
-        setProfile(profileData);
-      } else {
-        setProfile(null);
-      }
-      setLoading(false);
-    });
+    // 1. Check for an active session when the component mounts
+    const getActiveSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
 
+      if (error) {
+        console.error('Error getting session:', error);
+      }
+      
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      setIsLoading(false); // We're done loading
+    };
+
+    getActiveSession();
+
+    // 2. Listen for changes in authentication state (login, logout)
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false); // Also done loading after a change
+      }
+    );
+
+    // Cleanup the listener when the component unmounts
     return () => {
       authListener.subscription.unsubscribe();
     };
   }, []);
 
-  const value = { user, profile, loading };
+  const value = {
+    session,
+    user,
+    isLoading,
+  };
 
-  // THE FIX: The provider now ALWAYS renders its children.
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// Create a custom hook for easy access to the context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

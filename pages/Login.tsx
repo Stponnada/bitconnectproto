@@ -1,7 +1,9 @@
+// src/pages/Login.tsx (Corrected and Final Version)
+
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
 
 const BITS_DOMAINS = [
@@ -20,8 +22,19 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { session, loading: authLoading } = useAuth();
 
+  useEffect(() => {
+    if (session) {
+      navigate('/');
+    }
+  }, [session, navigate]);
+
+  const validateEmail = (email: string) => {
+    const domain = email.split('@')[1];
+    return BITS_DOMAINS.includes(domain);
+  };
+  
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -31,6 +44,7 @@ const Login: React.FC = () => {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        navigate('/');
       } else {
         if (password !== confirmPassword) {
             throw new Error("Passwords do not match.");
@@ -39,17 +53,31 @@ const Login: React.FC = () => {
             throw new Error("Please use a valid BITS Pilani email address.");
         }
 
-        const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+        // Step 1: Sign up the user in the auth system.
+        const { data, error: signUpError } = await supabase.auth.signUp({ 
+          email, 
+          password,
+        });
+
         if (signUpError) throw signUpError;
-        
-        if (data.user) {
-           const { error: profileError } = await supabase.from('profiles').insert({
-            user_id: data.user.id,
-            username: username,
-            email: data.user.email,
-          });
-          if (profileError) throw profileError;
+        if (!data.user) throw new Error("Sign up successful, but no user data returned.");
+
+        // =======================================================================
+        // THE CRITICAL FIX IS HERE:
+        // Step 2: Manually insert the new profile row. This creates the
+        // empty profile that ProfileSetup.tsx will later update.
+        // =======================================================================
+        const { error: profileError } = await supabase.from('profiles').insert({
+          user_id: data.user.id, // The link to the auth user
+          username: username,    // The username from the form
+          email: data.user.email,
+        });
+
+        if (profileError) {
+          throw profileError;
         }
+        
+        // Step 3: Navigate to the setup page.
         navigate('/setup');
       }
     } catch (error: any) {
@@ -59,14 +87,11 @@ const Login: React.FC = () => {
     }
   };
 
-  if (authLoading) {
+  if (authLoading || session) {
     return <div className="flex items-center justify-center h-screen bg-dark"><Spinner /></div>;
   }
-  if (user) {
-    return <Navigate to="/" replace />;
-  }
 
-  // THIS IS THE FIX: The actual JSX is now in the return statement.
+  // Your JSX is perfect, no changes needed here.
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-dark p-4">
       <div className="text-center mb-8">
