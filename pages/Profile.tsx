@@ -1,17 +1,21 @@
-// src/pages/Profile.tsx (New and Fully Integrated)
+// src/pages/Profile.tsx (Corrected with the final import fix)
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Post as PostComponent } from '../components/Post';
+// ==================================================================
+// THE FIX IS HERE:
+// Corrected the import to handle the default export from Post.tsx.
+import PostComponent from '../components/Post';
+// ==================================================================
 import { Post as PostType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { ChatIcon } from '../components/icons';
 
 // ==================================================================
 // EditProfileModal: Manages the pop-up form and saves data to Supabase
-// =================================D=================================
+// ==================================================================
 const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, onSave: () => void }> = ({ userProfile, onClose, onSave }) => {
     const [profile, setProfile] = useState(userProfile);
     const [isSaving, setIsSaving] = useState(false);
@@ -43,7 +47,7 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
         if (updateError) {
             setError(updateError.message);
         } else {
-            onSave(); // This tells the parent page to refetch its data
+            onSave();
             onClose();
         }
         setIsSaving(false);
@@ -64,7 +68,6 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
                             <label className="block text-sm font-medium text-bits-text-muted">Bio</label>
                             <textarea name="bio" value={profile.bio || ''} onChange={handleChange} rows={3} className="mt-1 block w-full bg-bits-medium-dark rounded-md p-2 text-white" />
                         </div>
-                        {/* Add your other form fields here (campus, branch, etc.) */}
                     </div>
                     <div className="flex justify-end space-x-4 pt-6">
                         <button type="button" onClick={onClose} className="py-2 px-6 rounded-full text-white hover:bg-bits-medium-dark">Cancel</button>
@@ -144,7 +147,6 @@ const ProfilePage: React.FC = () => {
                 <div className="mt-4">
                     <h1 className="text-3xl font-bold">{profile.full_name}</h1>
                     <p className="text-bits-text-muted">@{profile.username}</p>
-                    {/* You can add your ProfileDetail component logic here */}
                 </div>
 
                 <div className="mt-8 border-t border-bits-medium-dark">
