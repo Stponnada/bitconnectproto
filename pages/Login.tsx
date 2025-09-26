@@ -1,3 +1,5 @@
+// src/pages/Login.tsx (Corrected and Final Version)
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
@@ -51,7 +53,7 @@ const Login: React.FC = () => {
             throw new Error("Please use a valid BITS Pilani email address.");
         }
 
-        // Step 1: Sign up the user (we don't need the metadata anymore)
+        // Step 1: Sign up the user in the auth system.
         const { data, error: signUpError } = await supabase.auth.signUp({ 
           email, 
           password,
@@ -61,22 +63,21 @@ const Login: React.FC = () => {
         if (!data.user) throw new Error("Sign up successful, but no user data returned.");
 
         // =======================================================================
-        // THE FIX IS HERE:
-        // Step 2: Manually insert a new, incomplete profile row.
-        // This is the step that was missing after we removed the trigger.
+        // THE CRITICAL FIX IS HERE:
+        // Step 2: Manually insert the new profile row. This creates the
+        // empty profile that ProfileSetup.tsx will later update.
         // =======================================================================
         const { error: profileError } = await supabase.from('profiles').insert({
-          user_id: data.user.id,
-          username: username, // Save the username from the form
+          user_id: data.user.id, // The link to the auth user
+          username: username,    // The username from the form
           email: data.user.email,
         });
 
         if (profileError) {
-          // This will give a specific error if RLS fails or a column is required
           throw profileError;
         }
         
-        // Step 3: Navigate to the setup page
+        // Step 3: Navigate to the setup page.
         navigate('/setup');
       }
     } catch (error: any) {
@@ -87,14 +88,10 @@ const Login: React.FC = () => {
   };
 
   if (authLoading || session) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-dark">
-        <Spinner />
-      </div>
-    );
+    return <div className="flex items-center justify-center h-screen bg-dark"><Spinner /></div>;
   }
 
-  // Your JSX remains the same
+  // Your JSX is perfect, no changes needed here.
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-dark p-4">
       <div className="text-center mb-8">
