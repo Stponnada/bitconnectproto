@@ -1,18 +1,14 @@
-// src/pages/Home.tsx (Final Version with Image Uploads and Corrected Import)
+// src/pages/Home.tsx (Final Version with Filename Sanitization)
 
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
-// ==================================================================
-// THE FIX IS HERE:
-// Corrected the import to handle the default export from Post.tsx.
-import PostComponent from '../components/Post';
-// ==================================================================
+import PostComponent from '../components/Post'; // Corrected default import
 import { Post as PostType, Profile } from '../types';
 import { ImageIcon, XCircleIcon } from '../components/icons';
 import Spinner from '../components/Spinner';
 
-// MediaPreview Component
+// MediaPreview Component (No changes needed)
 const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, onRemove }) => {
     const url = URL.createObjectURL(file);
     return (
@@ -29,12 +25,13 @@ const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, on
     );
 };
 
-// CreatePost Component
+// CreatePost Component (Updated with the final fix)
 const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: Profile }> = ({ onPostCreated, profile }) => {
     const { user } = useAuth();
     const [content, setContent] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null); // State for displaying errors
     const imageInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -60,15 +57,28 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
         if (!user || (!content.trim() && !imageFile)) return;
 
         setIsSubmitting(true);
+        setError(null); // Clear previous errors
         let imageUrl: string | null = null;
 
         try {
             if (imageFile) {
-                const filePath = `${user.id}/${Date.now()}-${imageFile.name}`;
-                const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, imageFile);
+                // =======================================================================
+                // THE FILENAME SANITIZATION FIX IS HERE:
+                // =======================================================================
+                const fileExt = imageFile.name.split('.').pop();
+                const sanitizedFileName = `${Date.now()}.${fileExt}`;
+                const filePath = `${user.id}/${sanitizedFileName}`;
+                
+                const { error: uploadError } = await supabase.storage
+                    .from('post-images')
+                    .upload(filePath, imageFile);
+
                 if (uploadError) throw uploadError;
 
-                const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(filePath);
+                const { data: { publicUrl } } = supabase.storage
+                    .from('post-images')
+                    .getPublicUrl(filePath);
+                
                 imageUrl = publicUrl;
             }
 
@@ -89,6 +99,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
 
         } catch (error: any) {
             console.error('Error creating post:', error);
+            setError(`Upload failed: ${error.message}`); // Show the error to the user
         } finally {
             setIsSubmitting(false);
         }
@@ -102,6 +113,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                 <img src={profile.avatar_url || '/default-avatar.png'} alt={profile.username} className="w-12 h-12 rounded-full mr-4" />
                 <form onSubmit={handleSubmit} className="w-full">
                     <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full bg-bits-medium-dark rounded-lg p-3 text-bits-text placeholder-bits-text-muted focus:outline-none focus:ring-2 focus:ring-bits-red resize-none" rows={3} placeholder={`What's on your mind, ${profile.full_name?.split(' ')[0] || profile.username}?`} />
+                    {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
                     {imageFile && <MediaPreview file={imageFile} onRemove={removeImageFile} />}
                     <div className="flex justify-between items-center mt-3">
                         <div className="flex space-x-2">
@@ -118,7 +130,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     );
 };
 
-// HomePage Component
+// HomePage Component (No changes needed)
 export const HomePage: React.FC = () => {
     const { user } = useAuth();
     const [posts, setPosts] = useState<PostType[]>([]);
@@ -165,6 +177,3 @@ export const HomePage: React.FC = () => {
         </div>
     );
 };
-
-// We need to keep the named export for HomePage to match your App.tsx
-// So we cannot add a default export here.
