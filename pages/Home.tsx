@@ -26,14 +26,17 @@ const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, on
 };
 
 // CreatePost Component (Updated with the final fix)
+// In src/pages/Home.tsx, replace the existing CreatePost component with this one.
+
 const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: Profile }> = ({ onPostCreated, profile }) => {
     const { user } = useAuth();
     const [content, setContent] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null); // State for displaying errors
+    const [error, setError] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
 
+    // ... (All the functions like useEffect, handleFileChange, handleSubmit, etc. remain exactly the same) ...
     useEffect(() => {
         if (imageFile) {
             const url = URL.createObjectURL(imageFile);
@@ -55,36 +58,21 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user || (!content.trim() && !imageFile)) return;
-
         setIsSubmitting(true);
-        setError(null); // Clear previous errors
+        setError(null);
         let imageUrl: string | null = null;
-
         try {
             if (imageFile) {
-                // =======================================================================
-                // THE FILENAME SANITIZATION FIX IS HERE:
-                // =======================================================================
                 const fileExt = imageFile.name.split('.').pop();
                 const sanitizedFileName = `${Date.now()}.${fileExt}`;
                 const filePath = `${user.id}/${sanitizedFileName}`;
-                
-                const { error: uploadError } = await supabase.storage
-                    .from('post-images')
-                    .upload(filePath, imageFile);
-
+                const { error: uploadError } = await supabase.storage.from('post-images').upload(filePath, imageFile);
                 if (uploadError) throw uploadError;
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('post-images')
-                    .getPublicUrl(filePath);
-                
+                const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(filePath);
                 imageUrl = publicUrl;
             }
-
             const { data: newPostData, error: insertError } = await supabase.from('posts').insert({ user_id: user.id, content: content.trim(), image_url: imageUrl }).select().single();
             if (insertError) throw insertError;
-
             const postForUI: PostType = {
                 ...newPostData,
                 profiles: profile,
@@ -93,13 +81,11 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                 user_has_liked: false,
             };
             onPostCreated(postForUI);
-
             setContent('');
             setImageFile(null);
-
         } catch (error: any) {
             console.error('Error creating post:', error);
-            setError(`Upload failed: ${error.message}`); // Show the error to the user
+            setError(`Upload failed: ${error.message}`);
         } finally {
             setIsSubmitting(false);
         }
@@ -107,18 +93,30 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
 
     const canPost = (content.trim() || imageFile) && !isSubmitting;
 
+
     return (
         <div className="bg-bits-light-dark rounded-lg shadow p-5 mb-6">
             <div className="flex items-start">
                 <img src={profile.avatar_url || '/default-avatar.png'} alt={profile.username} className="w-12 h-12 rounded-full mr-4" />
                 <form onSubmit={handleSubmit} className="w-full">
-                    <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full bg-bits-medium-dark rounded-lg p-3 text-bits-text placeholder-bits-text-muted focus:outline-none focus:ring-2 focus:ring-bits-red resize-none" rows={3} placeholder={`What's on your mind, ${profile.full_name?.split(' ')[0] || profile.username}?`} />
+                    
+                    {/* ================================================================== */}
+                    {/* THE FIX IS HERE: Changed `text-bits-text` to `text-gray-800` */}
+                    {/* ================================================================== */}
+                    <textarea 
+                        value={content} 
+                        onChange={e => setContent(e.target.value)} 
+                        className="w-full bg-white rounded-lg p-3 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red resize-none" // <-- THE FIX
+                        rows={3} 
+                        placeholder={`What's on your mind, ${profile.full_name?.split(' ')[0] || profile.username}?`} 
+                    />
+
                     {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
                     {imageFile && <MediaPreview file={imageFile} onRemove={removeImageFile} />}
                     <div className="flex justify-between items-center mt-3">
                         <div className="flex space-x-2">
                             <input type="file" ref={imageInputRef} onChange={handleFileChange} accept="image/*" hidden />
-                            <button type="button" onClick={() => imageInputRef.current?.click()} className="text-bits-text-muted hover:text-blue-500 p-2 rounded-full transition-colors"><ImageIcon /></button>
+                            <button type="button" onClick={() => imageInputRef.current?.click()} className="text-gray-400 hover:text-blue-500 p-2 rounded-full transition-colors"><ImageIcon /></button>
                         </div>
                         <button type="submit" className="bg-bits-red text-white font-bold py-2 px-6 rounded-full hover:bg-red-700 transition-colors duration-200 disabled:opacity-50" disabled={!canPost}>
                             {isSubmitting ? <Spinner /> : 'Post'}
