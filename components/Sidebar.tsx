@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenCreateModal }) => {
     );
 
     return (
-        <aside className="fixed top-0 left-0 h-full border-r border-gray-800 p-3 md:w-20 lg:w-60 flex flex-col z-10 bg-black">
+       <aside className="fixed top-16 left-0 h-screen border-r border-gray-800 p-3 md:w-20 lg:w-60 flex flex-col z-10 bg-black">
             <div className="py-4 mb-4">
                  <button onClick={handleNavigation} className="w-full text-left">
                     <h1 className="text-2xl font-serif hidden lg:block">BitsConnect</h1>

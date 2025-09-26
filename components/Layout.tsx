@@ -1,27 +1,29 @@
 // components/Layout.tsx
 
+// src/components/Layout.tsx
+
 import { Outlet } from 'react-router-dom';
-import Header from './Header'; // Assuming you have a Header component
-import LeftSidebar from './LeftSidebar'; // Assuming you have these components
+import Header from './Header';
+import LeftSidebar from './LeftSidebar';
 
 const Layout = () => {
   return (
-    // This is just an example structure. Your actual JSX may vary.
-    <div className="main-container"> 
+    <div>
+      {/* Both the Header and Sidebar are fixed and float on top */}
       <Header />
-      <div className="content-container">
-        <LeftSidebar />
-        <main className="page-content">
-          {/* 
-            THIS IS THE MOST IMPORTANT PART.
-            The <Outlet /> component tells React Router "render the 
-            matched child route component right here". 
-            Without this, none of your pages (Home, Settings, Profile)
-            will ever be displayed.
-          */}
+      <LeftSidebar />
+
+      {/* 
+        This is your main content area.
+        - `pt-16`: Pushes it down below the header.
+        - `md:pl-20 lg:pl-60`: THIS IS THE KEY. It adds padding to the left that
+          exactly matches your sidebar's responsive width, making space for it.
+      */}
+      <main className="pt-16 md:pl-20 lg:pl-60">
+        <div className="p-6"> {/* This inner div adds some nice spacing for the feed */}
           <Outlet />
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 };
