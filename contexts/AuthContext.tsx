@@ -1,72 +1,68 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+// src/contexts/AuthContext.tsx (Upgraded Version)
+
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import type { Session, User } from '@supabase/supabase-js';
+import { Profile } from '../types'; // Make sure your Profile type is imported
 
-// Define the shape of your context data
+// Define the shape of the context's value
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  isLoading: boolean;
+  profile: Profile | null; // <-- ADDED PROFILE TO THE CONTEXT
+  loading: boolean;
 }
 
-// Create the context with a default value
-export const AuthContext = createContext<AuthContextType>({
-  session: null,
-  user: null,
-  isLoading: true, // Start in a loading state
-});
+// Create the context
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Create a provider component
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+// The provider component
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null); // <-- State for the profile
+  const [loading, setLoading] = useState(true);
 
+  // This useEffect will run when the session changes (on login/logout)
   useEffect(() => {
-    // 1. Check for an active session when the component mounts
-    const getActiveSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
+    const fetchSessionAndProfile = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      setSession(session);
+      setUser(session?.user ?? null);
 
-      if (error) {
-        console.error('Error getting session:', error);
+      // If there's a user, fetch their profile data
+      if (session?.user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+        setProfile(profileData);
       }
-      
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setIsLoading(false); // We're done loading
+      setLoading(false);
     };
 
-    getActiveSession();
+    fetchSessionAndProfile();
 
-    // 2. Listen for changes in authentication state (login, logout)
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setIsLoading(false); // Also done loading after a change
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      // Also fetch the profile on auth changes
+      if (session?.user) {
+        const { data: profileData } = await supabase.from('profiles').select('*').eq('user_id', session.user.id).single();
+        setProfile(profileData);
+      } else {
+        setProfile(null); // Clear profile on logout
       }
-    );
+    });
 
-    // Cleanup the listener when the component unmounts
     return () => {
       authListener.subscription.unsubscribe();
     };
   }, []);
 
-  const value = {
-    session,
-    user,
-    isLoading,
-  };
+  const value = { session, user, profile, loading };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-// Create a custom hook for easy access to the context
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };
