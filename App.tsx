@@ -1,4 +1,4 @@
-// App.tsx
+// src/App.tsx (Corrected)
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -6,10 +6,10 @@ import { AuthProvider } from './contexts/AuthContext';
 // Import pages and components
 import { HomePage as Home } from './pages/Home';
 import Login from './pages/Login';
-import Profile from './pages/Profile';
+import ProfilePage from './pages/Profile'; // Import the new ProfilePage
 import Settings from './pages/Settings';
 import ProfileSetup from './pages/ProfileSetup';
-import NotFound from './pages/NotFound'; // <-- Import NotFound
+import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 
@@ -25,9 +25,12 @@ const App = () => {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/" element={<Home />} />
-              <Route path="/profile" element={<Profile />} />
+              
+              {/* THIS IS THE FIX: The route is now dynamic */}
+              <Route path="/profile/:username" element={<ProfilePage />} />
+
               <Route path="/setup" element={<ProfileSetup />} />
-              <Route path="/accounts/edit" element={<Settings />} />
+              <Route path="/settings" element={<Settings />} /> {/* Kept for consistency */}
             </Route>
           </Route>
 
