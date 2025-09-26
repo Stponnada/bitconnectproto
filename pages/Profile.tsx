@@ -27,9 +27,77 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const bannerInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => { /* ... no changes here ... */ };
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { /* ... no changes here ... */ };
-    const handleSubmit = async (e: React.FormEvent) => { /* ... no changes here ... */ };
+    // ==================================================================
+    // THE FIX IS HERE: The logic for handling file changes is restored.
+    // ==================================================================
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const previewUrl = URL.createObjectURL(file);
+            if (type === 'avatar') {
+                setAvatarFile(file);
+                setAvatarPreview(previewUrl);
+            } else {
+                setBannerFile(file);
+                setBannerPreview(previewUrl);
+            }
+        }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setProfileData(prev => ({ ...prev, [name]: value }));
+    };
+
+    // ==================================================================
+    // AND THE LOGIC FOR SAVING EVERYTHING IS RESTORED HERE.
+    // ==================================================================
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!user) return;
+        setIsSaving(true);
+        setError('');
+
+        try {
+            let avatar_url = profileData.avatar_url;
+            let banner_url = profileData.banner_url;
+
+            if (avatarFile) {
+                const filePath = `public/${user.id}/avatar.${avatarFile.name.split('.').pop()}`;
+                await supabase.storage.from('avatars').upload(filePath, avatarFile, { upsert: true });
+                const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+                avatar_url = `${publicUrl}?t=${new Date().getTime()}`;
+            }
+
+            if (bannerFile) {
+                const filePath = `public/${user.id}/banner.${bannerFile.name.split('.').pop()}`;
+                await supabase.storage.from('avatars').upload(filePath, bannerFile, { upsert: true });
+                const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+                banner_url = `${publicUrl}?t=${new Date().getTime()}`;
+            }
+
+            const { error: updateError } = await supabase
+                .from('profiles')
+                .update({
+                    full_name: profileData.full_name,
+                    bio: profileData.bio,
+                    avatar_url,
+                    banner_url,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('user_id', user.id);
+
+            if (updateError) throw updateError;
+            
+            onSave();
+            onClose();
+
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -48,31 +116,14 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
                     </div>
                     {error && <p className="text-red-400 mb-4">{error}</p>}
                     <div className="space-y-4 pt-4">
-                        
-                        {/* ================================================================== */}
-                        {/* THE FIX IS HERE: Changed `text-white` to `text-black` */}
-                        {/* ================================================================== */}
                         <div>
                             <label className="block text-sm font-medium text-gray-400">Full Name</label>
-                            <input 
-                                type="text" 
-                                name="full_name" 
-                                value={profileData.full_name || ''} 
-                                onChange={handleChange} 
-                                className="mt-1 block w-full bg-white rounded p-2 text-black" // <-- THE FIX
-                            />
+                            <input type="text" name="full_name" value={profileData.full_name || ''} onChange={handleChange} className="mt-1 block w-full bg-white rounded p-2 text-black" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-400">Bio</label>
-                            <textarea 
-                                name="bio" 
-                                value={profileData.bio || ''} 
-                                onChange={handleChange} 
-                                rows={3} 
-                                className="mt-1 block w-full bg-white rounded p-2 text-black" // <-- THE FIX
-                            />
+                            <textarea name="bio" value={profileData.bio || ''} onChange={handleChange} rows={3} className="mt-1 block w-full bg-white rounded p-2 text-black" />
                         </div>
-                        {/* Add your other form fields here with the same `text-black` class */}
                     </div>
                     <div className="flex justify-end space-x-4 pt-6">
                         <button type="button" onClick={onClose} className="py-2 px-6 rounded-full text-white hover:bg-gray-700">Cancel</button>
