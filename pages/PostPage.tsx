@@ -90,13 +90,7 @@ const PostPage: React.FC = () => {
         // ==================================================================
         // THE FIX IS HERE: Update the post state to increment the comment count
         // ==================================================================
-        setPost(prevPost => {
-            if (!prevPost) return null; // Safety check
-            return {
-                ...prevPost,
-                comment_count: (prevPost.comment_count || 0) + 1
-            };
-        });
+
     }
     setIsSubmitting(false);
   };
