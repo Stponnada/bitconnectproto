@@ -25,8 +25,8 @@ const Login: React.FC = () => {
   const { session, loading: authLoading } = useAuth();
 
   // !! IMPORTANT: REPLACE THESE WITH YOUR ACTUAL SUPABASE URLS !!
-  const idleImageUrl = 'https://your-project.supabase.co/storage/v1/object/public/assets/idle-mascot.png';
-  const activeImageUrl = 'https://your-project.supabase.co/storage/v1/object/public/assets/active-mascot.png';
+  const idleImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.57.42%20PM.png';
+  const activeImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.41.01%20PM.png';
   
   const [activeImage, setActiveImage] = useState<string>(idleImageUrl);
 
