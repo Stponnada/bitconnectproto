@@ -1,13 +1,14 @@
+// src/pages/PostPage.tsx
+
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import PostComponent from '../components/Post';
 import { Post as PostType, Comment as CommentType, Profile } from '../types';
 import Spinner from '../components/Spinner';
-import { Link } from 'react-router-dom'; // <-- Make sure Link is imported
 
-// Comment Component - (This is fine, no changes needed here)
+// Comment Component (No changes needed here)
 const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
   const author = comment.profiles;
   return (
@@ -28,17 +29,13 @@ const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
 
 const PostPage: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
-  const { user } = useAuth(); // We only need the 'user' object now
+  const { user } = useAuth();
   
   const [post, setPost] = useState<PostType | null>(null);
   const [comments, setComments] = useState<CommentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // ==================================================================
-  // THE FIX IS HERE: We add state to hold the current user's profile
-  // ==================================================================
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
@@ -56,7 +53,7 @@ const PostPage: React.FC = () => {
         if (commentsError) throw commentsError;
         setComments((commentsData as any) || []);
 
-        // 3. Fetch the LOGGED IN user's profile to display their avatar in the comment box
+        // 3. Fetch the LOGGED IN user's profile
         if (user) {
             const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
             if (profileError) throw profileError;
@@ -70,8 +67,11 @@ const PostPage: React.FC = () => {
       }
     };
     fetchAllData();
-  }, [postId, user]); // Depend on user, so it re-fetches profile info on login
+  }, [postId, user]);
 
+  // ==================================================================
+  // This function is updated to handle the instant UI count update
+  // ==================================================================
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !post || !newComment.trim() || !currentUserProfile) return;
@@ -80,18 +80,21 @@ const PostPage: React.FC = () => {
     const { data, error } = await supabase
         .from('comments')
         .insert({ post_id: post.id, user_id: user.id, content: newComment.trim() })
-        .select() // We don't need all the profile data back, just the comment
+        .select()
         .single();
     
     if (error) { 
         console.error("Error posting comment:", error); 
     } else if (data) { 
-        // To make the UI update instantly, we manually create the new comment object
         const newCommentForUI: CommentType = {
             ...data,
-            profiles: currentUserProfile // Attach the already-loaded profile
+            profiles: currentUserProfile
         };
         setComments(prev => [...prev, newCommentForUI]); 
+
+        // THE FIX IS HERE: This line updates the comment count in the UI instantly
+        setPost(prevPost => prevPost ? { ...prevPost, comment_count: (prevPost.comment_count || 0) + 1 } : null);
+        
         setNewComment(''); 
     }
     setIsSubmitting(false);
@@ -102,14 +105,11 @@ const PostPage: React.FC = () => {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      {/* The pointer-events-none is optional, but prevents clicking the post again */}
+      {/* The pointer-events-none prevents clicking the post again when on its own page */}
       <div className="pointer-events-none">
         <PostComponent post={post} />
       </div>
 
-      {/* ================================================================== */}
-      {/* THE FIX IS HERE: We use our new 'currentUserProfile' state */}
-      {/* ================================================================== */}
       {currentUserProfile && (
         <div className="p-4 border-t border-b border-gray-800">
           <form onSubmit={handleCommentSubmit} className="flex items-start space-x-3">
