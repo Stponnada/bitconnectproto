@@ -1,11 +1,11 @@
-// src/pages/PostPage.tsx (New File)
+// src/pages/PostPage.tsx (Corrected Syntax, Final Version)
 
-import React, {'useState', useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // <-- THE FIX IS HERE
 import { useParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import PostComponent from '../components/Post';
-import { Post as PostType, Comment as CommentType, Profile } from '../types';
+import { Post as PostType, Comment as CommentType } from '../types';
 import Spinner from '../components/Spinner';
 
 // A new component for displaying a single comment
@@ -13,7 +13,7 @@ const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
   const author = comment.profiles;
   return (
     <div className="flex items-start space-x-3 p-4 border-b border-gray-800">
-      <img src={author?.avatar_url || `https://ui-avatars.com/api/?name=${author?.username}`} alt={author?.username} className="w-10 h-10 rounded-full bg-gray-700" />
+      <img src={author?.avatar_url || `https://ui-avatars.com/api/?name=${author?.username}`} alt={author?.username || 'user avatar'} className="w-10 h-10 rounded-full bg-gray-700" />
       <div>
         <div className="flex items-center space-x-2">
           <p className="font-bold text-white">{author?.full_name || author?.username}</p>
@@ -40,15 +40,17 @@ const PostPage: React.FC = () => {
       if (!postId) return;
       setLoading(true);
 
-      // Fetch the main post
-      const { data: postData } = await supabase.from('posts').select('*, profiles(*)').eq('id', postId).single();
-      setPost(postData as any);
+      try {
+        const { data: postData } = await supabase.from('posts').select('*, profiles(*)').eq('id', postId).single();
+        setPost(postData as any);
 
-      // Fetch the comments for that post
-      const { data: commentsData } = await supabase.from('comments').select('*, profiles(*)').eq('post_id', postId).order('created_at', { ascending: true });
-      setComments((commentsData as any) || []);
-
-      setLoading(false);
+        const { data: commentsData } = await supabase.from('comments').select('*, profiles(*)').eq('post_id', postId).order('created_at', { ascending: true });
+        setComments((commentsData as any) || []);
+      } catch (error) {
+        console.error("Error fetching post and comments:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchPostAndComments();
   }, [postId]);
@@ -71,9 +73,8 @@ const PostPage: React.FC = () => {
     if (error) {
       console.error("Error posting comment:", error);
     } else if (data) {
-      // Add the new comment to the list instantly
       setComments(prevComments => [...prevComments, data as any]);
-      setNewComment(''); // Clear the input
+      setNewComment('');
     }
     setIsSubmitting(false);
   };
@@ -83,10 +84,11 @@ const PostPage: React.FC = () => {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      {/* Display the main post at the top */}
-      <PostComponent post={post} />
+      {/* Disable the link behavior for the post on its own page */}
+      <div className="pointer-events-none">
+        <PostComponent post={post} />
+      </div>
 
-      {/* Form for adding a new comment */}
       {profile && (
         <div className="p-4 border-t border-b border-gray-800">
           <form onSubmit={handleCommentSubmit} className="flex items-start space-x-3">
@@ -109,7 +111,6 @@ const PostPage: React.FC = () => {
         </div>
       )}
       
-      {/* List of existing comments */}
       <div>
         {comments.map(comment => <Comment key={comment.id} comment={comment} />)}
       </div>
