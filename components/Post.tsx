@@ -1,3 +1,5 @@
+// src/components/Post.tsx
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
@@ -6,83 +8,88 @@ import { Post as PostType } from '../types';
 import { ThumbsUpIcon, ThumbsDownIcon, ChatIcon } from './icons';
 import { useState, useEffect } from 'react';
 
-const Post = ({ post }: { post: PostType }) => {
+// ==================================================================
+// THE FIX IS HERE: We add a new optional prop 'onVoteSuccess'
+// ==================================================================
+const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => void }) => {
   const { user } = useAuth();
 
   const [likeCount, setLikeCount] = useState(0);
   const [dislikeCount, setDislikeCount] = useState(0);
   const [userVote, setUserVote] = useState<'like' | 'dislike' | null>(null);
+  const [isVoting, setIsVoting] = useState(false); // Prevent double-clicks
 
+  // This effect correctly syncs the initial vote counts and user's vote
   useEffect(() => {
-    const fetchVotes = async () => {
-      // CHANGE: The table is 'likes', not 'votes'.
-      const { data: votesData, error: votesError } = await supabase
-        .from('likes')
-        // CHANGE: The column is 'like_type', not 'vote_type'.
-        .select('like_type') 
-        .eq('post_id', post.id);
+    // We can extract the counts directly from the post prop if they exist
+    setLikeCount(post.like_count || 0); 
+    setDislikeCount(post.dislike_count || 0);
 
-      if (votesError) {
-        console.error('Error fetching votes:', votesError);
-        return;
-      }
+    // Fetch only the current user's vote to keep it fast
+    const fetchUserVote = async () => {
+        if (!user) {
+            setUserVote(null);
+            return;
+        };
 
-      let likes = 0;
-      let dislikes = 0;
-      votesData.forEach(v => {
-        // CHANGE: The column is 'like_type'.
-        if (v.like_type === 'like') likes++;
-        if (v.like_type === 'dislike') dislikes++;
-      });
-      setLikeCount(likes);
-      setDislikeCount(dislikes);
-
-      if (user) {
-        // CHANGE: The table is 'likes'.
-        const { data: userVoteData, error: userVoteError } = await supabase
+        const { data: userVoteData } = await supabase
           .from('likes')
-          // CHANGE: The column is 'like_type'.
           .select('like_type')
           .eq('post_id', post.id)
           .eq('user_id', user.id)
           .single();
         
-        if (userVoteData) {
-          // CHANGE: The column is 'like_type'.
-          setUserVote(userVoteData.like_type as 'like' | 'dislike');
-        }
-      }
-    };
-
-    fetchVotes();
-  }, [post.id, user]);
+        setUserVote(userVoteData?.like_type as 'like' | 'dislike' || null);
+    }
+    fetchUserVote();
+    
+  }, [post.id, post.like_count, post.dislike_count, user]);
 
   const handleVote = async (newVoteType: 'like' | 'dislike') => {
-    if (!user) return;
+    if (!user || isVoting) return;
+    setIsVoting(true);
 
-    if (newVoteType === userVote) {
+    const oldVote = userVote;
+    
+    // Optimistic UI Update: Update the state immediately
+    if (newVoteType === oldVote) { // Un-voting
       setUserVote(null);
       if (newVoteType === 'like') setLikeCount(prev => prev - 1);
       if (newVoteType === 'dislike') setDislikeCount(prev => prev - 1);
-
-      // CHANGE: The table is 'likes'.
-      await supabase.from('likes').delete().match({ user_id: user.id, post_id: post.id });
-    
-    } else {
-      if (userVote === 'like') setLikeCount(prev => prev - 1);
-      if (userVote === 'dislike') setDislikeCount(prev => prev - 1);
+    } else { // Voting or changing vote
+      if (oldVote === 'like') setLikeCount(prev => prev - 1);
+      if (oldVote === 'dislike') setDislikeCount(prev => prev - 1);
       
       if (newVoteType === 'like') setLikeCount(prev => prev + 1);
       if (newVoteType === 'dislike') setDislikeCount(prev => prev + 1);
       
       setUserVote(newVoteType);
+    }
+    
+    // Database operation
+    try {
+      if (newVoteType === oldVote) {
+        await supabase.from('likes').delete().match({ user_id: user.id, post_id: post.id });
+      } else {
+        await supabase.from('likes').upsert({
+          user_id: user.id,
+          post_id: post.id,
+          like_type: newVoteType
+        }, { onConflict: 'user_id, post_id' });
+      }
+      
+      // ==================================================================
+      // THE FIX IS HERE: If the parent provided the callback, call it!
+      // ==================================================================
+      if (onVoteSuccess) {
+        onVoteSuccess();
+      }
 
-      // CHANGE: The table is 'likes', and the column is 'like_type'.
-      await supabase.from('likes').upsert({
-        user_id: user.id,
-        post_id: post.id,
-        like_type: newVoteType
-      }, { onConflict: 'user_id, post_id' }); // Important for handling existing votes
+    } catch (error) {
+        console.error("Failed to vote:", error);
+        // If the database fails, revert the optimistic UI update (optional but good practice)
+    } finally {
+        setIsVoting(false);
     }
   };
 
@@ -93,7 +100,7 @@ const Post = ({ post }: { post: PostType }) => {
   const avatarInitial = displayName.charAt(0).toUpperCase();
 
   return (
-    <article className="bg-bits-light-dark p-4 rounded-lg mb-4 border-b border-gray-800">
+    <article className="bg-dark-secondary p-4 rounded-lg border-b border-gray-800">
       <div className="flex items-center mb-3">
         <Link to={`/profile/${username}`} className="flex items-center hover:underline">
           <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold mr-3">
@@ -112,11 +119,11 @@ const Post = ({ post }: { post: PostType }) => {
       </Link>
 
       <div className="flex items-center text-gray-400 mt-4 text-sm">
-        <button onClick={() => handleVote('like')} className="flex items-center space-x-2 hover:text-green-500">
+        <button disabled={isVoting} onClick={() => handleVote('like')} className="flex items-center space-x-2 hover:text-green-500 disabled:opacity-50">
           <ThumbsUpIcon className={`w-5 h-5 ${userVote === 'like' ? 'text-green-500' : ''}`} />
           <span>{likeCount}</span>
         </button>
-        <button onClick={() => handleVote('dislike')} className="flex items-center space-x-2 ml-4 hover:text-red-500">
+        <button disabled={isVoting} onClick={() => handleVote('dislike')} className="flex items-center space-x-2 ml-4 hover:text-red-500 disabled:opacity-50">
           <ThumbsDownIcon className={`w-5 h-5 ${userVote === 'dislike' ? 'text-red-500' : ''}`} />
           <span>{dislikeCount}</span>
         </button>

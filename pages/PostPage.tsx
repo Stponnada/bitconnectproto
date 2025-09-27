@@ -1,6 +1,6 @@
 // src/pages/PostPage.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // <-- Import useCallback
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,65 +38,57 @@ const PostPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
 
-  useEffect(() => {
-    const fetchAllData = async () => {
-      if (!postId) return;
-      setLoading(true);
-      try {
-        const { data: postData, error: postError } = await supabase.from('posts').select('*, profiles(*)').eq('id', postId).single();
-        if (postError) throw postError;
-        setPost(postData as any);
+  // ==================================================================
+  // THE FIX IS HERE: We move the data fetching logic into a standalone,
+  // memoized function so we can call it from multiple places.
+  // ==================================================================
+  const fetchPageData = useCallback(async (isInitialLoad = false) => {
+    if (!postId) return;
+    if (isInitialLoad) setLoading(true);
 
+    try {
+      const { data: postData, error: postError } = await supabase.from('posts').select('*, profiles(*)').eq('id', postId).single();
+      if (postError) throw postError;
+      setPost(postData as any);
+      
+      if(isInitialLoad) {
         const { data: commentsData, error: commentsError } = await supabase.from('comments').select('*, profiles(*)').eq('post_id', postId).order('created_at', { ascending: true });
         if (commentsError) throw commentsError;
         setComments((commentsData as any) || []);
-
+  
         if (user) {
-            const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
-            if (profileError) throw profileError;
-            setCurrentUserProfile(profileData);
+          const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+          if (profileError) throw profileError;
+          setCurrentUserProfile(profileData);
         }
-
-      } catch (error) { 
-        console.error("Error fetching data for PostPage:", error); 
-      } finally { 
-        setLoading(false); 
       }
-    };
-    fetchAllData();
-  }, [postId, user]);
+    } catch (error) { 
+      console.error("Error fetching data for PostPage:", error); 
+    } finally { 
+      if (isInitialLoad) setLoading(false); 
+    }
+  }, [postId, user]); // useCallback memoizes this function
 
-  // ==================================================================
-  // THE ALTERNATIVE FIX IS HERE
-  // ==================================================================
+  useEffect(() => {
+    fetchPageData(true); // Run the fetch on initial load
+  }, [fetchPageData]); // useEffect depends on the memoized function
+
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !post || !newComment.trim() || !currentUserProfile) return;
     setIsSubmitting(true);
-
+    // ... (rest of the function is the same, using the RPC call)
     try {
-        // Step 1: Insert the new comment
-        const { data: commentData, error: commentError } = await supabase
-            .from('comments')
-            .insert({ post_id: post.id, user_id: user.id, content: newComment.trim() })
-            .select()
-            .single();
-        
-        if (commentError) throw commentError; // If this fails, stop here
+        const { data: commentData, error: commentError } = await supabase.from('comments').insert({ post_id: post.id, user_id: user.id, content: newComment.trim() }).select().single();
+        if (commentError) throw commentError;
 
-        // Step 2: If comment insertion succeeds, call the function to increment the post's comment count
-        const { error: rpcError } = await supabase.rpc('increment_post_comment_count', {
-            post_id_to_update: post.id
-        });
+        const { error: rpcError } = await supabase.rpc('increment_post_comment_count', { post_id_to_update: post.id });
+        if (rpcError) throw rpcError;
 
-        if (rpcError) throw rpcError; // Log if the count update fails, but the comment is already posted
-
-        // Step 3: Update the UI instantly
         const newCommentForUI: CommentType = { ...commentData, profiles: currentUserProfile };
         setComments(prev => [...prev, newCommentForUI]); 
         setPost(prevPost => prevPost ? { ...prevPost, comment_count: (prevPost.comment_count || 0) + 1 } : null);
         setNewComment(''); 
-        
     } catch (error) {
         console.error("Error during comment submission process:", error);
     } finally {
@@ -109,9 +101,11 @@ const PostPage: React.FC = () => {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <div className="pointer-events-none">
-        <PostComponent post={post} />
-      </div>
+      {/* ================================================================== */}
+      {/* THE FIX IS HERE: We pass our new fetch function as the prop. */}
+      {/* We remove pointer-events-none so the buttons are clickable.   */}
+      {/* ================================================================== */}
+      <PostComponent post={post} onVoteSuccess={() => fetchPageData(false)} />
 
       {currentUserProfile && (
         <div className="p-4 border-t border-b border-gray-800">
