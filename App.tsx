@@ -1,13 +1,12 @@
-// src/App.tsx (Corrected)
+// src/App.tsx (Updated with the new PostPage route)
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 
-// Import pages and components
 import { HomePage as Home } from './pages/Home';
 import Login from './pages/Login';
-import ProfilePage from './pages/Profile'; // Import the new ProfilePage
-import Settings from './pages/Settings';
+import ProfilePage from './pages/Profile';
+import PostPage from './pages/PostPage'; // <-- 1. IMPORT THE NEW PAGE
 import ProfileSetup from './pages/ProfileSetup';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -18,23 +17,20 @@ const App = () => {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Public Route */}
           <Route path="/login" element={<Login />} />
 
-          {/* Protected Routes inside Layout */}
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/" element={<Home />} />
-              
-              {/* THIS IS THE FIX: The route is now dynamic */}
               <Route path="/profile/:username" element={<ProfilePage />} />
-
               <Route path="/setup" element={<ProfileSetup />} />
-              <Route path="/settings" element={<Settings />} /> {/* Kept for consistency */}
+              
+              {/* 2. ADD THE NEW DYNAMIC ROUTE FOR SINGLE POSTS */}
+              <Route path="/post/:postId" element={<PostPage />} />
+
             </Route>
           </Route>
-
-          {/* Catch-all 404 Route */}
+          
           <Route path="*" element={<NotFound />} /> 
         </Routes>
       </Router>
