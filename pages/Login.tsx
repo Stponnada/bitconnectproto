@@ -1,6 +1,6 @@
 // src/pages/Login.tsx (MODIFIED VERSION)
 
-import React, a { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
