@@ -7,7 +7,7 @@ import { Post as PostType, Comment as CommentType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { Link } from 'react-router-dom';
 
-// Comment Component (No changes needed here)
+// Comment Component (No changes needed)
 const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
   const author = comment.profiles;
   return (
@@ -37,26 +37,33 @@ const PostPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
 
+  // This function will be used to refresh the post data
+  const fetchPost = async () => {
+      if (!postId) return;
+      const { data: postData, error: postError } = await supabase.from('posts').select('*, profiles(*)').eq('id', postId).single();
+      if (postError) console.error("Error re-fetching post:", postError);
+      else setPost(postData as any);
+  };
+
   useEffect(() => {
-    // ... (Your existing useEffect for fetching data is perfect, no changes needed)
     const fetchAllData = async () => {
       if (!postId) return;
       setLoading(true);
       try {
-        const { data: postData, error: postError } = await supabase.from('posts').select('*, profiles(*)').eq('id', postId).single();
-        if (postError) throw postError;
-        setPost(postData as any);
+        // Fetch post using our new helper function
+        await fetchPost(); 
 
+        // Fetch comments
         const { data: commentsData, error: commentsError } = await supabase.from('comments').select('*, profiles(*)').eq('post_id', postId).order('created_at', { ascending: true });
         if (commentsError) throw commentsError;
         setComments((commentsData as any) || []);
 
+        // Fetch user profile
         if (user) {
             const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
             if (profileError) throw profileError;
             setCurrentUserProfile(profileData);
         }
-
       } catch (error) { 
         console.error("Error fetching data for PostPage:", error); 
       } finally { 
@@ -71,26 +78,27 @@ const PostPage: React.FC = () => {
     if (!user || !post || !newComment.trim() || !currentUserProfile) return;
     setIsSubmitting(true);
 
+    // ==================================================================
+    // THE FIX IS HERE: We remove .single() and handle the array response
+    // ==================================================================
     const { data, error } = await supabase
         .from('comments')
         .insert({ post_id: post.id, user_id: user.id, content: newComment.trim() })
-        .select()
-        .single();
+        .select(); // REMOVED .single()
     
     if (error) { 
         console.error("Error posting comment:", error); 
-    } else if (data) { 
+    } else if (data && data.length > 0) { // Check if data is a non-empty array
+        const newCommentFromDB = data[0]; // Get the first (and only) item
         const newCommentForUI: CommentType = {
-            ...data,
+            ...newCommentFromDB,
             profiles: currentUserProfile
         };
         setComments(prev => [...prev, newCommentForUI]); 
         setNewComment('');
         
-        // ==================================================================
-        // THE FIX IS HERE: Update the post state to increment the comment count
-        // ==================================================================
-
+        // After successfully adding a comment, re-fetch the post to get the updated count
+        await fetchPost();
     }
     setIsSubmitting(false);
   };
@@ -99,12 +107,11 @@ const PostPage: React.FC = () => {
   if (!post) return <div className="text-center py-10 text-red-400">Post not found.</div>;
 
   return (
-    // ... (The JSX for the return statement is perfect, no changes needed)
+    // ... (JSX is unchanged) ...
     <div className="w-full max-w-2xl mx-auto">
       <div className="pointer-events-none">
         <PostComponent post={post} />
       </div>
-
       {currentUserProfile && (
         <div className="p-4 border-t border-b border-gray-800">
           <form onSubmit={handleCommentSubmit} className="flex items-start space-x-3">
@@ -126,7 +133,6 @@ const PostPage: React.FC = () => {
           </form>
         </div>
       )}
-      
       <div>
         {comments.length > 0 ? (
           comments.map(comment => <Comment key={comment.id} comment={comment} />)
