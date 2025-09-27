@@ -1,4 +1,4 @@
-// src/pages/PostPage.tsx (Final Version with Comment Form and Messages)
+// src/pages/PostPage.tsx (Corrected with a robust loading state)
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
@@ -8,8 +8,8 @@ import PostComponent from '../components/Post';
 import { Post as PostType, Comment as CommentType } from '../types';
 import Spinner from '../components/Spinner';
 
-// Comment Component
-const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => { /* ... no changes here ... */ };
+// Comment Component (No changes needed)
+const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => { /* ... */ };
 
 const PostPage: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
@@ -22,40 +22,88 @@ const PostPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // ... (Your existing fetchPostAndComments logic remains the same) ...
-  }, [postId]);
+    const fetchPostAndComments = async () => {
+      if (!postId) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
 
+      try {
+        // Step 1: Fetch the main post
+        const { data: postData, error: postError } = await supabase
+          .from('posts')
+          .select('*, profiles(*)')
+          .eq('id', postId)
+          .single();
+
+        // If the post isn't found, stop here. 'finally' will still run.
+        if (postError || !postData) {
+          console.error("Error fetching post:", postError);
+          setPost(null);
+          return;
+        }
+        setPost(postData as any);
+
+        // Step 2: If the post was found, fetch its comments
+        const { data: commentsData, error: commentsError } = await supabase
+          .from('comments')
+          .select('*, profiles(*)')
+          .eq('post_id', postId)
+          .order('created_at', { ascending: true });
+
+        if (commentsError) {
+          console.error("Error fetching comments:", commentsError);
+        } else {
+          setComments((commentsData as any) || []);
+        }
+
+      } catch (error) {
+        console.error("A critical error occurred:", error);
+        setPost(null);
+      } finally {
+        // THIS IS THE FIX: This block is GUARANTEED to run,
+        // no matter what happens in the 'try' block.
+        setLoading(false);
+      }
+    };
+
+    fetchPostAndComments();
+  }, [postId]);
+  
   const handleCommentSubmit = async (e: React.FormEvent) => {
     // ... (Your existing handleCommentSubmit logic remains the same) ...
   };
 
-  if (loading) return <div className="text-center py-10"><Spinner /></div>;
-  if (!post) return <div className="text-center py-10 text-red-400">Post not found.</div>;
+  // This is our loading state render
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen"><Spinner /></div>;
+  }
+
+  // This handles the case where the post was not found
+  if (!post) {
+    return <div className="text-center py-10 text-xl text-red-400">Post not found.</div>;
+  }
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      {/* Disable pointer events on the main post so you can't click it again */}
-      <div className="pointer-events-none">
-        <PostComponent post={post} />
-      </div>
-
-      {/* ================================================================== */}
-      {/* THE COMMENT FORM IS HERE */}
-      {/* ================================================================== */}
+      <div className="pointer-events-none"><PostComponent post={post} /></div>
+      
+      {/* Your comment form JSX */}
       {profile && (
         <div className="p-4 border-t border-b border-gray-800">
           <form onSubmit={handleCommentSubmit} className="flex items-start space-x-3">
-            <img src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.username}`} alt="Your avatar" className="w-10 h-10 rounded-full bg-gray-700" />
+            <img src={profile.avatar_url || ''} alt="Your avatar" className="w-10 h-10 rounded-full bg-gray-700" />
             <div className="flex-1">
               <textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Post your reply"
-                className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red"
+                className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500"
                 rows={2}
               />
               <div className="flex justify-end mt-2">
-                <button type="submit" disabled={isSubmitting || !newComment.trim()} className="bg-bits-red text-white font-bold py-2 px-4 rounded-full disabled:opacity-50 hover:bg-red-700">
+                <button type="submit" disabled={isSubmitting || !newComment.trim()} className="bg-bits-red text-white font-bold py-2 px-4 rounded-full disabled:opacity-50">
                   {isSubmitting ? <Spinner /> : 'Reply'}
                 </button>
               </div>
@@ -64,9 +112,7 @@ const PostPage: React.FC = () => {
         </div>
       )}
       
-      {/* ================================================================== */}
-      {/* THE COMMENT LIST AND "NO COMMENTS" MESSAGE ARE HERE */}
-      {/* ================================================================== */}
+      {/* Your comment list JSX */}
       <div>
         {comments.length > 0 ? (
           comments.map(comment => <Comment key={comment.id} comment={comment} />)
