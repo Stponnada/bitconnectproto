@@ -1,4 +1,4 @@
-// src/pages/PostPage.tsx (Corrected with Guard Clauses)
+// src/pages/PostPage.tsx (Final Version with Correct Data Fetching)
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
@@ -8,15 +8,17 @@ import PostComponent from '../components/Post';
 import { Post as PostType, Comment as CommentType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 
-// ... (Your Comment component remains the same) ...
-const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => { /* ... */ };
+// Comment Component
+const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => { /* ... no changes here ... */ };
 
 const PostPage: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
-  const { user } = useAuth();
+  // We only get the core `user` object from the context
+  const { user } = useAuth(); 
   
   const [post, setPost] = useState<PostType | null>(null);
   const [comments, setComments] = useState<CommentType[]>([]);
+  // THIS IS THE FIX: This page will manage its own profile state for the comment box
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -24,35 +26,45 @@ const PostPage: React.FC = () => {
 
   useEffect(() => {
     const fetchAllData = async () => {
-      // ... (Your useEffect data fetching logic is correct and remains the same) ...
+      if (!postId) { setLoading(false); return; }
+      setLoading(true);
+      
+      try {
+        // Step 1: Fetch the main post
+        const { data: postData, error: postError } = await supabase.from('posts').select('*, profiles(*)').eq('id', postId).single();
+        if (postError || !postData) { setPost(null); return; }
+        setPost(postData as any);
+
+        // Step 2: Fetch the comments for that post
+        const { data: commentsData } = await supabase.from('comments').select('*, profiles(*)').eq('post_id', postId).order('created_at', { ascending: true });
+        setComments((commentsData as any) || []);
+
+        // Step 3 (THE FIX): Fetch the profile of the currently logged-in user
+        if (user) {
+          const { data: profileData } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+          setCurrentUserProfile(profileData);
+        }
+      } catch (error) {
+        console.error("Error fetching page data:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchAllData();
-  }, [postId, user]);
+  }, [postId, user]); // Re-run if the user logs in/out
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     // ... (Your handleCommentSubmit logic is correct and remains the same) ...
   };
 
-  // ==================================================================
-  // THE FIX IS HERE: These two "guard clauses" prevent the crash.
-  // ==================================================================
-  
-  // Guard Clause 1: If we are still fetching data, show a spinner.
-  if (loading) {
-    return <div className="flex items-center justify-center h-screen"><Spinner /></div>;
-  }
+  if (loading) return <div className="text-center py-10"><Spinner /></div>;
+  if (!post) return <div className="text-center py-10 text-red-400">Post not found.</div>;
 
-  // Guard Clause 2: If loading is finished AND the post still wasn't found, show an error.
-  if (!post) {
-    return <div className="text-center py-10 text-xl text-red-400">Post not found.</div>;
-  }
-
-  // If we get past these two checks, we are GUARANTEED that 'post' is a valid object.
-  // Now, it is safe to render the main component.
   return (
     <div className="w-full max-w-2xl mx-auto">
       <div className="pointer-events-none"><PostComponent post={post} /></div>
 
+      {/* THE FIX: This now checks the local state, which is guaranteed to be correct */}
       {currentUserProfile && (
         <div className="p-4 border-t border-b border-gray-800">
           <form onSubmit={handleCommentSubmit} className="flex items-start space-x-3">
@@ -61,7 +73,7 @@ const PostPage: React.FC = () => {
               <textarea
                 value={newComment} onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Post your reply"
-                className="w-full bg-dark-tertiary rounded-lg p-2 text-white"
+                className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500"
                 rows={2}
               />
               <div className="flex justify-end mt-2">
