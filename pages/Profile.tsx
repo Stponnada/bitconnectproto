@@ -1,4 +1,4 @@
-// src/pages/Profile.tsx (Final Version with All Features)
+// src/pages/Profile.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
@@ -7,13 +7,11 @@ import { useAuth } from '../contexts/AuthContext';
 import PostComponent from '../components/Post';
 import { Post as PostType, Profile } from '../types';
 import Spinner from '../components/Spinner';
-import { ChatIcon, CameraIcon } from '../components/icons';
+import { CameraIcon } from '../components/icons';
 
 // ==================================================================
-// The fully functional EditProfileModal with all fields and uploads
+// This is the updated EditProfileModal with all the new fields
 // ==================================================================
-// In src/pages/Profile.tsx, replace the existing EditProfileModal with this one.
-
 const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, onSave: () => void }> = ({ userProfile, onClose, onSave }) => {
     const { user } = useAuth();
     const [profileData, setProfileData] = useState(userProfile);
@@ -27,9 +25,6 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const bannerInputRef = useRef<HTMLInputElement>(null);
 
-    // ==================================================================
-    // THE FIX IS HERE: The logic for handling file changes is restored.
-    // ==================================================================
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
@@ -48,10 +43,7 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
         const { name, value } = e.target;
         setProfileData(prev => ({ ...prev, [name]: value }));
     };
-
-    // ==================================================================
-    // AND THE LOGIC FOR SAVING EVERYTHING IS RESTORED HERE.
-    // ==================================================================
+    
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
@@ -62,6 +54,7 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
             let avatar_url = profileData.avatar_url;
             let banner_url = profileData.banner_url;
 
+            // Image upload logic
             if (avatarFile) {
                 const filePath = `public/${user.id}/avatar.${avatarFile.name.split('.').pop()}`;
                 await supabase.storage.from('avatars').upload(filePath, avatarFile, { upsert: true });
@@ -76,11 +69,17 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
                 banner_url = `${publicUrl}?t=${new Date().getTime()}`;
             }
 
+            // Expanded update object to include all new fields
             const { error: updateError } = await supabase
                 .from('profiles')
                 .update({
                     full_name: profileData.full_name,
                     bio: profileData.bio,
+                    branch: profileData.branch,
+                    relationship_status: profileData.relationship_status,
+                    dorm_building: profileData.dorm_building,
+                    dorm_room: profileData.dorm_room,
+                    dining_hall: profileData.dining_hall,
                     avatar_url,
                     banner_url,
                     updated_at: new Date().toISOString(),
@@ -101,30 +100,74 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-bits-light-dark rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-dark-secondary rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 <form onSubmit={handleSubmit} className="p-6">
                     <h2 className="text-2xl font-bold text-bits-red mb-6">Edit Profile</h2>
+                    
                     <div className="relative h-48 bg-gray-700 rounded-t-lg mb-16">
                         {bannerPreview && <img src={bannerPreview} className="w-full h-full object-cover rounded-t-lg" alt="Banner Preview"/>}
-                        <button type="button" onClick={() => bannerInputRef.current?.click()} className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100"><CameraIcon className="w-8 h-8 text-white" /></button>
+                        <button type="button" onClick={() => bannerInputRef.current?.click()} className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"><CameraIcon className="w-8 h-8 text-white" /></button>
                         <input type="file" ref={bannerInputRef} onChange={(e) => handleFileChange(e, 'banner')} accept="image/*" hidden />
-                        <div className="absolute -bottom-16 left-6 w-32 h-32 rounded-full border-4 border-bits-light-dark bg-gray-600">
+                        <div className="absolute -bottom-16 left-6 w-32 h-32 rounded-full border-4 border-dark-secondary bg-gray-600">
                             {avatarPreview && <img src={avatarPreview} className="w-full h-full rounded-full object-cover" alt="Avatar Preview"/>}
-                            <button type="button" onClick={() => avatarInputRef.current?.click()} className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 rounded-full"><CameraIcon className="w-8 h-8 text-white" /></button>
+                            <button type="button" onClick={() => avatarInputRef.current?.click()} className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 rounded-full transition-opacity"><CameraIcon className="w-8 h-8 text-white" /></button>
                             <input type="file" ref={avatarInputRef} onChange={(e) => handleFileChange(e, 'avatar')} accept="image/*" hidden />
                         </div>
                     </div>
+
                     {error && <p className="text-red-400 mb-4">{error}</p>}
+                    
                     <div className="space-y-4 pt-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-400">Full Name</label>
-                            <input type="text" name="full_name" value={profileData.full_name || ''} onChange={handleChange} className="mt-1 block w-full bg-white rounded p-2 text-black" />
+                            <input type="text" name="full_name" value={profileData.full_name || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-400">Bio</label>
-                            <textarea name="bio" value={profileData.bio || ''} onChange={handleChange} rows={3} className="mt-1 block w-full bg-white rounded p-2 text-black" />
+                            <textarea name="bio" value={profileData.bio || ''} onChange={handleChange} rows={3} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red" />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                <label className="block text-sm font-medium text-gray-400">Branch</label>
+                                <select name="branch" value={profileData.branch || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red">
+                                    <option value="">Select Branch</option>
+                                    <option value="Computer Science">Computer Science</option>
+                                    <option value="Electrical Engineering">Electrical Engineering</option>
+                                    <option value="Mechanical Engineering">Mechanical Engineering</option>
+                                    <option value="Chemical Engineering">Chemical Engineering</option>
+                                    <option value="Civil Engineering">Civil Engineering</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400">Relationship Status</label>
+                                <select name="relationship_status" value={profileData.relationship_status || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red">
+                                    <option value="">Select Status</option>
+                                    <option value="Single">Single</option>
+                                    <option value="In a relationship">In a relationship</option>
+                                    <option value="It's complicated">It's complicated</option>
+                                    <option value="Married">Married</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400">Dorm Building</label>
+                                <input type="text" name="dorm_building" placeholder="e.g., Valmiki" value={profileData.dorm_building || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red" />
+                            </div>
+                             <div>
+                                <label className="block text-sm font-medium text-gray-400">Dorm Room</label>
+                                <input type="text" name="dorm_room" placeholder="e.g., 469" value={profileData.dorm_room || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-400">Dining Hall</label>
+                                <select name="dining_hall" value={profileData.dining_hall || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red">
+                                    <option value="">Select Mess</option>
+                                    <option value="Mess 1">Mess 1</option>
+                                    <option value="Mess 2">Mess 2</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
+                    
                     <div className="flex justify-end space-x-4 pt-6">
                         <button type="button" onClick={onClose} className="py-2 px-6 rounded-full text-white hover:bg-gray-700">Cancel</button>
                         <button type="submit" disabled={isSaving} className="py-2 px-6 rounded-full text-white bg-bits-red hover:bg-red-700 disabled:opacity-50">{isSaving ? <Spinner /> : 'Save Changes'}</button>
@@ -136,7 +179,7 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
 };
 
 // ==================================================================
-// The main Profile Page with robust loading logic
+// The main Profile Page component (remains the same)
 // ==================================================================
 const ProfileDetail: React.FC<{ label: string; value?: string | number | null }> = ({ label, value }) => {
     if (!value) return null;
@@ -153,7 +196,6 @@ const ProfilePage: React.FC = () => {
 
     const fetchProfileData = async () => {
         if (!username) return;
-        // Don't set loading to true here if we're just refetching, to avoid a screen flash
         if (!profile) setLoading(true);
 
         try {
