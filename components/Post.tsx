@@ -8,24 +8,14 @@ import { Post as PostType } from '../types';
 import { ThumbsUpIcon, ThumbsDownIcon, ChatIcon } from './icons';
 import { useState, useEffect } from 'react';
 
-// ==================================================================
-// THE FIX IS HERE: We add a new optional prop 'onVoteSuccess'
-// ==================================================================
 const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => void }) => {
   const { user } = useAuth();
-
-  const [likeCount, setLikeCount] = useState(0);
-  const [dislikeCount, setDislikeCount] = useState(0);
+  
   const [userVote, setUserVote] = useState<'like' | 'dislike' | null>(null);
-  const [isVoting, setIsVoting] = useState(false); // Prevent double-clicks
+  const [isVoting, setIsVoting] = useState(false);
 
-  // This effect correctly syncs the initial vote counts and user's vote
+  // This effect correctly fetches the current user's vote state
   useEffect(() => {
-    // We can extract the counts directly from the post prop if they exist
-    setLikeCount(post.like_count || 0); 
-    setDislikeCount(post.dislike_count || 0);
-
-    // Fetch only the current user's vote to keep it fast
     const fetchUserVote = async () => {
         if (!user) {
             setUserVote(null);
@@ -42,52 +32,38 @@ const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => v
         setUserVote(userVoteData?.like_type as 'like' | 'dislike' || null);
     }
     fetchUserVote();
-    
-  }, [post.id, post.like_count, post.dislike_count, user]);
+  }, [post.id, user]);
 
+  // ==================================================================
+  // THE FIX IS HERE: This function now calls our new RPC function
+  // ==================================================================
   const handleVote = async (newVoteType: 'like' | 'dislike') => {
     if (!user || isVoting) return;
     setIsVoting(true);
 
     const oldVote = userVote;
     
-    // Optimistic UI Update: Update the state immediately
-    if (newVoteType === oldVote) { // Un-voting
-      setUserVote(null);
-      if (newVoteType === 'like') setLikeCount(prev => prev - 1);
-      if (newVoteType === 'dislike') setDislikeCount(prev => prev - 1);
-    } else { // Voting or changing vote
-      if (oldVote === 'like') setLikeCount(prev => prev - 1);
-      if (oldVote === 'dislike') setDislikeCount(prev => prev - 1);
-      
-      if (newVoteType === 'like') setLikeCount(prev => prev + 1);
-      if (newVoteType === 'dislike') setDislikeCount(prev => prev + 1);
-      
-      setUserVote(newVoteType);
-    }
+    // Optimistic UI Update: Change the button color immediately for a snappy feel
+    setUserVote(newVoteType === oldVote ? null : newVoteType);
     
-    // Database operation
     try {
-      if (newVoteType === oldVote) {
-        await supabase.from('likes').delete().match({ user_id: user.id, post_id: post.id });
-      } else {
-        await supabase.from('likes').upsert({
-          user_id: user.id,
-          post_id: post.id,
-          like_type: newVoteType
-        }, { onConflict: 'user_id, post_id' });
-      }
+      // Call the single database function to handle all logic
+      const { error } = await supabase.rpc('handle_vote_and_update_counts', {
+        post_id_to_update: post.id,
+        vote_type_to_set: newVoteType
+      });
+
+      if (error) throw error; // If the database fails, we'll catch it
       
-      // ==================================================================
-      // THE FIX IS HERE: If the parent provided the callback, call it!
-      // ==================================================================
+      // On success, tell the parent component to refresh its data to get the new counts
       if (onVoteSuccess) {
         onVoteSuccess();
       }
 
     } catch (error) {
         console.error("Failed to vote:", error);
-        // If the database fails, revert the optimistic UI update (optional but good practice)
+        // If the database operation fails, revert the button color back to what it was
+        setUserVote(oldVote); 
     } finally {
         setIsVoting(false);
     }
@@ -121,11 +97,12 @@ const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => v
       <div className="flex items-center text-gray-400 mt-4 text-sm">
         <button disabled={isVoting} onClick={() => handleVote('like')} className="flex items-center space-x-2 hover:text-green-500 disabled:opacity-50">
           <ThumbsUpIcon className={`w-5 h-5 ${userVote === 'like' ? 'text-green-500' : ''}`} />
-          <span>{likeCount}</span>
+          {/* Always display the count directly from the post prop */}
+          <span>{post.like_count || 0}</span>
         </button>
         <button disabled={isVoting} onClick={() => handleVote('dislike')} className="flex items-center space-x-2 ml-4 hover:text-red-500 disabled:opacity-50">
           <ThumbsDownIcon className={`w-5 h-5 ${userVote === 'dislike' ? 'text-red-500' : ''}`} />
-          <span>{dislikeCount}</span>
+          <span>{post.dislike_count || 0}</span>
         </button>
         <Link to={`/post/${post.id}`} className="flex items-center space-x-2 ml-4 hover:text-blue-500">
             <ChatIcon className="w-5 h-5" />
