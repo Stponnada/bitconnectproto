@@ -52,7 +52,7 @@ const Header: React.FC = () => {
         <header className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary h-20 flex items-center justify-between px-6 z-40">
             
             {/* CHANGE #2: Increased logo font size from text-xl to text-2xl */}
-            <Link to="/" className="text-2xl font-bold text-bits-red">BITS Connect</Link>
+            <Link to="/" className="text-3xl font-bold text-bits-red">BITS Connect</Link>
             
             <div className="w-full max-w-xs">{/* Your Search Bar can go here */}</div>
 
