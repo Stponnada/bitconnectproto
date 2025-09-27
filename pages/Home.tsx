@@ -1,14 +1,14 @@
-// src/pages/Home.tsx (Final Version with Filename Sanitization)
+// src/pages/Home.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import PostComponent from '../components/Post'; // Corrected default import
+import PostComponent from '../components/Post';
 import { Post as PostType, Profile } from '../types';
 import { ImageIcon, XCircleIcon } from '../components/icons';
 import Spinner from '../components/Spinner';
 
-// MediaPreview Component (No changes needed)
+// MediaPreview Component (No changes)
 const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, onRemove }) => {
     const url = URL.createObjectURL(file);
     return (
@@ -25,9 +25,7 @@ const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, on
     );
 };
 
-// CreatePost Component (Updated with the final fix)
-// In src/pages/Home.tsx, replace the existing CreatePost component with this one.
-
+// CreatePost Component (Updated with consistent avatar logic)
 const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: Profile }> = ({ onPostCreated, profile }) => {
     const { user } = useAuth();
     const [content, setContent] = useState('');
@@ -36,7 +34,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     const [error, setError] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
 
-    // ... (All the functions like useEffect, handleFileChange, handleSubmit, etc. remain exactly the same) ...
+    // This logic remains the same
     useEffect(() => {
         if (imageFile) {
             const url = URL.createObjectURL(imageFile);
@@ -93,22 +91,39 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
 
     const canPost = (content.trim() || imageFile) && !isSubmitting;
 
+    // ==================================================================
+    // CHANGE #1: Added helper variables for the avatar, just like in Post.tsx
+    // ==================================================================
+    const displayName = profile.full_name || profile.username || 'User';
+    const avatarUrl = profile.avatar_url;
+    const avatarInitial = displayName.charAt(0).toUpperCase();
 
     return (
         <div className="bg-bits-light-dark rounded-lg shadow p-5 mb-6">
             <div className="flex items-start">
-                <img src={profile.avatar_url || '/default-avatar.png'} alt={profile.username} className="w-12 h-12 rounded-full mr-4" />
+                {/* ================================================================== */}
+                {/* CHANGE #2: Replaced the old <img> tag with the conditional logic block */}
+                {/* ================================================================== */}
+                <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center font-bold mr-4 flex-shrink-0">
+                    {avatarUrl ? (
+                        <img
+                            src={avatarUrl}
+                            alt={displayName}
+                            className="w-full h-full rounded-full object-cover"
+                        />
+                    ) : (
+                        <span className="text-white text-xl">{avatarInitial}</span>
+                    )}
+                </div>
+
                 <form onSubmit={handleSubmit} className="w-full">
-                    
-                    {/* ================================================================== */}
-                    {/* THE FIX IS HERE: Changed `text-bits-text` to `text-gray-800` */}
-                    {/* ================================================================== */}
-                    <textarea 
-                        value={content} 
-                        onChange={e => setContent(e.target.value)} 
-                        className="w-full bg-white rounded-lg p-3 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red resize-none" // <-- THE FIX
-                        rows={3} 
-                        placeholder={`What's on your mind, ${profile.full_name?.split(' ')[0] || profile.username}?`} 
+                    <textarea
+                        value={content}
+                        onChange={e => setContent(e.target.value)}
+                        className="w-full bg-white rounded-lg p-3 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red resize-none"
+                        rows={3}
+                        // Use the new displayName variable for consistency
+                        placeholder={`What's on your mind, ${displayName.split(' ')[0] || profile.username}?`}
                     />
 
                     {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
@@ -128,7 +143,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     );
 };
 
-// HomePage Component (No changes needed)
+// HomePage Component (No changes)
 export const HomePage: React.FC = () => {
     const { user } = useAuth();
     const [posts, setPosts] = useState<PostType[]>([]);
@@ -139,7 +154,7 @@ export const HomePage: React.FC = () => {
         const fetchData = async () => {
             if (!user) return;
             setLoading(true);
-            
+
             const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
             if (profileError) console.error("Error fetching profile:", profileError);
             else setProfile(profileData);
@@ -147,7 +162,7 @@ export const HomePage: React.FC = () => {
             const { data: postsData, error: postsError } = await supabase.from('posts').select(`*, profiles(*)`).order('created_at', { ascending: false });
             if (postsError) console.error("Error fetching posts:", postsError);
             else setPosts(postsData as any);
-            
+
             setLoading(false);
         };
         fetchData();
@@ -160,7 +175,7 @@ export const HomePage: React.FC = () => {
     if (loading) {
         return <div className="text-center p-8 text-white"><Spinner /></div>;
     }
-    
+
     return (
         <div className="w-full max-w-2xl mx-auto py-6">
             {profile && <CreatePost onPostCreated={handlePostCreated} profile={profile} />}
