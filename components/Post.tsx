@@ -1,37 +1,95 @@
-// src/components/Post.tsx (Updated to be a clickable link)
+// src/components/Post.tsx (Final Version with All Features)
 
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../services/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { Post as PostType } from '../types';
-import { ThumbsUpIcon, ThumbsDownIcon, ChatIcon } from './icons'; // Assuming you add ChatIcon
+import { ThumbsUpIcon, ThumbsDownIcon, ChatIcon } from './icons';
 
 const Post = ({ post }: { post: PostType }) => {
+  const { user } = useAuth();
+  const [likeCount, setLikeCount] = useState(0);
+  const [dislikeCount, setDislikeCount] = useState(0);
+  const [userVote, setUserVote] = useState<'like' | 'dislike' | null>(null);
+
+  useEffect(() => {
+    const fetchLikes = async () => {
+      const { data } = await supabase.from('likes').select('user_id, like_type').eq('post_id', post.id);
+      if (data) {
+        let likes = 0;
+        let dislikes = 0;
+        for (const like of data) {
+          if (like.like_type === 'like') likes++;
+          else if (like.like_type === 'dislike') dislikes++;
+        }
+        setLikeCount(likes);
+        setDislikeCount(dislikes);
+        if (user) {
+          const currentUserLike = data.find(like => like.user_id === user.id);
+          if (currentUserLike) setUserVote(currentUserLike.like_type as 'like' | 'dislike');
+        }
+      }
+    };
+    fetchLikes();
+  }, [post.id, user]);
+
+  const handleVote = async (newVoteType: 'like' | 'dislike') => {
+    if (!user) return;
+    if (userVote) await supabase.from('likes').delete().match({ post_id: post.id, user_id: user.id });
+    if (userVote !== newVoteType) await supabase.from('likes').insert({ post_id: post.id, user_id: user.id, like_type: newVoteType });
+
+    if (userVote === newVoteType) {
+      setUserVote(null);
+      if (newVoteType === 'like') setLikeCount(p => p - 1); else setDislikeCount(p => p - 1);
+    } else {
+      setUserVote(newVoteType);
+      if (userVote === 'like') setLikeCount(p => p - 1);
+      if (userVote === 'dislike') setDislikeCount(p => p - 1);
+      if (newVoteType === 'like') setLikeCount(p => p + 1); else setDislikeCount(p => p + 1);
+    }
+  };
+
   const authorProfile = post.profiles;
   const displayName = authorProfile?.full_name || authorProfile?.username || 'User';
   const username = authorProfile?.username || 'user';
-  // ... (Your like/dislike logic can remain here) ...
+  const avatarUrl = authorProfile?.avatar_url;
+  const avatarInitial = displayName.charAt(0).toUpperCase();
 
   return (
-    // 1. THE ENTIRE ARTICLE IS NOW A LINK TO THE POST'S PAGE
-    <Link to={`/post/${post.id}`} className="block hover:bg-gray-800/20 rounded-lg">
-      <article className="bg-bits-light-dark p-4 rounded-lg border-b border-gray-800">
-        <div className="flex items-center mb-3">
-          {/* ... Author info JSX ... */}
-        </div>
-        
+    <div className="bg-bits-light-dark p-4 rounded-lg mb-4 border-b border-gray-800">
+      <div className="flex items-center mb-3">
+        <Link to={`/profile/${username}`} className="flex items-center hover:underline">
+          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold mr-3">
+            {avatarUrl ? <img src={avatarUrl} alt={displayName} className="w-full h-full rounded-full object-cover" /> : <span>{avatarInitial}</span>}
+          </div>
+          <div>
+            <p className="font-bold text-white">{displayName}</p>
+            <p className="text-sm text-gray-400">@{username}</p>
+          </div>
+        </Link>
+      </div>
+      
+      <Link to={`/post/${post.id}`} className="block">
         <p className="text-gray-300 mb-3 whitespace-pre-wrap">{post.content}</p>
-        {post.image_url && <img src={post.image_url} alt="Post content" className="rounded-lg w-full" />}
+        {post.image_url && <img src={post.image_url} alt="Post content" className="rounded-lg w-full max-h-[500px] object-cover" />}
+      </Link>
 
-        <div className="flex items-center text-gray-400 mt-4 text-sm">
-          {/* ... Like/Dislike buttons ... */}
-          
-          {/* 2. DISPLAY THE COMMENT COUNT */}
-          <div className="flex items-center space-x-2 ml-4">
+      <div className="flex items-center text-gray-400 mt-4 text-sm">
+        <button onClick={() => handleVote('like')} className="flex items-center space-x-2 hover:text-green-500">
+          <ThumbsUpIcon className={`w-5 h-5 ${userVote === 'like' ? 'text-green-500' : ''}`} />
+          <span>{likeCount}</span>
+        </button>
+        <button onClick={() => handleVote('dislike')} className="flex items-center space-x-2 ml-4 hover:text-red-500">
+          <ThumbsDownIcon className={`w-5 h-5 ${userVote === 'dislike' ? 'text-red-500' : ''}`} />
+          <span>{dislikeCount}</span>
+        </button>
+        <Link to={`/post/${post.id}`} className="flex items-center space-x-2 ml-4 hover:text-blue-500">
             <ChatIcon className="w-5 h-5" />
             <span>{post.comment_count || 0}</span>
-          </div>
-        </div>
-      </article>
-    </Link>
+        </Link>
+      </div>
+    </div>
   );
 };
 
