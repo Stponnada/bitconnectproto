@@ -1,6 +1,6 @@
 // src/pages/PostPage.tsx (New File)
 
-import React, 'useState', useEffect } from 'react';
+import React, {'useState', useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
