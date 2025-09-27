@@ -1,4 +1,4 @@
-// src/pages/PostPage.tsx (This will work after the database fix)
+// src/pages/PostPage.tsx (Final Version with Comment Form)
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
@@ -66,13 +66,25 @@ const PostPage: React.FC = () => {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
+      {/* Disable pointer events on the main post so you can't click it again */}
       <div className="pointer-events-none"><PostComponent post={post} /></div>
+
+      {/* ================================================================== */}
+      {/* THE COMMENT FORM IS HERE */}
+      {/* It will only show if the user is logged in (profile exists). */}
+      {/* ================================================================== */}
       {profile && (
         <div className="p-4 border-t border-b border-gray-800">
           <form onSubmit={handleCommentSubmit} className="flex items-start space-x-3">
             <img src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.username}`} alt="Your avatar" className="w-10 h-10 rounded-full bg-gray-700" />
             <div className="flex-1">
-              <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Post your reply" className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red" rows={2} />
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Post your reply"
+                className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red"
+                rows={2}
+              />
               <div className="flex justify-end mt-2">
                 <button type="submit" disabled={isSubmitting || !newComment.trim()} className="bg-bits-red text-white font-bold py-2 px-4 rounded-full disabled:opacity-50 hover:bg-red-700">
                   {isSubmitting ? <Spinner /> : 'Reply'}
@@ -82,6 +94,8 @@ const PostPage: React.FC = () => {
           </form>
         </div>
       )}
+      
+      {/* The comment list and "No Comments" message */}
       <div>
         {comments.length > 0 ? (
           comments.map(comment => <Comment key={comment.id} comment={comment} />)
