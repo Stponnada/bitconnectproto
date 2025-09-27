@@ -1,4 +1,4 @@
-// src/pages/Login.tsx (MODIFIED VERSION)
+// src/pages/Login.tsx (MODIFIED FOR PASSWORD-ONLY EFFECT)
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -6,7 +6,6 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
 
-// --- (No changes in this section) ---
 const BITS_DOMAINS = [
   'hyderabad.bits-pilani.ac.in',
   'goa.bits-pilani.ac.in',
@@ -15,7 +14,6 @@ const BITS_DOMAINS = [
 ];
 
 const Login: React.FC = () => {
-  // --- (No changes in this section) ---
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -26,16 +24,11 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
 
-  // =========================================================================
-  // NEW: Step 1 - Define Image URLs and State
-  // =========================================================================
   // !! IMPORTANT: REPLACE THESE WITH YOUR ACTUAL SUPABASE URLS !!
-  const idleImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.57.42%20PM.png';
-  const activeImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.41.01%20PM.png';
+  const idleImageUrl = 'https://your-project.supabase.co/storage/v1/object/public/assets/idle-mascot.png';
+  const activeImageUrl = 'https://your-project.supabase.co/storage/v1/object/public/assets/active-mascot.png';
   
-  // This state will hold the URL of the image to be displayed
   const [activeImage, setActiveImage] = useState<string>(idleImageUrl);
-  // =========================================================================
 
   useEffect(() => {
     if (session) {
@@ -49,7 +42,7 @@ const Login: React.FC = () => {
   };
 
   const handleAuth = async (e: React.FormEvent) => {
-    // ... (Your handleAuth function remains exactly the same, no changes needed here)
+    // ... (Your handleAuth function remains exactly the same)
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -92,14 +85,10 @@ const Login: React.FC = () => {
     return <div className="flex items-center justify-center h-screen bg-dark"><Spinner /></div>;
   }
 
-  // =========================================================================
-  // MODIFIED: Step 2 - Update JSX with the New Layout and Image
-  // =========================================================================
   return (
     <div className="flex flex-col lg:flex-row items-center justify-center min-h-screen bg-dark p-4">
       {/* LEFT COLUMN: Login Form and Dynamic Image */}
       <div className="w-full max-w-md lg:w-1/2 flex flex-col items-center justify-center p-8">
-        {/* The new dynamic image */}
         <img
           src={activeImage}
           alt="Mascot"
@@ -108,6 +97,8 @@ const Login: React.FC = () => {
         <div className="w-full bg-dark-secondary p-8 rounded-lg shadow-lg">
           <h2 className="text-2xl font-bold text-center text-gray-100 mb-6">{isLogin ? 'Welcome Back!' : 'Create Account'}</h2>
           <form onSubmit={handleAuth} className="flex flex-col gap-4">
+            
+            {/* --- CHANGE 1: REMOVED onFocus AND onBlur FROM EMAIL INPUT --- */}
             <input
               type="email"
               placeholder={isLogin ? "Email" : "BITS Email"}
@@ -115,11 +106,10 @@ const Login: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red"
-              // NEW: Event handlers to change the image
-              onFocus={() => setActiveImage(activeImageUrl)}
-              onBlur={() => setActiveImage(idleImageUrl)}
             />
+
             {!isLogin && (
+              /* --- CHANGE 2: REMOVED onFocus AND onBlur FROM USERNAME INPUT --- */
               <input
                 type="text"
                 placeholder="Username"
@@ -127,11 +117,10 @@ const Login: React.FC = () => {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red"
-                // NEW: Event handlers to change the image
-                onFocus={() => setActiveImage(activeImageUrl)}
-                onBlur={() => setActiveImage(idleImageUrl)}
               />
             )}
+
+            {/* --- NO CHANGE: PASSWORD INPUT KEEPS THE EVENT HANDLERS --- */}
             <input
               type="password"
               placeholder="Password"
@@ -139,11 +128,11 @@ const Login: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red"
-              // NEW: Event handlers to change the image
               onFocus={() => setActiveImage(activeImageUrl)}
               onBlur={() => setActiveImage(idleImageUrl)}
             />
             {!isLogin && (
+              /* --- NO CHANGE: CONFIRM PASSWORD INPUT KEEPS THE EVENT HANDLERS --- */
               <input
                 type="password"
                 placeholder="Confirm Password"
@@ -151,7 +140,6 @@ const Login: React.FC = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red"
-                // NEW: Event handlers to change the image
                 onFocus={() => setActiveImage(activeImageUrl)}
                 onBlur={() => setActiveImage(idleImageUrl)}
               />
