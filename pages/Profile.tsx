@@ -1,6 +1,6 @@
 // src/pages/Profile.tsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,9 +9,7 @@ import { Post as PostType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
 
-// ==================================================================
-// This is the updated EditProfileModal with all the new fields
-// ==================================================================
+// EditProfileModal Component (No changes)
 const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, onSave: () => void }> = ({ userProfile, onClose, onSave }) => {
     const { user } = useAuth();
     const [profileData, setProfileData] = useState(userProfile);
@@ -54,7 +52,6 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
             let avatar_url = profileData.avatar_url;
             let banner_url = profileData.banner_url;
 
-            // Image upload logic
             if (avatarFile) {
                 const filePath = `public/${user.id}/avatar.${avatarFile.name.split('.').pop()}`;
                 await supabase.storage.from('avatars').upload(filePath, avatarFile, { upsert: true });
@@ -69,7 +66,6 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
                 banner_url = `${publicUrl}?t=${new Date().getTime()}`;
             }
 
-            // Expanded update object to include all new fields
             const { error: updateError } = await supabase
                 .from('profiles')
                 .update({
@@ -178,14 +174,13 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
     );
 };
 
-// ==================================================================
-// The main Profile Page component (remains the same)
-// ==================================================================
+// ProfileDetail helper component (no changes)
 const ProfileDetail: React.FC<{ label: string; value?: string | number | null }> = ({ label, value }) => {
     if (!value) return null;
     return (<div><span className="font-semibold text-gray-200">{label}: </span><span className="text-gray-400">{value}</span></div>);
 };
 
+// ProfilePage Component (Updated)
 const ProfilePage: React.FC = () => {
     const { username } = useParams<{ username: string }>();
     const { user: currentUser } = useAuth();
@@ -194,27 +189,41 @@ const ProfilePage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-    const fetchProfileData = async () => {
+    const fetchProfileData = useCallback(async () => {
         if (!username) return;
-        if (!profile) setLoading(true);
+        setLoading(true);
 
         try {
+            // Fetch the profile's details
             const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('username', username).single();
-            if (profileError || !profileData) { setProfile(null); return; }
+            if (profileError || !profileData) {
+                setProfile(null);
+                setPosts([]);
+                return;
+            }
             setProfile(profileData);
-            const { data: postsData } = await supabase.from('posts').select('*, profiles(*)').eq('user_id', profileData.user_id).order('created_at', { ascending: false });
-            setPosts((postsData as any) || []);
+
+            // THE FIX: Call the RPC function to get ALL posts
+            const { data: allPosts, error: postsError } = await supabase
+                .rpc('get_posts_with_details');
+            
+            if (postsError) throw postsError;
+
+            // Then, filter the posts for the current profile on the client-side
+            const userPosts = allPosts.filter((post: PostType) => post.user_id === profileData.user_id);
+            setPosts(userPosts || []);
+            
         } catch (error) {
             console.error("Error fetching profile data:", error);
             setProfile(null);
         } finally {
             setLoading(false);
         }
-    };
+    }, [username]);
 
     useEffect(() => {
         fetchProfileData();
-    }, [username]);
+    }, [fetchProfileData]);
 
     if (loading) return <div className="flex items-center justify-center h-screen"><Spinner /></div>;
     if (!profile) return <div className="text-center py-10 text-xl text-red-400">User not found.</div>;
@@ -225,40 +234,40 @@ const ProfilePage: React.FC = () => {
 
     return (
         <>
-        {isEditModalOpen && <EditProfileModal userProfile={profile} onClose={() => setIsEditModalOpen(false)} onSave={fetchProfileData} />}
-        
-        <div className="w-full max-w-4xl mx-auto pb-10">
-            <div className="h-48 sm:h-64 bg-gray-800">{profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}</div>
-            <div className="px-4 sm:px-6 relative">
-                <div className="flex items-end -mt-16 sm:-mt-20">
-                    <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-black bg-gray-700 flex-shrink-0">
-                        {profile.avatar_url ? <img src={profile.avatar_url} alt={profile.full_name || ''} className="w-full h-full rounded-full object-cover" /> : <div className="w-full h-full rounded-full bg-gray-600 flex items-center justify-center text-4xl font-bold">{(profile.full_name || '?').charAt(0)}</div>}
+            {isEditModalOpen && <EditProfileModal userProfile={profile} onClose={() => setIsEditModalOpen(false)} onSave={fetchProfileData} />}
+            
+            <div className="w-full">
+                <div className="h-48 sm:h-64 bg-gray-800 border-b-4 border-black">{profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}</div>
+                <div className="px-4 sm:px-6 relative bg-dark-secondary pb-10">
+                    <div className="flex items-end -mt-16 sm:-mt-20">
+                        <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-black bg-gray-700 flex-shrink-0">
+                            {profile.avatar_url ? <img src={profile.avatar_url} alt={profile.full_name || ''} className="w-full h-full rounded-full object-cover" /> : <div className="w-full h-full rounded-full bg-gray-600 flex items-center justify-center text-4xl font-bold">{(profile.full_name || '?').charAt(0).toUpperCase()}</div>}
+                        </div>
+                        <div className="ml-auto pb-4">{isOwnProfile && <button onClick={() => setIsEditModalOpen(true)} className="bg-gray-700 text-white font-bold py-2 px-4 rounded-full hover:bg-gray-600">Edit Profile</button>}</div>
                     </div>
-                    <div className="ml-auto pb-4">{isOwnProfile && <button onClick={() => setIsEditModalOpen(true)} className="bg-gray-700 text-white font-bold py-2 px-4 rounded-full hover:bg-gray-600">Edit Profile</button>}</div>
-                </div>
-                <div className="mt-4">
-                    <h1 className="text-3xl font-bold">{profile.full_name}</h1>
-                    <p className="text-gray-400">@{profile.username}</p>
-                    <div className="mt-2 flex items-center space-x-2 text-sm text-gray-400">
-                        {profile.campus && <span>{profile.campus} Campus</span>}
-                        {graduationYear && <span className="text-gray-500">&middot;</span>}
-                        {graduationYear && <span>Class of {graduationYear}</span>}
+                    <div className="mt-4">
+                        <h1 className="text-3xl font-bold">{profile.full_name}</h1>
+                        <p className="text-gray-400">@{profile.username}</p>
+                        <div className="mt-2 flex items-center space-x-2 text-sm text-gray-400">
+                            {profile.campus && <span>{profile.campus} Campus</span>}
+                            {graduationYear && <span className="text-gray-500">&middot;</span>}
+                            {graduationYear && <span>Class of {graduationYear}</span>}
+                        </div>
                     </div>
-                </div>
-                {profile.bio && <p className="mt-4 text-gray-300 whitespace-pre-wrap">{profile.bio}</p>}
-                <hr className="border-gray-700 my-6" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-                    <ProfileDetail label="Branch" value={profile.branch} />
-                    <ProfileDetail label="Relationship Status" value={profile.relationship_status} />
-                    <ProfileDetail label="Dorm" value={dormInfo} />
-                    <ProfileDetail label="Dining Hall" value={profile.dining_hall} />
-                </div>
-                <div className="mt-8">
-                    <h2 className="text-xl font-bold">Posts</h2>
-                    <div className="mt-4 space-y-4">{posts.length > 0 ? (posts.map(post => <PostComponent key={post.id} post={post} />)) : (<p className="text-center text-gray-500 py-8">No posts yet.</p>)}</div>
+                    {profile.bio && <p className="mt-4 text-gray-300 whitespace-pre-wrap">{profile.bio}</p>}
+                    <hr className="border-gray-700 my-6" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                        <ProfileDetail label="Branch" value={profile.branch} />
+                        <ProfileDetail label="Relationship Status" value={profile.relationship_status} />
+                        <ProfileDetail label="Dorm" value={dormInfo} />
+                        <ProfileDetail label="Dining Hall" value={profile.dining_hall} />
+                    </div>
+                    <div className="mt-8">
+                        <h2 className="text-xl font-bold border-b border-gray-700 pb-2">Posts</h2>
+                        <div className="mt-4 space-y-4">{posts.length > 0 ? (posts.map(post => <PostComponent key={post.id} post={post} onVoteSuccess={fetchProfileData} />)) : (<p className="text-center text-gray-500 py-8">No posts yet.</p>)}</div>
+                    </div>
                 </div>
             </div>
-        </div>
         </>
     );
 };

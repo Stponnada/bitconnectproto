@@ -1,6 +1,6 @@
 // src/pages/Home.tsx
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import PostComponent from '../components/Post';
@@ -25,7 +25,7 @@ const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, on
     );
 };
 
-// CreatePost Component (Updated with consistent avatar logic)
+// CreatePost Component (No changes)
 const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: Profile }> = ({ onPostCreated, profile }) => {
     const { user } = useAuth();
     const [content, setContent] = useState('');
@@ -34,7 +34,6 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     const [error, setError] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
 
-    // This logic remains the same
     useEffect(() => {
         if (imageFile) {
             const url = URL.createObjectURL(imageFile);
@@ -75,6 +74,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                 ...newPostData,
                 profiles: profile,
                 like_count: 0,
+                dislike_count: 0,
                 comment_count: 0,
                 user_has_liked: false,
             };
@@ -90,20 +90,13 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     };
 
     const canPost = (content.trim() || imageFile) && !isSubmitting;
-
-    // ==================================================================
-    // CHANGE #1: Added helper variables for the avatar, just like in Post.tsx
-    // ==================================================================
     const displayName = profile.full_name || profile.username || 'User';
     const avatarUrl = profile.avatar_url;
     const avatarInitial = displayName.charAt(0).toUpperCase();
 
     return (
-        <div className="bg-bits-light-dark rounded-lg shadow p-5 mb-6">
+        <div className="bg-dark-secondary rounded-lg shadow p-5 mb-6 border border-dark-tertiary">
             <div className="flex items-start">
-                {/* ================================================================== */}
-                {/* CHANGE #2: Replaced the old <img> tag with the conditional logic block */}
-                {/* ================================================================== */}
                 <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center font-bold mr-4 flex-shrink-0">
                     {avatarUrl ? (
                         <img
@@ -120,9 +113,8 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                     <textarea
                         value={content}
                         onChange={e => setContent(e.target.value)}
-                        className="w-full bg-white rounded-lg p-3 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red resize-none"
+                        className="w-full bg-dark-tertiary rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red resize-none border border-gray-600"
                         rows={3}
-                        // Use the new displayName variable for consistency
                         placeholder={`What's on your mind, ${displayName.split(' ')[0] || profile.username}?`}
                     />
 
@@ -143,47 +135,57 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     );
 };
 
-// HomePage Component (No changes)
+// HomePage Component (Updated)
 export const HomePage: React.FC = () => {
     const { user } = useAuth();
     const [posts, setPosts] = useState<PostType[]>([]);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            if (!user) return;
-            setLoading(true);
+    const fetchData = useCallback(async () => {
+        if (!user) return;
+        setLoading(true);
 
-            const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
-            if (profileError) console.error("Error fetching profile:", profileError);
-            else setProfile(profileData);
+        // Fetch profile data (no change here)
+        const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        if (profileError) console.error("Error fetching profile:", profileError);
+        else setProfile(profileData);
 
-            const { data: postsData, error: postsError } = await supabase.from('posts').select(`*, profiles(*)`).order('created_at', { ascending: false });
-            if (postsError) console.error("Error fetching posts:", postsError);
-            else setPosts(postsData as any);
+        // THE FIX: Call the RPC function to get posts with calculated counts
+        const { data: postsData, error: postsError } = await supabase
+            .rpc('get_posts_with_details');
 
-            setLoading(false);
-        };
-        fetchData();
+        if (postsError) {
+            console.error("Error fetching posts:", postsError);
+        } else {
+            setPosts(postsData as any);
+        }
+
+        setLoading(false);
     }, [user]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     const handlePostCreated = (newPost: PostType) => {
         setPosts(currentPosts => [newPost, ...currentPosts]);
     };
 
     if (loading) {
-        return <div className="text-center p-8 text-white"><Spinner /></div>;
+        return <div className="text-center p-8"><Spinner /></div>;
     }
 
     return (
-        <div className="w-full max-w-2xl mx-auto py-6">
+        <div className="w-full">
             {profile && <CreatePost onPostCreated={handlePostCreated} profile={profile} />}
             {posts.length > 0 ? (
-                posts.map(post => <PostComponent key={post.id} post={post} />)
+                <div className="space-y-4">
+                    {posts.map(post => <PostComponent key={post.id} post={post} onVoteSuccess={fetchData} />)}
+                </div>
             ) : (
-                <div className="bg-bits-light-dark rounded-lg p-8 text-center text-bits-text-muted">
-                    <h3 className="text-xl font-semibold text-bits-text">Welcome to BITS Connect!</h3>
+                <div className="bg-dark-secondary rounded-lg p-8 text-center text-gray-500">
+                    <h3 className="text-xl font-semibold text-white">Welcome to BITS Connect!</h3>
                     <p className="mt-2">It's quiet in here. Be the first to share something!</p>
                 </div>
             )}
