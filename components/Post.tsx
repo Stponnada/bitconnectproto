@@ -4,27 +4,23 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { usePosts } from '../contexts/PostsContext'; // <-- 1. IMPORT usePosts
+import { usePosts } from '../contexts/PostsContext';
 import { Post as PostType } from '../types';
 import { ThumbsUpIcon, ThumbsDownIcon, CommentIcon } from './icons';
 
-// The onVoteSuccess prop is no longer needed for this component's primary function
 const Post = ({ post }: { post: PostType }) => {
   const { user } = useAuth();
-  const { updatePostInContext } = usePosts(); // <-- 2. GET THE UPDATE FUNCTION
+  const { updatePostInContext } = usePosts();
 
-  // Local state for immediate UI feedback (optimistic update)
-  const [likeCount, setLikeCount] = useState(post.like_count);
-  const [dislikeCount, setDislikeCount] = useState(post.dislike_count);
+  // THE FIX: We ONLY keep local state for things unique to THIS component instance,
+  // like which button the user has pressed (`userVote`) and the loading state (`isVoting`).
+  // The actual counts now come directly from the `post` prop.
   const [userVote, setUserVote] = useState<'like' | 'dislike' | null>(null);
   const [isVoting, setIsVoting] = useState(false);
 
   useEffect(() => {
-    // Sync local state with post prop when it changes
-    setLikeCount(post.like_count);
-    setDislikeCount(post.dislike_count);
-
-    // Fetch the user's specific vote for this post
+    // This effect is now only responsible for figuring out if the current
+    // user has liked or disliked this specific post.
     const fetchUserVote = async () => {
       if (!user) return;
       const { data } = await supabase
@@ -36,17 +32,17 @@ const Post = ({ post }: { post: PostType }) => {
       setUserVote(data?.like_type as 'like' | 'dislike' || null);
     };
     fetchUserVote();
-  }, [post.id, post.like_count, post.dislike_count, user]);
+  }, [post.id, user]);
 
   const handleVote = async (newVoteType: 'like' | 'dislike') => {
     if (!user || isVoting) return;
     setIsVoting(true);
 
     const oldVote = userVote;
-    let newLikeCount = likeCount;
-    let newDislikeCount = dislikeCount;
-    
-    // 1. Perform Optimistic UI Update on LOCAL state
+    let newLikeCount = post.like_count;
+    let newDislikeCount = post.dislike_count;
+
+    // 1. Calculate the new state based on the current action
     if (newVoteType === oldVote) { // Un-voting
       setUserVote(null);
       if (newVoteType === 'like') newLikeCount--;
@@ -60,17 +56,16 @@ const Post = ({ post }: { post: PostType }) => {
       
       setUserVote(newVoteType);
     }
-    setLikeCount(newLikeCount);
-    setDislikeCount(newDislikeCount);
 
-    // 2. Update the GLOBAL context state. This syncs all other components.
+    // 2. Immediately update the GLOBAL context. This is the optimistic update.
+    // Every component in the app will now see the new counts instantly.
     updatePostInContext({
       id: post.id,
       like_count: newLikeCount,
       dislike_count: newDislikeCount,
     });
 
-    // 3. Update the DATABASE in the background.
+    // 3. Update the database in the background.
     try {
       if (newVoteType === oldVote) {
         await supabase.from('likes').delete().match({ user_id: user.id, post_id: post.id });
@@ -83,7 +78,13 @@ const Post = ({ post }: { post: PostType }) => {
       }
     } catch (error) {
       console.error("Failed to vote:", error);
-      // In case of error, you could revert the state here, but this is a simple implementation.
+      // Revert UI on failure by telling context to go back to original values
+      updatePostInContext({
+          id: post.id,
+          like_count: post.like_count,
+          dislike_count: post.dislike_count,
+      });
+      setUserVote(oldVote); // also revert the button color
     } finally {
       setIsVoting(false);
     }
@@ -117,11 +118,12 @@ const Post = ({ post }: { post: PostType }) => {
       <div className="flex items-center text-gray-400 mt-4 text-sm">
         <button disabled={isVoting} onClick={() => handleVote('like')} className="flex items-center space-x-2 hover:text-green-500 disabled:opacity-50">
           <ThumbsUpIcon className={`w-5 h-5 ${userVote === 'like' ? 'text-green-500' : ''}`} />
-          <span>{likeCount}</span>
+          {/* THE FIX: Always read from the prop, which is the single source of truth from the context */}
+          <span>{post.like_count}</span>
         </button>
         <button disabled={isVoting} onClick={() => handleVote('dislike')} className="flex items-center space-x-2 ml-4 hover:text-red-500 disabled:opacity-50">
           <ThumbsDownIcon className={`w-5 h-5 ${userVote === 'dislike' ? 'text-red-500' : ''}`} />
-          <span>{dislikeCount}</span>
+          <span>{post.dislike_count}</span>
         </button>
         <Link to={`/post/${post.id}`} className="flex items-center space-x-2 ml-4 hover:text-blue-500">
             <CommentIcon className="w-5 h-5" />
