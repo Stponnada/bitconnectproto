@@ -1,5 +1,7 @@
 // src/types.ts
 
+// src/types.ts (Updated)
+
 export interface Profile {
   user_id: string;
   username: string;
@@ -19,7 +21,13 @@ export interface Profile {
   profile_complete?: boolean;
   created_at?: string;
   updated_at?: string;
+  // --- NEW FIELDS ---
+  following_count: number;
+  follower_count: number;
+  is_following: boolean; // Is the current user following this profile?
 }
+
+// ... Post, Comment, and Search interfaces remain the same
 
 export interface Post {
   id: string;

@@ -1,4 +1,4 @@
-// src/pages/Profile.tsx (Updated with Crash Fix)
+// src/pages/Profile.tsx (Complete Final Version)
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
@@ -10,10 +10,7 @@ import { Post as PostType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
 
-// EditProfileModal and ProfileDetail components are unchanged...
-// ... (You can keep their code here as it was)
-
-// ProfilePage Component (Updated)
+// ProfilePage Component (Updated with all features)
 const ProfilePage: React.FC = () => {
     const { username } = useParams<{ username: string }>();
     const { user: currentUser } = useAuth();
@@ -22,12 +19,16 @@ const ProfilePage: React.FC = () => {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [profileLoading, setProfileLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isTogglingFollow, setIsTogglingFollow] = useState(false);
 
     const fetchProfileData = useCallback(async () => {
         if (!username) return;
         setProfileLoading(true);
         try {
-            const { data, error } = await supabase.from('profiles').select('*').eq('username', username).single();
+            const { data, error } = await supabase
+                .rpc('get_profile_details', { profile_username: username })
+                .single();
+
             if (error || !data) throw error || new Error("Profile not found");
             setProfile(data);
         } catch (error) {
@@ -41,51 +42,100 @@ const ProfilePage: React.FC = () => {
     useEffect(() => {
         fetchProfileData();
     }, [fetchProfileData]);
+    
+    const handleFollowToggle = async () => {
+      if (!currentUser || !profile || isTogglingFollow) return;
+      setIsTogglingFollow(true);
 
-    // Combined loading state check
+      const isCurrentlyFollowing = profile.is_following;
+
+      // Optimistic UI Update
+      setProfile({
+        ...profile,
+        is_following: !isCurrentlyFollowing,
+        follower_count: isCurrentlyFollowing 
+          ? profile.follower_count - 1
+          : profile.follower_count + 1,
+      });
+
+      try {
+        if (isCurrentlyFollowing) {
+          const { error } = await supabase.from('followers').delete().match({
+            follower_id: currentUser.id,
+            following_id: profile.user_id,
+          });
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from('followers').insert({
+            follower_id: currentUser.id,
+            following_id: profile.user_id,
+          });
+          if (error) throw error;
+        }
+      } catch (error) {
+        console.error('Failed to toggle follow:', error);
+        // Revert UI on error
+        setProfile({
+          ...profile,
+          is_following: isCurrentlyFollowing,
+          follower_count: profile.follower_count,
+        });
+      } finally {
+        setIsTogglingFollow(false);
+      }
+    };
+
     if (profileLoading || postsLoading) {
         return <div className="flex items-center justify-center h-screen"><Spinner /></div>;
     }
     
-    // This now correctly handles the case where the profile wasn't found AFTER loading is complete.
     if (!profile) {
         return <div className="text-center py-10 text-xl text-red-400">User not found.</div>;
     }
     
-    // Filter posts after we are sure profile exists
     const userPosts = posts.filter(post => post.user_id === profile.user_id);
-    
     const isOwnProfile = currentUser?.id === profile.user_id;
     const graduationYear = profile.admission_year ? profile.admission_year + 4 : null;
     const dormInfo = profile.dorm_building ? `${profile.dorm_building}${profile.dorm_room ? `, Room ${profile.dorm_room}` : ''}` : null;
 
     return (
         <>
-            {/* THE CRASH FIX IS HERE: We add `&& profile` to ensure the modal never gets a null profile */}
             {isEditModalOpen && profile && (
-                <EditProfileModal 
-                    userProfile={profile} 
-                    onClose={() => setIsEditModalOpen(false)} 
-                    onSave={fetchProfileData} 
-                />
+                <EditProfileModal userProfile={profile} onClose={() => setIsEditModalOpen(false)} onSave={fetchProfileData} />
             )}
             
             <div className="w-full">
-                <div className="h-48 sm:h-64 bg-gray-800 border-b-4 border-black">
-                    {profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}
-                </div>
+                <div className="h-48 sm:h-64 bg-gray-800 border-b-4 border-black">{profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}</div>
                 <div className="px-4 sm:px-6 relative bg-dark-secondary pb-10">
                     <div className="flex items-end -mt-16 sm:-mt-20">
                         <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-black bg-gray-700 flex-shrink-0">
                             {profile.avatar_url ? <img src={profile.avatar_url} alt={profile.full_name || ''} className="w-full h-full rounded-full object-cover" /> : <div className="w-full h-full rounded-full bg-gray-600 flex items-center justify-center text-4xl font-bold">{(profile.full_name || '?').charAt(0).toUpperCase()}</div>}
                         </div>
-                        <div className="ml-auto pb-4">
-                            {isOwnProfile && <button onClick={() => setIsEditModalOpen(true)} className="bg-gray-700 text-white font-bold py-2 px-4 rounded-full hover:bg-gray-600">Edit Profile</button>}
+                        <div className="ml-auto pb-4 flex items-center space-x-4">
+                            {isOwnProfile ? (
+                                <button onClick={() => setIsEditModalOpen(true)} className="bg-gray-700 text-white font-bold py-2 px-4 rounded-full hover:bg-gray-600">Edit Profile</button>
+                            ) : (
+                                <button 
+                                  onClick={handleFollowToggle}
+                                  disabled={isTogglingFollow}
+                                  className={`font-bold py-2 px-6 rounded-full transition-colors disabled:opacity-50 ${
+                                    profile.is_following 
+                                      ? 'bg-transparent border border-gray-500 text-white hover:border-red-500 hover:text-red-500'
+                                      : 'bg-white text-black hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {isTogglingFollow ? <Spinner /> : (profile.is_following ? 'Following' : 'Follow')}
+                                </button>
+                            )}
                         </div>
                     </div>
                     <div className="mt-4">
                         <h1 className="text-3xl font-bold">{profile.full_name}</h1>
                         <p className="text-gray-400">@{profile.username}</p>
+                        <div className="mt-3 flex items-center space-x-4 text-sm">
+                            <p><span className="font-bold text-white">{profile.following_count}</span> <span className="text-gray-400">Following</span></p>
+                            <p><span className="font-bold text-white">{profile.follower_count}</span> <span className="text-gray-400">Followers</span></p>
+                        </div>
                         <div className="mt-2 flex items-center space-x-2 text-sm text-gray-400">
                             {profile.campus && <span>{profile.campus} Campus</span>}
                             {graduationYear && <span className="text-gray-500">&middot;</span>}
@@ -102,12 +152,7 @@ const ProfilePage: React.FC = () => {
                     </div>
                     <div className="mt-8">
                         <h2 className="text-xl font-bold border-b border-gray-700 pb-2">Posts</h2>
-                        <div className="mt-4 space-y-4">
-                            {userPosts.length > 0 
-                                ? userPosts.map(post => <PostComponent key={post.id} post={post} />) 
-                                : <p className="text-center text-gray-500 py-8">No posts yet.</p>
-                            }
-                        </div>
+                        <div className="mt-4 space-y-4">{userPosts.length > 0 ? (userPosts.map(post => <PostComponent key={post.id} post={post} />)) : (<p className="text-center text-gray-500 py-8">No posts yet.</p>)}</div>
                     </div>
                 </div>
             </div>
@@ -116,7 +161,7 @@ const ProfilePage: React.FC = () => {
 };
 
 
-// I've included the unchanged components below for completeness, so you can replace the whole file.
+// I am including the full helper components below so the file is complete.
 
 const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, onSave: () => void }> = ({ userProfile, onClose, onSave }) => {
     const { user } = useAuth();
@@ -286,5 +331,6 @@ const ProfileDetail: React.FC<{ label: string; value?: string | number | null }>
     if (!value) return null;
     return (<div><span className="font-semibold text-gray-200">{label}: </span><span className="text-gray-400">{value}</span></div>);
 };
+
 
 export default ProfilePage;
