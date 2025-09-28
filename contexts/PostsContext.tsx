@@ -1,4 +1,4 @@
-// src/contexts/PostsContext.tsx
+// src/contexts/PostsContext.tsx (Updated)
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabase';
@@ -9,6 +9,7 @@ interface PostsContextType {
   posts: PostType[];
   loading: boolean;
   error: string | null;
+  addPostToContext: (newPost: PostType) => void;
   updatePostInContext: (updatedPost: Partial<PostType> & { id: string }) => void;
 }
 
@@ -21,6 +22,7 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [error, setError] = useState<string | null>(null);
 
   const fetchPosts = useCallback(async () => {
+    if (!user) return; // Don't fetch if no user
     setLoading(true);
     setError(null);
     try {
@@ -33,14 +35,16 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    // Fetch posts only when the user is logged in.
-    if (user) {
-      fetchPosts();
-    }
-  }, [user, fetchPosts]);
+    fetchPosts();
+  }, [fetchPosts]);
+
+  const addPostToContext = (newPost: PostType) => {
+    // Add the new post to the top of the feed
+    setPosts(currentPosts => [newPost, ...currentPosts]);
+  };
 
   const updatePostInContext = useCallback((updatedPost: Partial<PostType> & { id: string }) => {
     setPosts(currentPosts =>
@@ -50,7 +54,7 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   }, []);
 
-  const value = { posts, loading, error, updatePostInContext };
+  const value = { posts, loading, error, addPostToContext, updatePostInContext };
 
   return (
     <PostsContext.Provider value={value}>
