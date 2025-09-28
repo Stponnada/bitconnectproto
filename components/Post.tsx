@@ -1,43 +1,41 @@
-// src/components/Post.tsx
+// src/components/Post.tsx (Updated)
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { usePosts } from '../contexts/PostsContext'; // <-- 1. IMPORT usePosts
 import { Post as PostType } from '../types';
-import { ThumbsUpIcon, ThumbsDownIcon, CommentIcon } from './icons'; // Corrected icon name
-import { useState, useEffect } from 'react';
+import { ThumbsUpIcon, ThumbsDownIcon, CommentIcon } from './icons';
 
-// THE FIX IS HERE: We are changing the prop signature to make it optional.
-const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => void }) => {
+// The onVoteSuccess prop is no longer needed for this component's primary function
+const Post = ({ post }: { post: PostType }) => {
   const { user } = useAuth();
+  const { updatePostInContext } = usePosts(); // <-- 2. GET THE UPDATE FUNCTION
 
-  const [likeCount, setLikeCount] = useState(0);
-  const [dislikeCount, setDislikeCount] = useState(0);
+  // Local state for immediate UI feedback (optimistic update)
+  const [likeCount, setLikeCount] = useState(post.like_count);
+  const [dislikeCount, setDislikeCount] = useState(post.dislike_count);
   const [userVote, setUserVote] = useState<'like' | 'dislike' | null>(null);
   const [isVoting, setIsVoting] = useState(false);
 
   useEffect(() => {
-    setLikeCount(post.like_count || 0);
-    setDislikeCount(post.dislike_count || 0);
+    // Sync local state with post prop when it changes
+    setLikeCount(post.like_count);
+    setDislikeCount(post.dislike_count);
 
+    // Fetch the user's specific vote for this post
     const fetchUserVote = async () => {
-        if (!user) {
-            setUserVote(null);
-            return;
-        };
-
-        const { data: userVoteData } = await supabase
-          .from('likes')
-          .select('like_type')
-          .eq('post_id', post.id)
-          .eq('user_id', user.id)
-          .single();
-        
-        setUserVote(userVoteData?.like_type as 'like' | 'dislike' || null);
-    }
+      if (!user) return;
+      const { data } = await supabase
+        .from('likes')
+        .select('like_type')
+        .eq('post_id', post.id)
+        .eq('user_id', user.id)
+        .single();
+      setUserVote(data?.like_type as 'like' | 'dislike' || null);
+    };
     fetchUserVote();
-    
   }, [post.id, post.like_count, post.dislike_count, user]);
 
   const handleVote = async (newVoteType: 'like' | 'dislike') => {
@@ -45,23 +43,34 @@ const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => v
     setIsVoting(true);
 
     const oldVote = userVote;
+    let newLikeCount = likeCount;
+    let newDislikeCount = dislikeCount;
     
-    // This is the OPTIMISTIC UI UPDATE. It happens instantly.
+    // 1. Perform Optimistic UI Update on LOCAL state
     if (newVoteType === oldVote) { // Un-voting
       setUserVote(null);
-      if (newVoteType === 'like') setLikeCount(prev => prev - 1);
-      if (newVoteType === 'dislike') setDislikeCount(prev => prev - 1);
+      if (newVoteType === 'like') newLikeCount--;
+      if (newVoteType === 'dislike') newDislikeCount--;
     } else { // Voting or changing vote
-      if (oldVote === 'like') setLikeCount(prev => prev - 1);
-      if (oldVote === 'dislike') setDislikeCount(prev => prev - 1);
+      if (oldVote === 'like') newLikeCount--;
+      if (oldVote === 'dislike') newDislikeCount--;
       
-      if (newVoteType === 'like') setLikeCount(prev => prev + 1);
-      if (newVoteType === 'dislike') setDislikeCount(prev => prev + 1);
+      if (newVoteType === 'like') newLikeCount++;
+      if (newVoteType === 'dislike') newDislikeCount++;
       
       setUserVote(newVoteType);
     }
-    
-    // This is the database operation. It happens in the background.
+    setLikeCount(newLikeCount);
+    setDislikeCount(newDislikeCount);
+
+    // 2. Update the GLOBAL context state. This syncs all other components.
+    updatePostInContext({
+      id: post.id,
+      like_count: newLikeCount,
+      dislike_count: newDislikeCount,
+    });
+
+    // 3. Update the DATABASE in the background.
     try {
       if (newVoteType === oldVote) {
         await supabase.from('likes').delete().match({ user_id: user.id, post_id: post.id });
@@ -72,21 +81,11 @@ const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => v
           like_type: newVoteType
         }, { onConflict: 'user_id, post_id' });
       }
-      
-      // ==================================================================
-      // THE FIX IS HERE: We only call the callback if it was explicitly
-      // provided for a special case (like the single PostPage).
-      // For the main feed, it will be undefined and nothing will happen.
-      // ==================================================================
-      if (onVoteSuccess) {
-        onVoteSuccess();
-      }
-
     } catch (error) {
-        console.error("Failed to vote:", error);
-        // If the database fails, you could revert the UI state here, but for now we keep it simple.
+      console.error("Failed to vote:", error);
+      // In case of error, you could revert the state here, but this is a simple implementation.
     } finally {
-        setIsVoting(false);
+      setIsVoting(false);
     }
   };
 
