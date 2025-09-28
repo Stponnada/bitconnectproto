@@ -1,10 +1,11 @@
-// src/components/Header.tsx
+// src/components/Header.tsx (Updated)
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { Profile } from '../types';
+import { Profile, SearchResults as SearchResultsType } from '../types';
+import SearchResults from './SearchResults'; // Import the new component
 
 const Header: React.FC = () => {
     const { user } = useAuth();
@@ -12,57 +13,101 @@ const Header: React.FC = () => {
     const navigate = useNavigate();
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    
+    // --- NEW SEARCH STATE ---
+    const [searchTerm, setSearchTerm] = useState('');
+    const [results, setResults] = useState<SearchResultsType | null>(null);
+    const [loadingSearch, setLoadingSearch] = useState(false);
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const searchRef = useRef<HTMLDivElement>(null);
 
+    // Fetch user profile for the avatar dropdown
     useEffect(() => {
         const fetchHeaderProfile = async () => {
             if (user) {
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .select('username, avatar_url, full_name')
-                    .eq('user_id', user.id)
-                    .single();
-
-                if (error) {
-                    console.error("Header could not fetch the user's profile:", error);
-                } else {
-                    setProfile(data);
-                }
+                const { data, error } = await supabase.from('profiles').select('username, avatar_url, full_name').eq('user_id', user.id).single();
+                if (error) console.error("Header could not fetch profile:", error);
+                else setProfile(data);
             }
         };
         fetchHeaderProfile();
     }, [user]);
+
+    // --- NEW DEBOUNCED SEARCH EFFECT ---
+    useEffect(() => {
+      const performSearch = async () => {
+        if (searchTerm.trim().length < 2) {
+          setResults(null);
+          return;
+        }
+        setLoadingSearch(true);
+        const { data, error } = await supabase.rpc('search_all', { search_term: searchTerm.trim() });
+        if (error) console.error('Search error:', error);
+        else setResults(data);
+        setLoadingSearch(false);
+      };
+
+      const debounceTimer = setTimeout(() => {
+        performSearch();
+      }, 300); // Wait for 300ms after user stops typing
+
+      return () => clearTimeout(debounceTimer); // Cleanup timer
+    }, [searchTerm]);
+
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
         navigate('/login');
     };
 
+    // Close dropdowns when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setDropdownOpen(false);
             }
+            if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+                setIsSearchFocused(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+    
+    const handleCloseSearch = () => {
+      setSearchTerm('');
+      setResults(null);
+      setIsSearchFocused(false);
+    };
 
     return (
-        // CHANGE #1: Increased header height from h-16 to h-20 for a wider/taller feel
         <header className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary h-20 flex items-center justify-between px-6 z-40">
-            
-            {/* CHANGE #2: Increased logo font size from text-xl to text-2xl */}
             <Link to="/" className="text-3xl font-bold text-bits-red">BITS Connect</Link>
             
-            <div className="w-full max-w-xs">{/* Your Search Bar can go here */}</div>
+            {/* --- NEW SEARCH BAR --- */}
+            <div ref={searchRef} className="relative w-full max-w-md mx-4">
+              <input
+                type="text"
+                placeholder="Search for people, posts, and comments..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
+                className="w-full p-2.5 bg-dark-tertiary border border-gray-600 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red"
+              />
+              {isSearchFocused && searchTerm.length > 1 && (
+                <SearchResults
+                  results={results}
+                  loading={loadingSearch}
+                  onNavigate={handleCloseSearch}
+                />
+              )}
+            </div>
 
             <div className="relative" ref={dropdownRef}>
-                {/* CHANGE #3: Increased button size from w-10 h-10 to w-12 h-12 */}
                 <button onClick={() => setDropdownOpen(!dropdownOpen)} className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
                     {profile?.avatar_url ? (
                         <img src={profile.avatar_url} alt="profile" className="w-full h-full rounded-full object-cover" />
                     ) : (
-                        // CHANGE #4: Increased font size for the initial to look better in the larger circle
                         <span className="font-bold text-white text-lg">
                             {(profile?.full_name || 'U').charAt(0).toUpperCase()}
                         </span>

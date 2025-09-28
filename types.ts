@@ -42,3 +42,21 @@ export interface Comment {
   created_at: string;
   profiles: Profile | null; // The joined profile of the comment author
 }
+
+export interface UserSearchResult {
+  username: string;
+  full_name: string;
+  avatar_url: string;
+}
+
+export interface PostSearchResult {
+  id: string;
+  content: string;
+  author_username: string;
+  author_full_name: string;
+}
+
+export interface SearchResults {
+  users: UserSearchResult[];
+  posts: PostSearchResult[];
+}
