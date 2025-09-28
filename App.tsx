@@ -1,14 +1,15 @@
-// src/App.tsx (Updated)
+// src/App.tsx (Corrected)
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { PostsProvider } from './contexts/PostsContext'; // <-- 1. IMPORT THE NEW PROVIDER
+import { PostsProvider } from './contexts/PostsContext';
 
 import { HomePage as Home } from './pages/Home';
 import Login from './pages/Login';
 import ProfilePage from './pages/Profile';
 import PostPage from './pages/PostPage';
 import ProfileSetup from './pages/ProfileSetup';
+import DirectoryPage from './pages/DirectoryPage'; // <-- THIS IS THE LINE THAT WAS MISSING
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
@@ -16,7 +17,7 @@ import Layout from './components/Layout';
 const App = () => {
   return (
     <AuthProvider>
-      <PostsProvider> {/* <-- 2. WRAP YOUR ROUTES WITH IT */}
+      <PostsProvider>
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -34,7 +35,7 @@ const App = () => {
             <Route path="*" element={<NotFound />} /> 
           </Routes>
         </Router>
-      </PostsProvider> {/* <-- 3. CLOSE THE WRAPPER */}
+      </PostsProvider>
     </AuthProvider>
   );
 };
