@@ -194,7 +194,6 @@ const ProfilePage: React.FC = () => {
         setLoading(true);
 
         try {
-            // Fetch the profile's details
             const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('username', username).single();
             if (profileError || !profileData) {
                 setProfile(null);
@@ -203,13 +202,11 @@ const ProfilePage: React.FC = () => {
             }
             setProfile(profileData);
 
-            // THE FIX: Call the RPC function to get ALL posts
             const { data: allPosts, error: postsError } = await supabase
                 .rpc('get_posts_with_details');
             
             if (postsError) throw postsError;
 
-            // Then, filter the posts for the current profile on the client-side
             const userPosts = allPosts.filter((post: PostType) => post.user_id === profileData.user_id);
             setPosts(userPosts || []);
             
@@ -264,7 +261,10 @@ const ProfilePage: React.FC = () => {
                     </div>
                     <div className="mt-8">
                         <h2 className="text-xl font-bold border-b border-gray-700 pb-2">Posts</h2>
-                        <div className="mt-4 space-y-4">{posts.length > 0 ? (posts.map(post => <PostComponent key={post.id} post={post} onVoteSuccess={fetchProfileData} />)) : (<p className="text-center text-gray-500 py-8">No posts yet.</p>)}</div>
+                        <div className="mt-4 space-y-4">
+                            {/* THE FIX IS HERE: The `onVoteSuccess` prop has been removed. */}
+                            {posts.length > 0 ? (posts.map(post => <PostComponent key={post.id} post={post} />)) : (<p className="text-center text-gray-500 py-8">No posts yet.</p>)}
+                        </div>
                     </div>
                 </div>
             </div>

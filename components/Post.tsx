@@ -5,27 +5,22 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Post as PostType } from '../types';
-import { ThumbsUpIcon, ThumbsDownIcon, ChatIcon } from './icons';
+import { ThumbsUpIcon, ThumbsDownIcon, CommentIcon } from './icons'; // Corrected icon name
 import { useState, useEffect } from 'react';
 
-// ==================================================================
-// THE FIX IS HERE: We add a new optional prop 'onVoteSuccess'
-// ==================================================================
+// THE FIX IS HERE: We are changing the prop signature to make it optional.
 const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => void }) => {
   const { user } = useAuth();
 
   const [likeCount, setLikeCount] = useState(0);
   const [dislikeCount, setDislikeCount] = useState(0);
   const [userVote, setUserVote] = useState<'like' | 'dislike' | null>(null);
-  const [isVoting, setIsVoting] = useState(false); // Prevent double-clicks
+  const [isVoting, setIsVoting] = useState(false);
 
-  // This effect correctly syncs the initial vote counts and user's vote
   useEffect(() => {
-    // We can extract the counts directly from the post prop if they exist
-    setLikeCount(post.like_count || 0); 
+    setLikeCount(post.like_count || 0);
     setDislikeCount(post.dislike_count || 0);
 
-    // Fetch only the current user's vote to keep it fast
     const fetchUserVote = async () => {
         if (!user) {
             setUserVote(null);
@@ -51,7 +46,7 @@ const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => v
 
     const oldVote = userVote;
     
-    // Optimistic UI Update: Update the state immediately
+    // This is the OPTIMISTIC UI UPDATE. It happens instantly.
     if (newVoteType === oldVote) { // Un-voting
       setUserVote(null);
       if (newVoteType === 'like') setLikeCount(prev => prev - 1);
@@ -66,7 +61,7 @@ const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => v
       setUserVote(newVoteType);
     }
     
-    // Database operation
+    // This is the database operation. It happens in the background.
     try {
       if (newVoteType === oldVote) {
         await supabase.from('likes').delete().match({ user_id: user.id, post_id: post.id });
@@ -79,7 +74,9 @@ const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => v
       }
       
       // ==================================================================
-      // THE FIX IS HERE: If the parent provided the callback, call it!
+      // THE FIX IS HERE: We only call the callback if it was explicitly
+      // provided for a special case (like the single PostPage).
+      // For the main feed, it will be undefined and nothing will happen.
       // ==================================================================
       if (onVoteSuccess) {
         onVoteSuccess();
@@ -87,7 +84,7 @@ const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => v
 
     } catch (error) {
         console.error("Failed to vote:", error);
-        // If the database fails, revert the optimistic UI update (optional but good practice)
+        // If the database fails, you could revert the UI state here, but for now we keep it simple.
     } finally {
         setIsVoting(false);
     }
@@ -100,7 +97,7 @@ const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => v
   const avatarInitial = displayName.charAt(0).toUpperCase();
 
   return (
-    <article className="bg-dark-secondary p-4 rounded-lg border-b border-gray-800">
+    <article className="bg-dark-secondary p-4 rounded-lg border border-dark-tertiary">
       <div className="flex items-center mb-3">
         <Link to={`/profile/${username}`} className="flex items-center hover:underline">
           <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold mr-3">
@@ -128,7 +125,7 @@ const Post = ({ post, onVoteSuccess }: { post: PostType; onVoteSuccess?: () => v
           <span>{dislikeCount}</span>
         </button>
         <Link to={`/post/${post.id}`} className="flex items-center space-x-2 ml-4 hover:text-blue-500">
-            <ChatIcon className="w-5 h-5" />
+            <CommentIcon className="w-5 h-5" />
             <span>{post.comment_count || 0}</span>
         </Link>
       </div>

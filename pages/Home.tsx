@@ -146,12 +146,10 @@ export const HomePage: React.FC = () => {
         if (!user) return;
         setLoading(true);
 
-        // Fetch profile data (no change here)
         const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
         if (profileError) console.error("Error fetching profile:", profileError);
         else setProfile(profileData);
 
-        // THE FIX: Call the RPC function to get posts with calculated counts
         const { data: postsData, error: postsError } = await supabase
             .rpc('get_posts_with_details');
 
@@ -181,7 +179,8 @@ export const HomePage: React.FC = () => {
             {profile && <CreatePost onPostCreated={handlePostCreated} profile={profile} />}
             {posts.length > 0 ? (
                 <div className="space-y-4">
-                    {posts.map(post => <PostComponent key={post.id} post={post} onVoteSuccess={fetchData} />)}
+                    {/* THE FIX IS HERE: The `onVoteSuccess` prop has been removed. */}
+                    {posts.map(post => <PostComponent key={post.id} post={post} />)}
                 </div>
             ) : (
                 <div className="bg-dark-secondary rounded-lg p-8 text-center text-gray-500">
