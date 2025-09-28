@@ -1,11 +1,12 @@
-// src/components/Header.tsx (Updated)
+// src/components/Header.tsx (Complete and Correct Version)
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { Profile, SearchResults as SearchResultsType } from '../types';
-import SearchResults from './SearchResults'; // Import the new component
+import SearchResults from './SearchResults';
+import { UsersIcon } from './icons'; // Import the new icon
 
 const Header: React.FC = () => {
     const { user } = useAuth();
@@ -14,7 +15,7 @@ const Header: React.FC = () => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     
-    // --- NEW SEARCH STATE ---
+    // Search State
     const [searchTerm, setSearchTerm] = useState('');
     const [results, setResults] = useState<SearchResultsType | null>(null);
     const [loadingSearch, setLoadingSearch] = useState(false);
@@ -33,7 +34,7 @@ const Header: React.FC = () => {
         fetchHeaderProfile();
     }, [user]);
 
-    // --- NEW DEBOUNCED SEARCH EFFECT ---
+    // Debounced search effect
     useEffect(() => {
       const performSearch = async () => {
         if (searchTerm.trim().length < 2) {
@@ -49,9 +50,9 @@ const Header: React.FC = () => {
 
       const debounceTimer = setTimeout(() => {
         performSearch();
-      }, 300); // Wait for 300ms after user stops typing
+      }, 300);
 
-      return () => clearTimeout(debounceTimer); // Cleanup timer
+      return () => clearTimeout(debounceTimer);
     }, [searchTerm]);
 
 
@@ -82,9 +83,17 @@ const Header: React.FC = () => {
 
     return (
         <header className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary h-20 flex items-center justify-between px-6 z-40">
-            <Link to="/" className="text-3xl font-bold text-bits-red">BITS Connect</Link>
+            {/* Left Section: Logo and Directory */}
+            <div className="flex items-center space-x-6 flex-shrink-0">
+                <Link to="/" className="text-3xl font-bold text-bits-red">BITS Connect</Link>
+                <nav>
+                    <Link to="/directory" title="User Directory" className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-dark-tertiary transition-colors">
+                        <UsersIcon className="w-7 h-7" />
+                    </Link>
+                </nav>
+            </div>
             
-            {/* --- NEW SEARCH BAR --- */}
+            {/* Center Section: Search Bar */}
             <div ref={searchRef} className="relative w-full max-w-md mx-4">
               <input
                 type="text"
@@ -103,7 +112,8 @@ const Header: React.FC = () => {
               )}
             </div>
 
-            <div className="relative" ref={dropdownRef}>
+            {/* Right Section: Profile Dropdown */}
+            <div className="relative flex-shrink-0" ref={dropdownRef}>
                 <button onClick={() => setDropdownOpen(!dropdownOpen)} className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
                     {profile?.avatar_url ? (
                         <img src={profile.avatar_url} alt="profile" className="w-full h-full rounded-full object-cover" />

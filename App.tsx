@@ -24,6 +24,7 @@ const App = () => {
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
+                <Route path="/directory" element={<DirectoryPage />} />
                 <Route path="/profile/:username" element={<ProfilePage />} />
                 <Route path="/setup" element={<ProfileSetup />} />
                 <Route path="/post/:postId" element={<PostPage />} />
