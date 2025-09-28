@@ -1,4 +1,4 @@
-// src/contexts/PostsContext.tsx (Updated)
+// src/contexts/PostsContext.tsx (Updated for Speed)
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabase';
@@ -22,13 +22,19 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [error, setError] = useState<string | null>(null);
 
   const fetchPosts = useCallback(async () => {
-    if (!user) return; // Don't fetch if no user
+    if (!user) return;
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await supabase.rpc('get_posts_with_details');
+      // THE FIX: We no longer use the slow RPC function.
+      // This is a simple, indexed, and extremely fast query.
+      const { data, error: fetchError } = await supabase
+        .from('posts')
+        .select('*, profiles(*)') // Supabase automatically joins the author's profile
+        .order('created_at', { ascending: false });
+
       if (fetchError) throw fetchError;
-      setPosts(data || []);
+      setPosts((data as PostType[]) || []);
     } catch (err: any) {
       console.error("Error fetching posts:", err);
       setError(err.message);
@@ -42,7 +48,6 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [fetchPosts]);
 
   const addPostToContext = (newPost: PostType) => {
-    // Add the new post to the top of the feed
     setPosts(currentPosts => [newPost, ...currentPosts]);
   };
 
