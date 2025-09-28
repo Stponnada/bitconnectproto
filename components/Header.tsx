@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { Profile, SearchResults as SearchResultsType } from '../types';
 import SearchResults from './SearchResults';
-import { UsersIcon } from './icons'; // Import the new icon
+import { BookOpenIcon } from './icons'; // 1. CHANGED: Importing BookOpenIcon instead of UsersIcon
 
 const Header: React.FC = () => {
     const { user } = useAuth();
@@ -83,14 +83,9 @@ const Header: React.FC = () => {
 
     return (
         <header className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary h-20 flex items-center justify-between px-6 z-40">
-            {/* Left Section: Logo and Directory */}
-            <div className="flex items-center space-x-6 flex-shrink-0">
+            {/* Left Section: Logo Only */}
+            <div className="flex-shrink-0">
                 <Link to="/" className="text-3xl font-bold text-bits-red">BITS Connect</Link>
-                <nav>
-                    <Link to="/directory" title="User Directory" className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-dark-tertiary transition-colors">
-                        <UsersIcon className="w-7 h-7" />
-                    </Link>
-                </nav>
             </div>
             
             {/* Center Section: Search Bar */}
@@ -112,34 +107,42 @@ const Header: React.FC = () => {
               )}
             </div>
 
-            {/* Right Section: Profile Dropdown */}
-            <div className="relative flex-shrink-0" ref={dropdownRef}>
-                <button onClick={() => setDropdownOpen(!dropdownOpen)} className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
-                    {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} alt="profile" className="w-full h-full rounded-full object-cover" />
-                    ) : (
-                        <span className="font-bold text-white text-lg">
-                            {(profile?.full_name || 'U').charAt(0).toUpperCase()}
-                        </span>
-                    )}
-                </button>
+            {/* 2. CHANGED: Right Section now contains Directory and Profile */}
+            <div className="flex items-center space-x-4 flex-shrink-0">
+                <nav>
+                    <Link to="/directory" title="User Directory" className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-dark-tertiary transition-colors">
+                        <BookOpenIcon className="w-7 h-7" />
+                    </Link>
+                </nav>
 
-                {dropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-dark-secondary border border-dark-tertiary rounded-md shadow-lg py-1">
-                        {profile?.username && (
-                            <Link 
-                                to={`/profile/${profile.username}`} 
-                                onClick={() => setDropdownOpen(false)} 
-                                className="block px-4 py-2 text-sm text-gray-300 hover:bg-dark-tertiary"
-                            >
-                                Profile
-                            </Link>
+                <div className="relative" ref={dropdownRef}>
+                    <button onClick={() => setDropdownOpen(!dropdownOpen)} className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
+                        {profile?.avatar_url ? (
+                            <img src={profile.avatar_url} alt="profile" className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                            <span className="font-bold text-white text-lg">
+                                {(profile?.full_name || 'U').charAt(0).toUpperCase()}
+                            </span>
                         )}
-                        <button onClick={handleSignOut} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-dark-tertiary">
-                            Logout
-                        </button>
-                    </div>
-                )}
+                    </button>
+
+                    {dropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-48 bg-dark-secondary border border-dark-tertiary rounded-md shadow-lg py-1">
+                            {profile?.username && (
+                                <Link 
+                                    to={`/profile/${profile.username}`} 
+                                    onClick={() => setDropdownOpen(false)} 
+                                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-dark-tertiary"
+                                >
+                                    Profile
+                                </Link>
+                            )}
+                            <button onClick={handleSignOut} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-dark-tertiary">
+                                Logout
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
         </header>
     );
