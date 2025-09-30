@@ -72,7 +72,7 @@ const Header: React.FC = () => {
         <header className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary h-20 flex items-center justify-between px-6 z-40">
             <div className="flex-shrink-0">
                 {/* --- MODIFIED: Logo text and font classes updated --- */}
-                <Link to="/" className="text-3xl font-raleway font-black text-brand-green">litelelo.</Link>
+                <Link to="/" className="text-4xl font-raleway font-black text-brand-green">litelelo.</Link>
             </div>
             
             <div ref={searchRef} className="relative w-full max-w-md mx-4">

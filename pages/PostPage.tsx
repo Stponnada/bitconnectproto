@@ -96,7 +96,7 @@ const PostPage: React.FC = () => {
 
   // The only change is in the div below: max-w-2xl -> max-w-4xl
   return (
-    <div className="w-full max-w-3xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto">
       <PostComponent post={post} />
 
       <div className="px-4 py-3 text-sm text-gray-500 border-b border-dark-tertiary">
