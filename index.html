@@ -4,13 +4,16 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>litelelo.</title> <!-- Changed title as well -->
+  <title>litelelo.</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Keep Inter for the main body text -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- ADDED: Raleway font with Black 900 weight for the logo -->
+  
+  <!-- REMOVED: The old "Inter" font link -->
+  <!-- ADDED: The new "Poppins" font link with a range of weights -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- This is for the logo font, and it stays the same -->
   <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@900&display=swap" rel="stylesheet">
   
   <script>
@@ -18,8 +21,8 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            // ADDED: New font family for the logo
+            // UPDATED: The default 'sans' font for the entire site is now Poppins
+            sans: ['Poppins', 'sans-serif'],
             raleway: ['Raleway', 'sans-serif'], 
           },
           colors: {
