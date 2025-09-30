@@ -156,7 +156,7 @@ const ProfileSetup: React.FC = () => {
                 <div><label htmlFor="dining_hall" className="block text-gray-300 text-sm font-bold mb-2">Dining Hall</label><select name="dining_hall" id="dining_hall" value={formData.dining_hall} onChange={handleChange} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Mess</option>{DINING_HALLS.map(hall => <option key={hall} value={hall}>{hall}</option>)}</select></div>
             </div>
 
-            <div className="col-span-full"><label htmlFor="bio" className="block text-gray-300 text-sm font-bold mb-2">Bio</label><textarea name="bio" id="bio" value={formData.bio} onChange={handleChange} rows={3} placeholder="Tell us a little about yourself..." className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm resize-y" /></div>
+            <div className="col-span-full"><label htmlFor="bio" className="block text-gray-300 text-sm font-bold mb-2">Bio</label><textarea name="bio" id="bio" value={formData.bio} onChange={handleChange} rows={3} placeholder="Intro de ..." className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm resize-y" /></div>
             {error && <p className="col-span-full text-red-400 text-center text-sm">{error}</p>}
             <div className="col-span-full mt-4"><button type="submit" disabled={isSaving} className="w-full bg-bits-red text-white font-semibold rounded-md py-3 transition duration-300 ease-in-out hover:bg-red-700 disabled:opacity-50">{isSaving ? <Spinner /> : 'Save Profile & Continue'}</button></div>
         </form>

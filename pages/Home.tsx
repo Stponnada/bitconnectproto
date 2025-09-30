@@ -158,7 +158,7 @@ export const HomePage: React.FC = () => {
                 </div>
             ) : (
                 <div className="bg-dark-secondary rounded-lg p-8 text-center text-gray-500">
-                    <h3 className="text-xl font-semibold text-white">Welcome to BITS Connect!</h3>
+                    <h3 className="text-xl font-semibold text-white">Welcome to litelelo!</h3>
                     <p className="mt-2">It's quiet in here. Be the first to share something!</p>
                 </div>
             )}
