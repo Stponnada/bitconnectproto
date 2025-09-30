@@ -1,4 +1,4 @@
-// src/pages/PostPage.tsx (Corrected with Timestamp)
+// src/pages/PostPage.tsx (Complete with Exact Timestamp)
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -8,7 +8,8 @@ import { usePosts } from '../contexts/PostsContext';
 import PostComponent from '../components/Post';
 import { Post as PostType, Comment as CommentType, Profile } from '../types';
 import Spinner from '../components/Spinner';
-import { formatTimestamp } from '../utils/timeUtils'; // <-- IMPORT ADDED
+// --- MODIFIED: Import both formatting functions ---
+import { formatTimestamp, formatExactTimestamp } from '../utils/timeUtils';
 
 // Helper for consistent avatars
 const getAvatarUrl = (profile: Profile | null) => {
@@ -16,7 +17,7 @@ const getAvatarUrl = (profile: Profile | null) => {
   return profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name || profile.username}&background=E53E3E&color=fff`;
 };
 
-// Comment Component (Updated with Timestamp)
+// Comment Component (Uses relative timestamp)
 const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
   const author = comment.profiles;
   return (
@@ -51,20 +52,14 @@ const PostPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
 
-  // Find the post from the global state. It might be undefined initially.
   const post = posts.find(p => p.id === postId);
 
   useEffect(() => {
-    // This effect fetches data specific to this page: comments and the current user's profile.
     const fetchPageSpecificData = async () => {
         if (!postId) return;
         setCommentsLoading(true);
-
-        // Fetch comments
         const { data: commentsData } = await supabase.from('comments').select('*, profiles(*)').eq('post_id', postId).order('created_at', { ascending: true });
         setComments((commentsData as any) || []);
-
-        // Fetch the current user's profile for the comment box
         if (user) {
           const { data: profileData } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
           setCurrentUserProfile(profileData);
@@ -78,17 +73,13 @@ const PostPage: React.FC = () => {
     e.preventDefault();
     if (!user || !post || !newComment.trim() || !currentUserProfile) return;
     setIsSubmitting(true);
-
     try {
         const { data: commentData, error } = await supabase.from('comments').insert({ post_id: post.id, user_id: user.id, content: newComment.trim() }).select().single();
         if (error) throw error;
-
         const newCommentForUI: CommentType = { ...commentData, profiles: currentUserProfile };
         setComments(prev => [...prev, newCommentForUI]);
-        
         const newCommentCount = post.comment_count + 1;
         updatePostInContext({ id: post.id, comment_count: newCommentCount });
-        
         setNewComment('');
     } catch (error) {
         console.error("Error submitting comment:", error);
@@ -97,31 +88,31 @@ const PostPage: React.FC = () => {
     }
   };
 
-  // ==================================================================
-  // THE CRASH FIX: This robust loading block is the key.
-  // It waits for the global posts to load FIRST, then checks if the specific post exists.
-  // ==================================================================
   if (postsLoading) {
     return <div className="text-center py-10"><Spinner /></div>;
   }
 
   if (!post) {
-    // This will now correctly display after the initial load if the post is invalid.
     return <div className="text-center py-10 text-red-400">Post not found.</div>;
   }
 
-  // If we get here, `post` is guaranteed to be a valid object.
-  // We can now safely render the rest of the page.
   return (
     <div className="w-full max-w-2xl mx-auto">
       <PostComponent post={post} />
+
+      {/* --- NEW: Exact Timestamp Display --- */}
+      <div className="px-4 py-3 text-sm text-gray-500 border-b border-dark-tertiary">
+        <span>{formatExactTimestamp(post.created_at)}</span>
+      </div>
+      {/* --- END OF NEW BLOCK --- */}
+
 
       {currentUserProfile && (
         <div className="p-4 border-t border-b border-dark-tertiary">
           <form onSubmit={handleCommentSubmit} className="flex items-start space-x-3">
             <img src={getAvatarUrl(currentUserProfile)} alt="Your avatar" className="w-10 h-10 rounded-full bg-gray-700 object-cover" />
             <div className="flex-1">
-              <textarea value={newComment} onChange={(e) => setNewComment(e.Ternary.target.value)} placeholder="Post your reply" className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red" rows={2} />
+              <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Post your reply" className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red" rows={2} />
               <div className="flex justify-end mt-2">
                 <button type="submit" disabled={isSubmitting || !newComment.trim()} className="bg-bits-red text-white font-bold py-2 px-4 rounded-full disabled:opacity-50 hover:bg-red-700">
                   {isSubmitting ? <Spinner /> : 'Reply'}
