@@ -1,4 +1,4 @@
-// src/pages/PostPage.tsx (Complete with New Theme)
+// src/pages/PostPage.tsx (Updated to match the new wider layout)
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -44,7 +44,6 @@ const PostPage: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
   const { user } = useAuth();
   const { posts, loading: postsLoading, updatePostInContext } = usePosts();
-
   const [comments, setComments] = useState<CommentType[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -95,8 +94,9 @@ const PostPage: React.FC = () => {
     return <div className="text-center py-10 text-red-400">Post not found.</div>;
   }
 
+  // The only change is in the div below: max-w-2xl -> max-w-4xl
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto">
       <PostComponent post={post} />
 
       <div className="px-4 py-3 text-sm text-gray-500 border-b border-dark-tertiary">

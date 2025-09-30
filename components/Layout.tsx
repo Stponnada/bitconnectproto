@@ -24,7 +24,7 @@ const Layout = () => {
           - `mx-auto`: This is the magic that centers the container horizontally.
           - `p-6`: Adds some nice spacing around the content.
         */}
-        <div className="max-w-2xl mx-auto p-6">
+        <div className="max-w-4xl mx-auto p-6">
           <Outlet />
         </div>
       </main>
