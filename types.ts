@@ -13,6 +13,7 @@ export interface Profile {
   campus: string | null;
   admission_year: number | null;
   branch: string | null;
+  dual_degree_branch: string | null;
   relationship_status: string | null;
   dorm_building: string | null;
   dorm_room: string | null;
