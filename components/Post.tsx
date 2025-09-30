@@ -1,4 +1,4 @@
-// src/components/Post.tsx (Final, Optimized Version)
+// src/components/Post.tsx (Complete with Timestamp)
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -7,16 +7,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePosts } from '../contexts/PostsContext';
 import { Post as PostType } from '../types';
 import { ThumbsUpIcon, ThumbsDownIcon, CommentIcon } from './icons';
+import { formatTimestamp } from '../utils/timeUtils'; // <-- IMPORT
 
 const Post = ({ post }: { post: PostType }) => {
   const { user } = useAuth();
   const { updatePostInContext } = usePosts();
 
-  // THE FIX: Initialize userVote directly from the prop. No more fetching!
   const [userVote, setUserVote] = useState(post.user_vote);
   const [isVoting, setIsVoting] = useState(false);
-
-  // THE FIX: The slow useEffect has been completely REMOVED.
 
   const handleVote = async (newVoteType: 'like' | 'dislike') => {
     if (!user || isVoting) return;
@@ -27,12 +25,11 @@ const Post = ({ post }: { post: PostType }) => {
     let newDislikeCount = post.dislike_count;
     let newVoteState = userVote;
 
-    // 1. Calculate the new state
-    if (newVoteType === oldVote) { // Un-voting
+    if (newVoteType === oldVote) {
       newVoteState = null;
       if (newVoteType === 'like') newLikeCount--;
       if (newVoteType === 'dislike') newDislikeCount--;
-    } else { // Voting or changing vote
+    } else {
       if (oldVote === 'like') newLikeCount--;
       if (oldVote === 'dislike') newDislikeCount--;
       if (newVoteType === 'like') newLikeCount++;
@@ -40,22 +37,19 @@ const Post = ({ post }: { post: PostType }) => {
       newVoteState = newVoteType;
     }
     
-    // Set local button state immediately
     setUserVote(newVoteState);
 
-    // 2. Update the GLOBAL context optimistically
     updatePostInContext({
       id: post.id,
       like_count: newLikeCount,
       dislike_count: newDislikeCount,
-      user_vote: newVoteState, // Also update the vote status in the context
+      user_vote: newVoteState,
     });
 
-    // 3. Update the database in the background
     try {
-      if (newVoteState === null) { // We are un-voting
+      if (newVoteState === null) {
         await supabase.from('likes').delete().match({ user_id: user.id, post_id: post.id });
-      } else { // We are voting or changing a vote
+      } else {
         await supabase.from('likes').upsert({
           user_id: user.id,
           post_id: post.id,
@@ -64,7 +58,6 @@ const Post = ({ post }: { post: PostType }) => {
       }
     } catch (error) {
       console.error("Failed to vote:", error);
-      // Revert UI on failure
       setUserVote(oldVote);
       updatePostInContext({
           id: post.id,
@@ -86,15 +79,23 @@ const Post = ({ post }: { post: PostType }) => {
   return (
     <article className="bg-dark-secondary p-4 rounded-lg border border-dark-tertiary">
       <div className="flex items-center mb-3">
-        <Link to={`/profile/${username}`} className="flex items-center hover:underline">
+        <Link to={`/profile/${username}`} className="flex-shrink-0">
           <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold mr-3">
             {avatarUrl ? <img src={avatarUrl} alt={displayName} className="w-full h-full rounded-full object-cover" /> : <span>{avatarInitial}</span>}
           </div>
-          <div>
-            <p className="font-bold text-white">{displayName}</p>
-            <p className="text-sm text-gray-400">@{username}</p>
-          </div>
         </Link>
+        <div>
+          <Link to={`/profile/${username}`} className="hover:underline">
+             <p className="font-bold text-white">{displayName}</p>
+          </Link>
+          <div className="flex items-center space-x-2 text-sm text-gray-400">
+              <span>@{username}</span>
+              <span className="text-gray-500">&middot;</span>
+              <Link to={`/post/${post.id}`} className="hover:underline" title={new Date(post.created_at).toLocaleString()}>
+                  {formatTimestamp(post.created_at)}
+              </Link>
+          </div>
+        </div>
       </div>
       
       <Link to={`/post/${post.id}`} className="block">

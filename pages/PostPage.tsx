@@ -1,4 +1,4 @@
-// src/pages/PostPage.tsx (Updated with Crash Fix)
+// src/pages/PostPage.tsx (Corrected with Timestamp)
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { usePosts } from '../contexts/PostsContext';
 import PostComponent from '../components/Post';
 import { Post as PostType, Comment as CommentType, Profile } from '../types';
 import Spinner from '../components/Spinner';
+import { formatTimestamp } from '../utils/timeUtils'; // <-- IMPORT ADDED
 
 // Helper for consistent avatars
 const getAvatarUrl = (profile: Profile | null) => {
@@ -15,11 +16,11 @@ const getAvatarUrl = (profile: Profile | null) => {
   return profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name || profile.username}&background=E53E3E&color=fff`;
 };
 
-// Comment Component (Unchanged)
+// Comment Component (Updated with Timestamp)
 const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
   const author = comment.profiles;
   return (
-    <div className="flex items-start space-x-3 p-4 border-b border-gray-800">
+    <div className="flex items-start space-x-3 p-4 border-b border-dark-tertiary">
       <Link to={`/profile/${author?.username}`}>
         <img src={getAvatarUrl(author)} alt={author?.username || 'avatar'} className="w-10 h-10 rounded-full bg-gray-700 object-cover" />
       </Link>
@@ -27,6 +28,10 @@ const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
         <div className="flex items-center space-x-2">
             <Link to={`/profile/${author?.username}`} className="font-bold text-white hover:underline">{author?.full_name || author?.username}</Link>
             <p className="text-sm text-gray-500">@{author?.username}</p>
+            <span className="text-gray-500">&middot;</span>
+            <p className="text-sm text-gray-500" title={new Date(comment.created_at).toLocaleString()}>
+                {formatTimestamp(comment.created_at)}
+            </p>
         </div>
         <p className="text-gray-300 mt-1 whitespace-pre-wrap">{comment.content}</p>
       </div>
@@ -112,11 +117,11 @@ const PostPage: React.FC = () => {
       <PostComponent post={post} />
 
       {currentUserProfile && (
-        <div className="p-4 border-t border-b border-gray-800">
+        <div className="p-4 border-t border-b border-dark-tertiary">
           <form onSubmit={handleCommentSubmit} className="flex items-start space-x-3">
             <img src={getAvatarUrl(currentUserProfile)} alt="Your avatar" className="w-10 h-10 rounded-full bg-gray-700 object-cover" />
             <div className="flex-1">
-              <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Post your reply" className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red" rows={2} />
+              <textarea value={newComment} onChange={(e) => setNewComment(e.Ternary.target.value)} placeholder="Post your reply" className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red" rows={2} />
               <div className="flex justify-end mt-2">
                 <button type="submit" disabled={isSubmitting || !newComment.trim()} className="bg-bits-red text-white font-bold py-2 px-4 rounded-full disabled:opacity-50 hover:bg-red-700">
                   {isSubmitting ? <Spinner /> : 'Reply'}
