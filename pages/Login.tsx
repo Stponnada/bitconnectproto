@@ -1,4 +1,4 @@
-// src/pages/Login.tsx (Complete with New Theme)
+// src/pages/Login.tsx (Complete with Final Theme)
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -30,9 +30,7 @@ const Login: React.FC = () => {
   const [activeImage, setActiveImage] = useState<string>(idleImageUrl);
 
   useEffect(() => {
-    if (session) {
-      navigate('/');
-    }
+    if (session) { navigate('/'); }
   }, [session, navigate]);
 
   const validateEmail = (email: string) => {
@@ -50,26 +48,13 @@ const Login: React.FC = () => {
         if (error) throw error;
         navigate('/');
       } else {
-        if (password !== confirmPassword) {
-            throw new Error("Passwords do not match.");
-        }
-        if (!validateEmail(email)) {
-            throw new Error("Please use a valid BITS Pilani email address.");
-        }
-        const { data, error: signUpError } = await supabase.auth.signUp({ 
-          email, 
-          password,
-        });
+        if (password !== confirmPassword) { throw new Error("Passwords do not match."); }
+        if (!validateEmail(email)) { throw new Error("Please use a valid BITS Pilani email address."); }
+        const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
         if (signUpError) throw signUpError;
         if (!data.user) throw new Error("Sign up successful, but no user data returned.");
-        const { error: profileError } = await supabase.from('profiles').insert({
-          user_id: data.user.id,
-          username: username,
-          email: data.user.email,
-        });
-        if (profileError) {
-          throw profileError;
-        }
+        const { error: profileError } = await supabase.from('profiles').insert({ user_id: data.user.id, username: username, email: data.user.email });
+        if (profileError) { throw profileError; }
         navigate('/setup');
       }
     } catch (error: any) {
@@ -86,53 +71,17 @@ const Login: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row items-center justify-center min-h-screen bg-dark-primary p-4">
       <div className="w-full max-w-md lg:w-1/2 flex flex-col items-center justify-center p-8">
-        <img
-          src={activeImage}
-          alt="Mascot"
-          className="w-48 h-48 mb-8 object-contain transition-transform duration-300 ease-in-out transform hover:scale-105"
-        />
+        <img src={activeImage} alt="Mascot" className="w-48 h-48 mb-8 object-contain transition-transform duration-300 ease-in-out transform hover:scale-105" />
         <div className="w-full bg-dark-secondary p-8 rounded-lg shadow-lg">
           <h2 className="text-2xl font-bold text-center text-gray-100 mb-6">{isLogin ? 'Welcome Back!' : 'Create Account'}</h2>
           <form onSubmit={handleAuth} className="flex flex-col gap-4">
-            <input
-              type="email"
-              placeholder={isLogin ? "Email" : "BITS Email"}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
-            />
+            <input type="email" placeholder={isLogin ? "Email" : "BITS Email"} value={email} onChange={(e) => setEmail(e.target.value)} required className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green" />
             {!isLogin && (
-              <input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
-              />
+              <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green" />
             )}
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
-              onFocus={() => setActiveImage(activeImageUrl)}
-              onBlur={() => setActiveImage(idleImageUrl)}
-            />
+            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green" onFocus={() => setActiveImage(activeImageUrl)} onBlur={() => setActiveImage(idleImageUrl)} />
             {!isLogin && (
-              <input
-                type="password"
-                placeholder="Confirm Password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
-                onFocus={() => setActiveImage(activeImageUrl)}
-                onBlur={() => setActiveImage(idleImageUrl)}
-              />
+              <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green" onFocus={() => setActiveImage(activeImageUrl)} onBlur={() => setActiveImage(idleImageUrl)} />
             )}
             <button type="submit" disabled={loading} className="bg-brand-green text-black font-semibold rounded-md py-3 transition duration-300 ease-in-out hover:bg-brand-green-darker disabled:opacity-50">
               {loading ? <Spinner /> : (isLogin ? 'Log In' : 'Sign Up')}
@@ -146,7 +95,6 @@ const Login: React.FC = () => {
           </div>
         </div>
       </div>
-
       <div className="w-full max-w-md lg:w-1/2 flex items-center justify-center p-8 order-first lg:order-last">
         <div className="text-center lg:text-left">
           <h1 className="text-5xl lg:text-6xl font-extrabold text-brand-green">BITS Connect</h1>
