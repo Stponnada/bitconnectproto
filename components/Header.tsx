@@ -1,5 +1,3 @@
-// src/components/Header.tsx (Complete with new Logo)
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,7 +12,6 @@ const Header: React.FC = () => {
     const navigate = useNavigate();
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    
     const [searchTerm, setSearchTerm] = useState('');
     const [results, setResults] = useState<SearchResultsType | null>(null);
     const [loadingSearch, setLoadingSearch] = useState(false);
@@ -71,19 +68,17 @@ const Header: React.FC = () => {
     return (
         <header className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary h-20 flex items-center justify-between px-6 z-40">
             <div className="flex-shrink-0">
-                {/* --- MODIFIED: Logo text and font classes updated --- */}
-                <Link to="/" className="text-4xl font-raleway font-black text-brand-green">litelelo.</Link>
+                {/* --- MODIFIED: Added a custom text-shadow class for the embossed effect --- */}
+                <Link 
+                  to="/" 
+                  className="text-4xl font-raleway font-black text-brand-green [text-shadow:-1px_-1px_0_rgba(0,0,0,0.7),_1px_1px_0_rgba(255,255,255,0.05)]"
+                >
+                  litelelo.
+                </Link>
             </div>
             
             <div ref={searchRef} className="relative w-full max-w-md mx-4">
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                className="w-full p-2.5 bg-dark-tertiary border border-gray-600 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green"
-              />
+              <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onFocus={() => setIsSearchFocused(true)} className="w-full p-2.5 bg-dark-tertiary border border-gray-600 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green" />
               {isSearchFocused && searchTerm.length > 1 && (
                 <SearchResults results={results} loading={loadingSearch} onNavigate={handleCloseSearch} />
               )}
