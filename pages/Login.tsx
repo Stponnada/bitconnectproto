@@ -1,4 +1,4 @@
-// src/pages/Login.tsx (Complete with Final Theme)
+// src/pages/Login.tsx (Complete with new Logo)
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -97,7 +97,8 @@ const Login: React.FC = () => {
       </div>
       <div className="w-full max-w-md lg:w-1/2 flex items-center justify-center p-8 order-first lg:order-last">
         <div className="text-center lg:text-left">
-          <h1 className="text-5xl lg:text-6xl font-extrabold text-brand-green">BITS Connect</h1>
+          {/* --- MODIFIED: Logo text and font classes updated --- */}
+          <h1 className="text-5xl lg:text-6xl font-raleway font-black text-brand-green">litelelo.</h1>
           <p className="text-gray-400 mt-4 text-lg">The exclusive social network for BITSians.</p>
         </div>
       </div>

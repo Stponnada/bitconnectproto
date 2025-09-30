@@ -1,4 +1,4 @@
-// src/components/Header.tsx (Complete with Final Theme)
+// src/components/Header.tsx (Complete with new Logo)
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,6 +14,7 @@ const Header: React.FC = () => {
     const navigate = useNavigate();
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    
     const [searchTerm, setSearchTerm] = useState('');
     const [results, setResults] = useState<SearchResultsType | null>(null);
     const [loadingSearch, setLoadingSearch] = useState(false);
@@ -70,13 +71,14 @@ const Header: React.FC = () => {
     return (
         <header className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary h-20 flex items-center justify-between px-6 z-40">
             <div className="flex-shrink-0">
-                <Link to="/" className="text-3xl font-bold text-brand-green">BITS Connect</Link>
+                {/* --- MODIFIED: Logo text and font classes updated --- */}
+                <Link to="/" className="text-3xl font-raleway font-black text-brand-green">litelelo.</Link>
             </div>
             
             <div ref={searchRef} className="relative w-full max-w-md mx-4">
               <input
                 type="text"
-                placeholder="Search for people, posts, and comments..."
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
