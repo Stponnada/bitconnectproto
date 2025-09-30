@@ -9,7 +9,7 @@ import PostComponent from '../components/Post';
 import { Post as PostType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
-import { isMscBranch, BITS_BRANCHES } from '@/src/data/bitsBranches.ts'; // Corrected path alias
+import { isMscBranch, BITS_BRANCHES } from '../data/bitsBranches.ts'; // Corrected path alias
 
 // Main Page Component
 const ProfilePage: React.FC = () => {
