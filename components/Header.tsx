@@ -1,4 +1,4 @@
-// src/components/Header.tsx (Complete and Correct Version)
+// src/components/Header.tsx (Complete with New Theme)
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { Profile, SearchResults as SearchResultsType } from '../types';
 import SearchResults from './SearchResults';
-import { BookOpenIcon } from './icons'; // 1. CHANGED: Importing BookOpenIcon instead of UsersIcon
+import { BookOpenIcon } from './icons';
 
 const Header: React.FC = () => {
     const { user } = useAuth();
@@ -85,7 +85,7 @@ const Header: React.FC = () => {
         <header className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary h-20 flex items-center justify-between px-6 z-40">
             {/* Left Section: Logo Only */}
             <div className="flex-shrink-0">
-                <Link to="/" className="text-3xl font-bold text-bits-red">BITS Connect</Link>
+                <Link to="/" className="text-3xl font-bold text-brand-green">BITS Connect</Link>
             </div>
             
             {/* Center Section: Search Bar */}
@@ -96,7 +96,7 @@ const Header: React.FC = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => setIsSearchFocused(true)}
-                className="w-full p-2.5 bg-dark-tertiary border border-gray-600 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red"
+                className="w-full p-2.5 bg-dark-tertiary border border-gray-600 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green"
               />
               {isSearchFocused && searchTerm.length > 1 && (
                 <SearchResults
@@ -107,7 +107,7 @@ const Header: React.FC = () => {
               )}
             </div>
 
-            {/* 2. CHANGED: Right Section now contains Directory and Profile */}
+            {/* Right Section contains Directory and Profile */}
             <div className="flex items-center space-x-4 flex-shrink-0">
                 <nav>
                     <Link to="/directory" title="User Directory" className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-dark-tertiary transition-colors">

@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
+      // --- THIS IS THE UPDATED THEME ---
       tailwind.config = {
         theme: {
           extend: {
@@ -17,10 +18,11 @@
               sans: ['Inter', 'sans-serif'],
             },
             colors: {
-              'bits-red': '#E53E3E',
-              'dark': '#101010',
-              'dark-secondary': '#181818',
-              'dark-tertiary': '#282828',
+              'brand-green': '#4ADE80', // The new primary accent color
+              'brand-green-darker': '#22C55E', // For hover states
+              'dark-primary': '#0F172A',      // The main deep navy background
+              'dark-secondary': '#1E293B',    // For cards and panels
+              'dark-tertiary': '#334155',     // For inputs and borders
             }
           }
         }
@@ -39,7 +41,8 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-dark text-gray-200 font-sans">
+  {/* --- UPDATED BODY CLASS --- */}
+  <body class="bg-dark-primary text-gray-200 font-sans">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

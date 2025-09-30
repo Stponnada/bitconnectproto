@@ -1,4 +1,4 @@
-// src/pages/Home.tsx (Updated)
+// src/pages/Home.tsx (Complete with New Theme)
 
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../services/supabase';
@@ -9,7 +9,7 @@ import { Post as PostType, Profile } from '../types';
 import { ImageIcon, XCircleIcon } from '../components/icons';
 import Spinner from '../components/Spinner';
 
-// CreatePost Component (Updated to use the context)
+// CreatePost Component
 const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: Profile }> = ({ onPostCreated, profile }) => {
     const { user } = useAuth();
     const [content, setContent] = useState('');
@@ -34,7 +34,6 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                 const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(filePath);
                 imageUrl = publicUrl;
             }
-            // Insert the post and get the full row back
             const { data: newPostData, error: insertError } = await supabase
                 .from('posts')
                 .insert({ user_id: user.id, content: content.trim(), image_url: imageUrl })
@@ -43,7 +42,6 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
 
             if (insertError) throw insertError;
             
-            // Construct the post object for immediate UI update
             const postForUI: PostType = {
                 ...newPostData,
                 profiles: profile,
@@ -52,7 +50,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                 comment_count: 0,
                 user_has_liked: false,
             };
-            onPostCreated(postForUI); // This will now call addPostToContext
+            onPostCreated(postForUI);
             setContent('');
             setImageFile(null);
         } catch (error: any) {
@@ -63,7 +61,6 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
         }
     };
     
-    // ... the rest of the CreatePost component JSX is unchanged
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files.length > 0) {
             setImageFile(event.target.files[0]);
@@ -91,7 +88,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                     )}
                 </div>
                 <form onSubmit={handleSubmit} className="w-full">
-                    <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full bg-dark-tertiary rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red resize-none border border-gray-600" rows={3} placeholder={`What's on your mind, ${displayName.split(' ')[0] || profile.username}?`} />
+                    <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full bg-dark-tertiary rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green resize-none border border-gray-600" rows={3} placeholder={`What's on your mind, ${displayName.split(' ')[0] || profile.username}?`} />
                     {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
                     {imageFile && <MediaPreview file={imageFile} onRemove={removeImageFile} />}
                     <div className="flex justify-between items-center mt-3">
@@ -99,7 +96,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                             <input type="file" ref={imageInputRef} onChange={handleFileChange} accept="image/*" hidden />
                             <button type="button" onClick={() => imageInputRef.current?.click()} className="text-gray-400 hover:text-blue-500 p-2 rounded-full transition-colors"><ImageIcon /></button>
                         </div>
-                        <button type="submit" className="bg-bits-red text-white font-bold py-2 px-6 rounded-full hover:bg-red-700 transition-colors duration-200 disabled:opacity-50" disabled={!canPost}>
+                        <button type="submit" className="bg-brand-green text-black font-bold py-2 px-6 rounded-full hover:bg-brand-green-darker transition-colors duration-200 disabled:opacity-50" disabled={!canPost}>
                             {isSubmitting ? <Spinner /> : 'Post'}
                         </button>
                     </div>
@@ -124,8 +121,7 @@ const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, on
     );
 };
 
-
-// HomePage Component (Updated)
+// HomePage Component
 export const HomePage: React.FC = () => {
     const { posts, loading: postsLoading, error: postsError, addPostToContext } = usePosts();
     const { user } = useAuth();

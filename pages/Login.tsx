@@ -1,4 +1,4 @@
-// src/pages/Login.tsx (MODIFIED FOR PASSWORD-ONLY EFFECT)
+// src/pages/Login.tsx (Complete with New Theme)
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -23,8 +23,7 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
-
-  // !! IMPORTANT: REPLACE THESE WITH YOUR ACTUAL SUPABASE URLS !!
+  
   const idleImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.57.42%20PM.png';
   const activeImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.41.01%20PM.png';
   
@@ -42,7 +41,6 @@ const Login: React.FC = () => {
   };
 
   const handleAuth = async (e: React.FormEvent) => {
-    // ... (Your handleAuth function remains exactly the same)
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -82,12 +80,11 @@ const Login: React.FC = () => {
   };
 
   if (authLoading || session) {
-    return <div className="flex items-center justify-center h-screen bg-dark"><Spinner /></div>;
+    return <div className="flex items-center justify-center h-screen bg-dark-primary"><Spinner /></div>;
   }
 
   return (
-    <div className="flex flex-col lg:flex-row items-center justify-center min-h-screen bg-dark p-4">
-      {/* LEFT COLUMN: Login Form and Dynamic Image */}
+    <div className="flex flex-col lg:flex-row items-center justify-center min-h-screen bg-dark-primary p-4">
       <div className="w-full max-w-md lg:w-1/2 flex flex-col items-center justify-center p-8">
         <img
           src={activeImage}
@@ -97,54 +94,47 @@ const Login: React.FC = () => {
         <div className="w-full bg-dark-secondary p-8 rounded-lg shadow-lg">
           <h2 className="text-2xl font-bold text-center text-gray-100 mb-6">{isLogin ? 'Welcome Back!' : 'Create Account'}</h2>
           <form onSubmit={handleAuth} className="flex flex-col gap-4">
-            
-            {/* --- CHANGE 1: REMOVED onFocus AND onBlur FROM EMAIL INPUT --- */}
             <input
               type="email"
               placeholder={isLogin ? "Email" : "BITS Email"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red"
+              className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
             />
-
             {!isLogin && (
-              /* --- CHANGE 2: REMOVED onFocus AND onBlur FROM USERNAME INPUT --- */
               <input
                 type="text"
                 placeholder="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red"
+                className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
               />
             )}
-
-            {/* --- NO CHANGE: PASSWORD INPUT KEEPS THE EVENT HANDLERS --- */}
             <input
               type="password"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red"
+              className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
               onFocus={() => setActiveImage(activeImageUrl)}
               onBlur={() => setActiveImage(idleImageUrl)}
             />
             {!isLogin && (
-              /* --- NO CHANGE: CONFIRM PASSWORD INPUT KEEPS THE EVENT HANDLERS --- */
               <input
                 type="password"
                 placeholder="Confirm Password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-bits-red"
+                className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
                 onFocus={() => setActiveImage(activeImageUrl)}
                 onBlur={() => setActiveImage(idleImageUrl)}
               />
             )}
-            <button type="submit" disabled={loading} className="bg-bits-red text-white font-semibold rounded-md py-3 transition duration-300 ease-in-out hover:bg-red-700 disabled:bg-red-900">
+            <button type="submit" disabled={loading} className="bg-brand-green text-black font-semibold rounded-md py-3 transition duration-300 ease-in-out hover:bg-brand-green-darker disabled:opacity-50">
               {loading ? <Spinner /> : (isLogin ? 'Log In' : 'Sign Up')}
             </button>
           </form>
@@ -157,10 +147,9 @@ const Login: React.FC = () => {
         </div>
       </div>
 
-      {/* RIGHT COLUMN: Logo and Description */}
       <div className="w-full max-w-md lg:w-1/2 flex items-center justify-center p-8 order-first lg:order-last">
         <div className="text-center lg:text-left">
-          <h1 className="text-5xl lg:text-6xl font-extrabold text-bits-red">BITS Connect</h1>
+          <h1 className="text-5xl lg:text-6xl font-extrabold text-brand-green">BITS Connect</h1>
           <p className="text-gray-400 mt-4 text-lg">The exclusive social network for BITSians.</p>
         </div>
       </div>

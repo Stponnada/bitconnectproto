@@ -1,4 +1,4 @@
-// src/pages/PostPage.tsx (Complete with Exact Timestamp)
+// src/pages/PostPage.tsx (Complete with New Theme)
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -8,7 +8,6 @@ import { usePosts } from '../contexts/PostsContext';
 import PostComponent from '../components/Post';
 import { Post as PostType, Comment as CommentType, Profile } from '../types';
 import Spinner from '../components/Spinner';
-// --- MODIFIED: Import both formatting functions ---
 import { formatTimestamp, formatExactTimestamp } from '../utils/timeUtils';
 
 // Helper for consistent avatars
@@ -17,7 +16,7 @@ const getAvatarUrl = (profile: Profile | null) => {
   return profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name || profile.username}&background=E53E3E&color=fff`;
 };
 
-// Comment Component (Uses relative timestamp)
+// Comment Component
 const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
   const author = comment.profiles;
   return (
@@ -100,21 +99,18 @@ const PostPage: React.FC = () => {
     <div className="w-full max-w-2xl mx-auto">
       <PostComponent post={post} />
 
-      {/* --- NEW: Exact Timestamp Display --- */}
       <div className="px-4 py-3 text-sm text-gray-500 border-b border-dark-tertiary">
         <span>{formatExactTimestamp(post.created_at)}</span>
       </div>
-      {/* --- END OF NEW BLOCK --- */}
-
 
       {currentUserProfile && (
         <div className="p-4 border-t border-b border-dark-tertiary">
           <form onSubmit={handleCommentSubmit} className="flex items-start space-x-3">
             <img src={getAvatarUrl(currentUserProfile)} alt="Your avatar" className="w-10 h-10 rounded-full bg-gray-700 object-cover" />
             <div className="flex-1">
-              <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Post your reply" className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-bits-red" rows={2} />
+              <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Post your reply" className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green" rows={2} />
               <div className="flex justify-end mt-2">
-                <button type="submit" disabled={isSubmitting || !newComment.trim()} className="bg-bits-red text-white font-bold py-2 px-4 rounded-full disabled:opacity-50 hover:bg-red-700">
+                <button type="submit" disabled={isSubmitting || !newComment.trim()} className="bg-brand-green text-black font-bold py-2 px-4 rounded-full disabled:opacity-50 hover:bg-brand-green-darker">
                   {isSubmitting ? <Spinner /> : 'Reply'}
                 </button>
               </div>
