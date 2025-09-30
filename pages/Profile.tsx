@@ -1,4 +1,4 @@
-// src/pages/Profile.tsx (Updated)
+// src/pages/Profile.tsx (Complete and Corrected)
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
@@ -9,9 +9,9 @@ import PostComponent from '../components/Post';
 import { Post as PostType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
-import { isMscBranch } from '../data/bitsBranches'; // <-- IMPORT our helper function
+import { isMscBranch, BITS_BRANCHES } from '@/src/data/bitsBranches.ts';
 
-// ... (The rest of your ProfilePage component up to the return statement is mostly the same)
+// Main Page Component
 const ProfilePage: React.FC = () => {
     const { username } = useParams<{ username: string }>();
     const { user: currentUser } = useAuth();
@@ -26,9 +26,6 @@ const ProfilePage: React.FC = () => {
         if (!username) return;
         setProfileLoading(true);
         try {
-            // This RPC should also select the new `dual_degree_branch` column.
-            // Let's assume your existing RPC `get_profile_details` already returns all columns from `profiles` table.
-            // If not, you would need to update it.
             const { data, error } = await supabase
                 .rpc('get_profile_details', { profile_username: username })
                 .single();
@@ -47,7 +44,6 @@ const ProfilePage: React.FC = () => {
         fetchProfileData();
     }, [fetchProfileData]);
     
-    // ... (handleFollowToggle function remains the same) ...
     const handleFollowToggle = async () => {
       if (!currentUser || !profile || isTogglingFollow) return;
       setIsTogglingFollow(true);
@@ -73,12 +69,11 @@ const ProfilePage: React.FC = () => {
         }
       } catch (error) {
         console.error('Failed to toggle follow:', error);
-        setProfile({ ...profile, is_following: isCurrentlyFollowing });
+        setProfile({ ...profile, is_following: isCurrentlyFollowing, follower_count: profile.follower_count });
       } finally {
         setIsTogglingFollow(false);
       }
     };
-
 
     if (profileLoading || postsLoading) {
         return <div className="flex items-center justify-center h-screen"><Spinner /></div>;
@@ -91,10 +86,8 @@ const ProfilePage: React.FC = () => {
     const userPosts = posts.filter(post => post.user_id === profile.user_id);
     const isOwnProfile = currentUser?.id === profile.user_id;
 
-    // --- GRADUATION YEAR LOGIC ---
     let graduationYear = null;
     if (profile.admission_year && profile.branch && profile.campus) {
-        // Use our helper to check if it's an M.Sc. branch
         const isMsc = isMscBranch(profile.branch, profile.campus);
         graduationYear = profile.admission_year + (isMsc ? 5 : 4);
     }
@@ -108,7 +101,6 @@ const ProfilePage: React.FC = () => {
             )}
             
             <div className="w-full">
-                {/* ... (Banner and Profile Picture section is unchanged) ... */}
                 <div className="h-48 sm:h-64 bg-gray-800 border-b-4 border-black">{profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}</div>
                 <div className="px-4 sm:px-6 relative bg-dark-secondary pb-10">
                     <div className="flex items-end -mt-16 sm:-mt-20">
@@ -125,7 +117,6 @@ const ProfilePage: React.FC = () => {
                             )}
                         </div>
                     </div>
-                     {/* ... (Name, username, follower counts unchanged) ... */}
                     <div className="mt-4">
                         <h1 className="text-3xl font-bold">{profile.full_name}</h1>
                         <p className="text-gray-400">@{profile.username}</p>
@@ -143,13 +134,11 @@ const ProfilePage: React.FC = () => {
                     <hr className="border-gray-700 my-6" />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
                         <ProfileDetail label="Primary Degree" value={profile.branch} />
-                        {/* --- NEW: Display Dual Degree Branch --- */}
                         <ProfileDetail label="B.E. Degree" value={profile.dual_degree_branch} />
                         <ProfileDetail label="Relationship Status" value={profile.relationship_status} />
                         <ProfileDetail label="Dorm" value={dormInfo} />
                         <ProfileDetail label="Dining Hall" value={profile.dining_hall} />
                     </div>
-                    {/* ... (Posts section is unchanged) ... */}
                     <div className="mt-8">
                         <h2 className="text-xl font-bold border-b border-gray-700 pb-2">Posts</h2>
                         <div className="mt-4 space-y-4">{userPosts.length > 0 ? (userPosts.map(post => <PostComponent key={post.id} post={post} />)) : (<p className="text-center text-gray-500 py-8">No posts yet.</p>)}</div>
@@ -160,10 +149,7 @@ const ProfilePage: React.FC = () => {
     );
 };
 
-
-// I am including the full helper components below so the file is complete.
-// No changes needed here, just including for completeness.
-// ... (EditProfileModal and ProfileDetail components are the same as in your file) ...
+// Updated Edit Profile Modal Component
 const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, onSave: () => void }> = ({ userProfile, onClose, onSave }) => {
     const { user } = useAuth();
     const [profileData, setProfileData] = useState(userProfile);
@@ -174,8 +160,21 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
 
+    const [availableBranches, setAvailableBranches] = useState<string[]>([]);
+    const [isDualDegreeStudent, setIsDualDegreeStudent] = useState(false);
+
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const bannerInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const campus = profileData.campus;
+        if (campus && BITS_BRANCHES[campus]) {
+            const campusBranches = BITS_BRANCHES[campus];
+            setAvailableBranches([...campusBranches['B.E.'], ...campusBranches['M.Sc.']]);
+            const isMsc = isMscBranch(profileData.branch || '', campus);
+            setIsDualDegreeStudent(isMsc);
+        }
+    }, [profileData.campus, profileData.branch]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => {
         if (e.target.files && e.target.files[0]) {
@@ -193,7 +192,13 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setProfileData(prev => ({ ...prev, [name]: value }));
+        setProfileData(prev => {
+            const updated = { ...prev, [name]: value };
+            if (name === 'branch' && !isMscBranch(value, updated.campus || '')) {
+                updated.dual_degree_branch = null;
+            }
+            return updated;
+        });
     };
     
     const handleSubmit = async (e: React.FormEvent) => {
@@ -201,20 +206,19 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
         if (!user) return;
         setIsSaving(true);
         setError('');
-
         try {
             let avatar_url = profileData.avatar_url;
             let banner_url = profileData.banner_url;
 
             if (avatarFile) {
-                const filePath = `public/${user.id}/avatar.${avatarFile.name.split('.').pop()}`;
+                const filePath = `${user.id}/avatar.${avatarFile.name.split('.').pop()}`;
                 await supabase.storage.from('avatars').upload(filePath, avatarFile, { upsert: true });
                 const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
                 avatar_url = `${publicUrl}?t=${new Date().getTime()}`;
             }
 
             if (bannerFile) {
-                const filePath = `public/${user.id}/banner.${bannerFile.name.split('.').pop()}`;
+                const filePath = `${user.id}/banner.${bannerFile.name.split('.').pop()}`;
                 await supabase.storage.from('avatars').upload(filePath, bannerFile, { upsert: true });
                 const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
                 banner_url = `${publicUrl}?t=${new Date().getTime()}`;
@@ -226,6 +230,7 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
                     full_name: profileData.full_name,
                     bio: profileData.bio,
                     branch: profileData.branch,
+                    dual_degree_branch: profileData.dual_degree_branch || null,
                     relationship_status: profileData.relationship_status,
                     dorm_building: profileData.dorm_building,
                     dorm_room: profileData.dorm_room,
@@ -240,7 +245,6 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
             
             onSave();
             onClose();
-
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -253,7 +257,6 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
             <div className="bg-dark-secondary rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 <form onSubmit={handleSubmit} className="p-6">
                     <h2 className="text-2xl font-bold text-bits-red mb-6">Edit Profile</h2>
-                    
                     <div className="relative h-48 bg-gray-700 rounded-t-lg mb-16">
                         {bannerPreview && <img src={bannerPreview} className="w-full h-full object-cover rounded-t-lg" alt="Banner Preview"/>}
                         <button type="button" onClick={() => bannerInputRef.current?.click()} className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"><CameraIcon className="w-8 h-8 text-white" /></button>
@@ -264,73 +267,44 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
                             <input type="file" ref={avatarInputRef} onChange={(e) => handleFileChange(e, 'avatar')} accept="image/*" hidden />
                         </div>
                     </div>
-
                     {error && <p className="text-red-400 mb-4">{error}</p>}
-                    
                     <div className="space-y-4 pt-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400">Full Name</label>
-                            <input type="text" name="full_name" value={profileData.full_name || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400">Bio</label>
-                            <textarea name="bio" value={profileData.bio || ''} onChange={handleChange} rows={3} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red" />
-                        </div>
-                        
+                        <div><label className="block text-sm font-medium text-gray-400">Full Name</label><input type="text" name="full_name" value={profileData.full_name || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600" /></div>
+                        <div><label className="block text-sm font-medium text-gray-400">Bio</label><textarea name="bio" value={profileData.bio || ''} onChange={handleChange} rows={3} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600" /></div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div>
-                                <label className="block text-sm font-medium text-gray-400">Branch</label>
-                                <select name="branch" value={profileData.branch || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red">
+                                <label className="block text-sm font-medium text-gray-400">Primary Degree</label>
+                                <select name="branch" value={profileData.branch || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600">
                                     <option value="">Select Branch</option>
-                                    <option value="Computer Science">Computer Science</option>
-                                    <option value="Electrical Engineering">Electrical Engineering</option>
-                                    <option value="Mechanical Engineering">Mechanical Engineering</option>
-                                    <option value="Chemical Engineering">Chemical Engineering</option>
-                                    <option value="Civil Engineering">Civil Engineering</option>
+                                    {availableBranches.map(b => <option key={b} value={b}>{b}</option>)}
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400">Relationship Status</label>
-                                <select name="relationship_status" value={profileData.relationship_status || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red">
-                                    <option value="">Select Status</option>
-                                    <option value="Single">Single</option>
-                                    <option value="In a relationship">In a relationship</option>
-                                    <option value="It's complicated">It's complicated</option>
-                                    <option value="Married">Married</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400">Dorm Building</label>
-                                <input type="text" name="dorm_building" placeholder="e.g., Valmiki" value={profileData.dorm_building || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red" />
-                            </div>
-                             <div>
-                                <label className="block text-sm font-medium text-gray-400">Dorm Room</label>
-                                <input type="text" name="dorm_room" placeholder="e.g., 469" value={profileData.dorm_room || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red" />
-                            </div>
-                            <div className="md:col-span-2">
-                                <label className="block text-sm font-medium text-gray-400">Dining Hall</label>
-                                <select name="dining_hall" value={profileData.dining_hall || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600 focus:ring-bits-red focus:border-bits-red">
-                                    <option value="">Select Mess</option>
-                                    <option value="Mess 1">Mess 1</option>
-                                    <option value="Mess 2">Mess 2</option>
-                                </select>
-                            </div>
+                            {isDualDegreeStudent && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400">B.E. Degree</label>
+                                    <select name="dual_degree_branch" value={profileData.dual_degree_branch || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600">
+                                        <option value="">Select B.E. Branch</option>
+                                        {profileData.campus && BITS_BRANCHES[profileData.campus]['B.E.'].map(b => <option key={b} value={b}>{b}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            <div><label className="block text-sm font-medium text-gray-400">Relationship Status</label><select name="relationship_status" value={profileData.relationship_status || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600"><option value="">Select Status</option><option value="Single">Single</option><option value="In a relationship">In a relationship</option><option value="It's complicated">It's complicated</option><option value="Married">Married</option></select></div>
+                            <div><label className="block text-sm font-medium text-gray-400">Dorm Building</label><input type="text" name="dorm_building" placeholder="e.g., Valmiki" value={profileData.dorm_building || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600" /></div>
+                            <div><label className="block text-sm font-medium text-gray-400">Dorm Room</label><input type="text" name="dorm_room" placeholder="e.g., 469" value={profileData.dorm_room || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600" /></div>
+                            <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-400">Dining Hall</label><select name="dining_hall" value={profileData.dining_hall || ''} onChange={handleChange} className="mt-1 block w-full bg-dark-tertiary rounded p-2 text-white border border-gray-600"><option value="">Select Mess</option><option value="Mess 1">Mess 1</option><option value="Mess 2">Mess 2</option></select></div>
                         </div>
                     </div>
-                    
-                    <div className="flex justify-end space-x-4 pt-6">
-                        <button type="button" onClick={onClose} className="py-2 px-6 rounded-full text-white hover:bg-gray-700">Cancel</button>
-                        <button type="submit" disabled={isSaving} className="py-2 px-6 rounded-full text-white bg-bits-red hover:bg-red-700 disabled:opacity-50">{isSaving ? <Spinner /> : 'Save Changes'}</button>
-                    </div>
+                    <div className="flex justify-end space-x-4 pt-6"><button type="button" onClick={onClose} className="py-2 px-6 rounded-full text-white hover:bg-gray-700">Cancel</button><button type="submit" disabled={isSaving} className="py-2 px-6 rounded-full text-white bg-bits-red hover:bg-red-700 disabled:opacity-50">{isSaving ? <Spinner /> : 'Save Changes'}</button></div>
                 </form>
             </div>
         </div>
     );
 };
+
+// Helper Component
 const ProfileDetail: React.FC<{ label: string; value?: string | number | null }> = ({ label, value }) => {
     if (!value) return null;
     return (<div><span className="font-semibold text-gray-200">{label}: </span><span className="text-gray-400">{value}</span></div>);
 };
-
 
 export default ProfilePage;

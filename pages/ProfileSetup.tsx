@@ -1,15 +1,16 @@
-// src/pages/ProfileSetup.tsx (Final Version with Image Uploads)
+// src/pages/ProfileSetup.tsx (Complete and Synchronized)
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import Spinner from '../components/Spinner';
-import { CameraIcon } from '../components/icons'; // <-- NEW: Import Camera Icon
-import { BITS_BRANCHES, isMscBranch } from '../data/bitsBranches';
+import { CameraIcon } from '../components/icons';
+import { BITS_BRANCHES, isMscBranch } from '@/src/data/bitsBranches.ts';
 
 const BITS_CAMPUSES = ['Pilani', 'Goa', 'Hyderabad', 'Dubai'];
 const RELATIONSHIP_STATUSES = ['Single', 'In a Relationship', 'Married', "It's Complicated"];
+const DINING_HALLS = ['Mess 1', 'Mess 2']; // <-- NEW: Added dining hall options
 
 const ProfileSetup: React.FC = () => {
   const { user } = useAuth();
@@ -21,7 +22,6 @@ const ProfileSetup: React.FC = () => {
     dorm_room: '', dining_hall: '', bio: '',
   });
 
-  // --- NEW: State for images ---
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -52,7 +52,6 @@ const ProfileSetup: React.FC = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
   
-  // --- NEW: Handler for file input changes ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => {
       if (e.target.files && e.target.files[0]) {
           const file = e.target.files[0];
@@ -76,12 +75,11 @@ const ProfileSetup: React.FC = () => {
         let avatar_url = null;
         let banner_url = null;
         
-        // --- MODIFIED: Upload files before updating profile ---
         if (avatarFile) {
             const filePath = `${user.id}/avatar.${avatarFile.name.split('.').pop()}`;
             await supabase.storage.from('avatars').upload(filePath, avatarFile, { upsert: true });
             const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-            avatar_url = `${publicUrl}?t=${new Date().getTime()}`; // Add timestamp to break cache
+            avatar_url = `${publicUrl}?t=${new Date().getTime()}`;
         }
         if (bannerFile) {
             const filePath = `${user.id}/banner.${bannerFile.name.split('.').pop()}`;
@@ -100,10 +98,11 @@ const ProfileSetup: React.FC = () => {
           dual_degree_branch: formData.dual_degree_branch || null,
           relationship_status: formData.relationship_status,
           dorm_building: formData.dorm_building,
-          dorm_room: formData.dorm_room,
+          dorm_room: formData.dorm_room, // <-- Was missing from here
+          dining_hall: formData.dining_hall, // <-- Was missing from here
           bio: formData.bio,
-          avatar_url, // <-- Pass the new URL
-          banner_url, // <-- Pass the new URL
+          avatar_url,
+          banner_url,
           profile_complete: true,
           updated_at: new Date().toISOString(),
         })
@@ -127,29 +126,17 @@ const ProfileSetup: React.FC = () => {
         <p className="text-gray-400 mb-6 text-center">Let's get your profile ready so others can find you.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-            {/* --- NEW: Image Upload UI --- */}
             <div className="relative h-40 bg-dark-tertiary rounded-lg mb-16 border border-gray-700">
                 {bannerPreview && <img src={bannerPreview} className="w-full h-full object-cover rounded-lg" alt="Banner Preview"/>}
-                <button type="button" onClick={() => bannerInputRef.current?.click()} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-lg">
-                    <CameraIcon className="w-8 h-8 text-white" />
-                </button>
+                <button type="button" onClick={() => bannerInputRef.current?.click()} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity rounded-lg"><CameraIcon className="w-8 h-8 text-white" /></button>
                 <input type="file" ref={bannerInputRef} onChange={(e) => handleFileChange(e, 'banner')} accept="image/*" hidden />
-                
                 <div className="absolute -bottom-16 left-6 w-32 h-32 rounded-full border-4 border-dark-secondary bg-dark-tertiary">
-                    {avatarPreview ? 
-                        <img src={avatarPreview} className="w-full h-full rounded-full object-cover" alt="Avatar Preview"/> :
-                        <div className="w-full h-full rounded-full flex items-center justify-center text-gray-500">
-                           <CameraIcon className="w-10 h-10" />
-                        </div>
-                    }
-                    <button type="button" onClick={() => avatarInputRef.current?.click()} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 rounded-full transition-opacity">
-                        <CameraIcon className="w-8 h-8 text-white" />
-                    </button>
+                    {avatarPreview ? <img src={avatarPreview} className="w-full h-full rounded-full object-cover" alt="Avatar Preview"/> : <div className="w-full h-full rounded-full flex items-center justify-center text-gray-500"><CameraIcon className="w-10 h-10" /></div>}
+                    <button type="button" onClick={() => avatarInputRef.current?.click()} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 rounded-full transition-opacity"><CameraIcon className="w-8 h-8 text-white" /></button>
                     <input type="file" ref={avatarInputRef} onChange={(e) => handleFileChange(e, 'avatar')} accept="image/*" hidden />
                 </div>
             </div>
 
-            {/* Form Fields */}
             <div className="col-span-full"><label htmlFor="full_name" className="block text-gray-300 text-sm font-bold mb-2">Full Name <span className="text-bits-red">*</span></label><input type="text" name="full_name" id="full_name" value={formData.full_name} onChange={handleChange} required className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm" /></div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -157,10 +144,16 @@ const ProfileSetup: React.FC = () => {
                 <div><label htmlFor="admission_year" className="block text-gray-300 text-sm font-bold mb-2">Admission Year <span className="text-bits-red">*</span></label><select name="admission_year" id="admission_year" value={formData.admission_year} onChange={handleChange} required className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Year</option>{Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
                 <div className={showDualDegreeField ? 'col-span-1' : 'md:col-span-2'}><label htmlFor="branch" className="block text-gray-300 text-sm font-bold mb-2">Primary Degree <span className="text-bits-red">*</span></label><select name="branch" id="branch" value={formData.branch} onChange={handleChange} required disabled={!formData.campus} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm disabled:opacity-50"><option value="">Select Branch</option>{availableBranches.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
                 {showDualDegreeField && (
-                    <div><label htmlFor="dual_degree_branch" className="block text-gray-300 text-sm font-bold mb-2">B.E. Branch <span className="text-gray-400">(Optional)</span></label><select name="dual_degree_branch" id="dual_degree_branch" value={formData.dual_degree_branch} onChange={handleChange} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select B.E. Branch</option>{BITS_BRANCHES[formData.campus]['B.E.'].map(b => <option key={b} value={b}>{b}</option>)}</select></div>
+                    <div><label htmlFor="dual_degree_branch" className="block text-gray-300 text-sm font-bold mb-2">B.E. Branch <span className="text-gray-400">(Optional)</span></label><select name="dual_degree_branch" id="dual_degree_branch" value={formData.dual_degree_branch} onChange={handleChange} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select B.E. Branch</option>{formData.campus ? BITS_BRANCHES[formData.campus]['B.E.'].map(b => <option key={b} value={b}>{b}</option>): null}</select></div>
                 )}
                 <div><label htmlFor="relationship_status" className="block text-gray-300 text-sm font-bold mb-2">Relationship Status</label><select name="relationship_status" id="relationship_status" value={formData.relationship_status} onChange={handleChange} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Status</option>{RELATIONSHIP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
                 <div><label htmlFor="dorm_building" className="block text-gray-300 text-sm font-bold mb-2">Dorm Building</label><input type="text" name="dorm_building" id="dorm_building" value={formData.dorm_building} onChange={handleChange} placeholder="e.g. Ram Bhawan" className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm" /></div>
+                
+                {/* --- FIELD ADDED --- */}
+                <div><label htmlFor="dorm_room" className="block text-gray-300 text-sm font-bold mb-2">Dorm Room</label><input type="text" name="dorm_room" id="dorm_room" value={formData.dorm_room} onChange={handleChange} placeholder="e.g. 101" className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm" /></div>
+
+                {/* --- FIELD ADDED --- */}
+                <div><label htmlFor="dining_hall" className="block text-gray-300 text-sm font-bold mb-2">Dining Hall</label><select name="dining_hall" id="dining_hall" value={formData.dining_hall} onChange={handleChange} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Mess</option>{DINING_HALLS.map(hall => <option key={hall} value={hall}>{hall}</option>)}</select></div>
             </div>
 
             <div className="col-span-full"><label htmlFor="bio" className="block text-gray-300 text-sm font-bold mb-2">Bio</label><textarea name="bio" id="bio" value={formData.bio} onChange={handleChange} rows={3} placeholder="Tell us a little about yourself..." className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm resize-y" /></div>
