@@ -6,7 +6,7 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
-import { BITS_BRANCHES, isMscBranch } from '@/src/data/bitsBranches.ts';
+import { BITS_BRANCHES, isMscBranch } from '../data/bitsBranches.ts';
 
 const BITS_CAMPUSES = ['Pilani', 'Goa', 'Hyderabad', 'Dubai'];
 const RELATIONSHIP_STATUSES = ['Single', 'In a Relationship', 'Married', "It's Complicated"];
