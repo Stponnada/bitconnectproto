@@ -89,7 +89,7 @@ export async function encryptMessage(message: string, recipientPublicKey: X25519
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
   const plaintextBuf = Buffer.from(message, 'utf8');
 
-  // FIXED: The correct order for crypto_box is (message, nonce, recipientPublicKey, senderSecretKey)
+  // FIXED: crypto_box expects the standard order: (..., recipientPublicKey, senderSecretKey)
   const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, recipientPublicKey, secretKey);
 
   const nonceHex = await sodium.sodium_bin2hex(nonce);
@@ -112,8 +112,8 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
   const nonce = await sodium.sodium_hex2bin(nonceHex);
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
 
-  // FIXED: The correct order for crypto_box_open is (ciphertext, nonce, senderPublicKey, recipientSecretKey)
-  const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, senderPublicKey, secretKey);
+  // FIXED: The TypeError revealed crypto_box_open expects the non-standard order: (..., recipientSecretKey, senderPublicKey)
+  const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, secretKey, senderPublicKey);
   const msg = decryptedBuf.toString('utf8');
 
   // log before returning
