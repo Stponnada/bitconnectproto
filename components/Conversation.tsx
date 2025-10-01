@@ -1,3 +1,5 @@
+// src/components/Conversation.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../services/supabase';
 import { Profile } from '../types';
