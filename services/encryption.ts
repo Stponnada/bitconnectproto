@@ -1,6 +1,6 @@
-// src/services/encryption.ts (Corrected a final time)
+// src/services/encryption.ts (FINAL CORRECTED VERSION)
 
-import { SodiumPlus } from 'sodium-plus'; // <-- ONLY IMPORT SodiumPlus
+import { SodiumPlus } from 'sodium-plus';
 import { supabase } from './supabase';
 
 let sodium: SodiumPlus | null = null;
@@ -23,19 +23,18 @@ export async function generateAndStoreKeyPair() {
   const publicKey = await sodium.crypto_box_publickey(keypair);
   const secretKey = await sodium.crypto_box_secretkey(keypair);
 
+  // Store the private key in localStorage (NEVER in the database)
   localStorage.setItem(`spk_${user.id}`, secretKey.getBuffer().toString('hex'));
 
+  // Store the public key in the database
   const { error } = await supabase
     .from('public_keys')
     .upsert({ user_id: user.id, public_key: publicKey.getBuffer().toString('hex') });
     
   if (error) throw error;
   
-  // --- FIX: Access Hidden via SodiumPlus.Hidden ---
-  return { 
-    publicKey: new SodiumPlus.Hidden(publicKey.getBuffer()), 
-    secretKey: new SodiumPlus.Hidden(secretKey.getBuffer()) 
-  };
+  // Return the raw library objects
+  return { publicKey, secretKey };
 }
 
 // Retrieves the current user's key pair, generating if it doesn't exist
@@ -49,7 +48,7 @@ export async function getKeyPair() {
   }
 
   const sodium = await initSodium();
-  const secretKeyBuffer = sodium.sodium_hex2bin(secretKeyHex);
+  const secretKey = sodium.sodium_hex2bin(secretKeyHex); // Returns a Buffer
 
   const { data: publicKeyData, error } = await supabase
     .from('public_keys')
@@ -61,16 +60,13 @@ export async function getKeyPair() {
     return generateAndStoreKeyPair();
   }
   
-  const publicKeyBuffer = sodium.sodium_hex2bin(publicKeyData.public_key);
+  const publicKey = sodium.sodium_hex2bin(publicKeyData.public_key); // Returns a Buffer
   
-  // --- FIX: Access Hidden via SodiumPlus.Hidden ---
-  return { 
-      publicKey: new SodiumPlus.Hidden(publicKeyBuffer), 
-      secretKey: new SodiumPlus.Hidden(secretKeyBuffer) 
-  };
+  // Return the keys as simple Buffers
+  return { publicKey, secretKey };
 }
 
-// Fetches another user's public key from the database
+// Fetches another user's public key from the database and returns it as a Buffer
 export async function getRecipientPublicKey(userId: string) {
   const { data, error } = await supabase
     .from('public_keys')
@@ -80,14 +76,12 @@ export async function getRecipientPublicKey(userId: string) {
   if (error) throw new Error(`Could not fetch public key for user ${userId}. They may not have used chat yet.`);
 
   const sodium = await initSodium();
-  const publicKeyBuffer = sodium.sodium_hex2bin(data.public_key);
-  
-  // --- FIX: Access Hidden via SodiumPlus.Hidden ---
-  return new SodiumPlus.Hidden(publicKeyBuffer);
+  // Return the key as a simple Buffer
+  return sodium.sodium_hex2bin(data.public_key);
 }
 
 // Encrypts a message for a recipient
-export async function encryptMessage(message: string, recipientPublicKey: SodiumPlus.Hidden) {
+export async function encryptMessage(message: string, recipientPublicKey: Buffer) {
   const sodium = await initSodium();
   const { secretKey } = await getKeyPair();
   
@@ -98,7 +92,7 @@ export async function encryptMessage(message: string, recipientPublicKey: Sodium
 }
 
 // Decrypts a message
-export async function decryptMessage(encrypted: string, senderPublicKey: SodiumPlus.Hidden) {
+export async function decryptMessage(encrypted: string, senderPublicKey: Buffer) {
   const sodium = await initSodium();
   const { secretKey } = await getKeyPair();
 

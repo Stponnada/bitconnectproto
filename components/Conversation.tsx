@@ -1,6 +1,6 @@
-// src/components/Conversation.tsx
+// src/components/Conversation.tsx (Improved Logic)
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Profile } from '../types';
@@ -23,14 +23,37 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recipientPublicKeyRef = useRef<Buffer | null>(null); // Ref to store the key
 
+  // Decrypt a single message
+  const decryptSingleMessage = useCallback(async (msg: Message): Promise<Message> => {
+    if (!recipientPublicKeyRef.current) {
+        console.error("Recipient public key not available for decryption.");
+        return { ...msg, decrypted_content: "[Error: Missing Key]" };
+    }
+    try {
+      // For decryption, we always need the SENDER's public key.
+      // In a 1-on-1 chat, the sender of a received message is always the recipient.
+      const decrypted_content = await decryptMessage(msg.encrypted_content, recipientPublicKeyRef.current);
+      return { ...msg, decrypted_content };
+    } catch (e) {
+      console.error("Decryption failed for message:", msg.id, e);
+      return { ...msg, decrypted_content: "[Decryption Failed]" };
+    }
+  }, []);
+  
+  // Effect for fetching initial messages
   useEffect(() => {
     if (!user) return;
 
     const fetchMessages = async () => {
       setLoading(true);
       setError(null);
+      setMessages([]); // Clear previous conversation
       try {
+        // Fetch and store the recipient's public key first
+        recipientPublicKeyRef.current = await getRecipientPublicKey(recipient.user_id);
+
         const { data, error } = await supabase
           .from('messages')
           .select('*')
@@ -39,21 +62,7 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
 
         if (error) throw error;
         
-        // Decrypt messages
-        const recipientPublicKey = await getRecipientPublicKey(recipient.user_id);
-        const decryptedMessages = await Promise.all(
-            data.map(async (msg) => {
-                const isMyMessage = msg.sender_id === user.id;
-                try {
-                    const decrypted_content = await decryptMessage(msg.encrypted_content, isMyMessage ? recipientPublicKey : recipientPublicKey);
-                    return { ...msg, decrypted_content };
-                } catch (e) {
-                    console.error("Decryption failed for message:", msg.id, e);
-                    return { ...msg, decrypted_content: "[Decryption Failed]" };
-                }
-            })
-        );
-
+        const decryptedMessages = await Promise.all(data.map(decryptSingleMessage));
         setMessages(decryptedMessages);
       } catch (err: any) {
         setError(err.message);
@@ -63,22 +72,19 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
     };
 
     fetchMessages();
-  }, [recipient.user_id, user]);
+  }, [recipient.user_id, user, decryptSingleMessage]);
   
   // Realtime subscription for new messages
   useEffect(() => {
     if (!user) return;
+
     const channel = supabase
-      .channel(`chat:${user.id}:${recipient.user_id}`)
+      .channel(`chat-room:${[user.id, recipient.user_id].sort().join(':')}`)
       .on<Message>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
         const newMessage = payload.new;
-        if ((newMessage.sender_id === recipient.user_id && newMessage.receiver_id === user.id) || 
-            (newMessage.sender_id === user.id && newMessage.receiver_id === recipient.user_id)) {
-            
-            const recipientPublicKey = await getRecipientPublicKey(recipient.user_id);
-            const decrypted_content = await decryptMessage(newMessage.encrypted_content, recipientPublicKey);
-            
-            setMessages((prev) => [...prev, { ...newMessage, decrypted_content }]);
+        if (newMessage.sender_id === recipient.user_id && newMessage.receiver_id === user.id) {
+            const decryptedMessage = await decryptSingleMessage(newMessage);
+            setMessages((prev) => [...prev, decryptedMessage]);
         }
       })
       .subscribe();
@@ -86,7 +92,7 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [recipient.user_id, user]);
+  }, [recipient.user_id, user, decryptSingleMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -95,27 +101,33 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !user || !recipientPublicKeyRef.current) return;
+
+    const tempMessageContent = newMessage;
+    setNewMessage('');
 
     try {
-        const recipientPublicKey = await getRecipientPublicKey(recipient.user_id);
-        const encryptedContent = await encryptMessage(newMessage, recipientPublicKey);
+        const encryptedContent = await encryptMessage(tempMessageContent, recipientPublicKeyRef.current);
         
-        const { error } = await supabase.from('messages').insert({
+        const { data: sentMessage, error } = await supabase.from('messages').insert({
             sender_id: user.id,
             receiver_id: recipient.user_id,
             encrypted_content: encryptedContent,
-        });
+        }).select().single();
 
         if (error) throw error;
-        setNewMessage('');
+        
+        // Optimistically add the sent message to the UI
+        setMessages(prev => [...prev, { ...sentMessage, decrypted_content: tempMessageContent }]);
+
     } catch (err: any) {
         setError(`Failed to send message: ${err.message}`);
+        setNewMessage(tempMessageContent); // Restore message on failure
     }
   };
 
   if (loading) return <div className="flex-1 flex items-center justify-center"><Spinner /></div>;
-  if (error) return <div className="flex-1 flex items-center justify-center text-red-400">{error}</div>;
+  if (error) return <div className="flex-1 flex items-center justify-center text-red-400 p-4 text-center">{error}</div>;
 
   return (
     <>
@@ -125,7 +137,7 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
       <div className="flex-1 p-4 overflow-y-auto">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'} mb-2`}>
-            <div className={`p-3 rounded-lg max-w-md ${msg.sender_id === user?.id ? 'bg-brand-green text-black' : 'bg-dark-tertiary text-white'}`}>
+            <div className={`p-3 rounded-lg max-w-md break-words ${msg.sender_id === user?.id ? 'bg-brand-green text-black' : 'bg-dark-tertiary text-white'}`}>
               <p>{msg.decrypted_content}</p>
             </div>
           </div>
@@ -141,7 +153,7 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
             placeholder="Type a message..."
             className="flex-1 p-2 bg-dark-tertiary border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green"
           />
-          <button type="submit" className="bg-brand-green text-black font-bold py-2 px-4 rounded-lg">
+          <button type="submit" className="bg-brand-green text-black font-bold py-2 px-4 rounded-lg hover:bg-brand-green-darker transition-colors">
             Send
           </button>
         </form>
