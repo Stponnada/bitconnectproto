@@ -1,5 +1,3 @@
-// src/components/Conversation.tsx (FIXED)
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,16 +6,28 @@ import Spinner from './Spinner';
 import { encryptMessage, decryptMessage, getRecipientPublicKey, getKeyPair } from '../services/encryption';
 import { X25519PublicKey } from 'sodium-plus';
 
+// Back Icon for the mobile header
+const BackIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+    </svg>
+);
+
 interface Message {
   id: number;
   sender_id: string;
   receiver_id: string;
-  encrypted_content: string; // Can be a string or a JSON string '{"for_recipient": "...", "for_sender": "..."}'
+  encrypted_content: string;
   created_at: string;
   decrypted_content?: string;
 }
 
-const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
+interface ConversationProps {
+  recipient: Profile;
+  onBack?: () => void; // Optional callback for the back button
+}
+
+const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -25,7 +35,6 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Refs to store keys to avoid re-fetching them repeatedly
   const recipientPublicKeyRef = useRef<X25519PublicKey | null>(null);
   const myPublicKeyRef = useRef<X25519PublicKey | null>(null);
 
@@ -50,14 +59,12 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
 
     try {
       const payload = JSON.parse(msg.encrypted_content);
-      // New format: Decrypt the appropriate version
       if (msg.sender_id === user.id) {
         return decryptContent(msg, payload.for_sender, myPublicKeyRef.current);
       } else {
         return decryptContent(msg, payload.for_recipient, recipientPublicKeyRef.current);
       }
     } catch (e) {
-      // Legacy format: Handle old messages
       if (msg.sender_id === user.id) {
         return { ...msg, decrypted_content: "[Unable to decrypt own message]" };
       } else {
@@ -73,7 +80,6 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
       setLoading(true);
       setError(null);
       try {
-        // Fetch and store both keys needed for the conversation
         recipientPublicKeyRef.current = await getRecipientPublicKey(recipient.user_id);
         myPublicKeyRef.current = (await getKeyPair()).publicKey;
 
@@ -109,7 +115,6 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
     setNewMessage('');
 
     try {
-      // Encrypt for both parties
       const encryptedForRecipient = await encryptMessage(tempMessageContent, recipientPublicKeyRef.current);
       const encryptedForSender = await encryptMessage(tempMessageContent, myPublicKeyRef.current);
 
@@ -123,14 +128,13 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
         .insert({
           sender_id: user.id,
           receiver_id: recipient.user_id,
-          encrypted_content: JSON.stringify(payload), // Store the JSON object as a string
+          encrypted_content: JSON.stringify(payload),
         })
         .select()
         .single();
 
       if (error) throw error;
       
-      // Optimistic UI update: show the message immediately
       setMessages(prev => [...prev, { ...sentMessage, decrypted_content: tempMessageContent }]);
     } catch (err: any) {
       setError(`Failed to send message: ${err.message}`);
@@ -158,8 +162,21 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
 
   return (
     <>
-      <div className="p-4 border-b border-dark-tertiary">
-        <h3 className="font-bold text-lg">{recipient.full_name}</h3>
+      <div className="p-2 md:p-4 border-b border-dark-tertiary flex items-center space-x-2 flex-shrink-0">
+        {onBack && (
+          <button onClick={onBack} className="p-2 text-gray-300 rounded-full hover:bg-dark-tertiary md:hidden">
+            <BackIcon className="w-6 h-6" />
+          </button>
+        )}
+        <img 
+            src={recipient.avatar_url || `https://ui-avatars.com/api/?name=${recipient.full_name}`} 
+            alt={recipient.username} 
+            className="w-10 h-10 rounded-full object-cover"
+        />
+        <div>
+          <h3 className="font-bold text-lg">{recipient.full_name}</h3>
+          <p className="text-sm text-gray-500 hidden md:block">@{recipient.username}</p>
+        </div>
       </div>
       <div className="flex-1 p-4 overflow-y-auto">
         {messages.map((msg) => (

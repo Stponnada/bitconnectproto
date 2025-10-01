@@ -1,12 +1,9 @@
-// src/pages/ChatPage.tsx
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Profile } from '../types';
 import Spinner from '../components/Spinner';
 import Conversation from '../components/Conversation';
-import { ChatIcon } from '../components/icons';
 import { getKeyPair } from '../services/encryption';
 
 const ChatPage: React.FC = () => {
@@ -41,58 +38,63 @@ const ChatPage: React.FC = () => {
   );
 
   if (loading) {
-    return <div className="text-center p-8"><Spinner /></div>;
+    return (
+        <div className="flex justify-center items-center h-[calc(100vh-80px)]">
+            <Spinner />
+        </div>
+    );
   }
 
   return (
-    <div className="max-w-7xl mx-auto bg-dark-secondary rounded-xl border border-dark-tertiary shadow-2xl h-[calc(100vh-120px)] flex overflow-hidden">
+    // This container manages the overall size and appearance.
+    <div className="relative h-[calc(100vh-80px)] md:h-[calc(100vh-120px)] w-full overflow-hidden bg-dark-secondary md:rounded-xl md:border md:border-dark-tertiary md:shadow-2xl">
       
-      <div className="w-96 border-r border-dark-tertiary flex flex-col">
-        <div className="p-4 border-b border-dark-tertiary">
-          <h2 className="text-xl font-bold">Contacts</h2>
-          <input
-            type="text"
-            placeholder="Search contacts..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full mt-3 p-2 bg-dark-primary border border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
-          />
-        </div>
-        <ul className="flex-1 overflow-y-auto">
-          {filteredProfiles.map(profile => (
-            <li
-              key={profile.user_id}
-              onClick={() => setSelectedProfile(profile)}
-              className={`p-4 flex items-center space-x-4 cursor-pointer transition-colors duration-200 border-l-4 ${
-                selectedProfile?.user_id === profile.user_id 
-                  ? 'border-brand-green bg-dark-tertiary' 
-                  : 'border-transparent hover:bg-dark-tertiary'
-              }`}
-            >
-              <img
-                src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name || profile.username}`}
-                alt={profile.username}
-                className="w-12 h-12 rounded-full object-cover"
-              />
-              <div>
-                <p className="font-bold text-white">{profile.full_name}</p>
-                <p className="text-sm text-gray-400">@{profile.username}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="flex-1 flex flex-col">
-        {selectedProfile ? (
-          <Conversation recipient={selectedProfile} />
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-500 p-8">
-            <ChatIcon className="w-16 h-16 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-300">Your Messages</h3>
-            <p className="mt-2 max-w-sm">Select a contact from the left panel to view your conversation or start a new one.</p>
+      {/* This inner container handles the sliding animation for mobile. */}
+      <div className={`relative w-full h-full flex transition-transform duration-300 ease-in-out md:transform-none ${selectedProfile ? '-translate-x-full' : 'translate-x-0'}`}>
+        
+        {/* Pane 1: Contacts List */}
+        <div className="w-full h-full flex-shrink-0 md:w-96 md:border-r md:border-dark-tertiary flex flex-col">
+          <div className="p-4 border-b border-dark-tertiary">
+            <h2 className="text-xl font-bold">Contacts</h2>
+            <input
+              type="text" 
+              placeholder="Search contacts..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full mt-3 p-2 bg-dark-primary border border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
+            />
           </div>
-        )}
+          <ul className="flex-1 overflow-y-auto">
+            {filteredProfiles.map(profile => (
+              <li 
+                key={profile.user_id} 
+                onClick={() => setSelectedProfile(profile)}
+                className="p-4 flex items-center space-x-4 cursor-pointer hover:bg-dark-tertiary transition-colors"
+              >
+                <img 
+                  src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name || profile.username}`} 
+                  alt={profile.username} 
+                  className="w-12 h-12 rounded-full object-cover"
+                />
+                <div>
+                  <p className="font-bold text-white">{profile.full_name}</p>
+                  <p className="text-sm text-gray-400">@{profile.username}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Pane 2: Conversation View */}
+        <div className="w-full h-full flex-shrink-0 md:flex-1 flex flex-col">
+          {selectedProfile && (
+            <Conversation 
+              recipient={selectedProfile} 
+              onBack={() => setSelectedProfile(null)} // This function allows the mobile view to slide back
+            />
+          )}
+        </div>
+
       </div>
     </div>
   );
