@@ -8,16 +8,14 @@ import Spinner from './Spinner';
 import { encryptMessage, decryptMessage } from '../services/encryption';
 
 const BackIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
 );
 
 interface Message {
   id: number;
   sender_id: string;
   receiver_id: string;
-  encrypted_content: any; // Can be object from DB or string
+  encrypted_content: any;
   created_at: string;
   decrypted_content?: string;
 }
@@ -38,40 +36,28 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
   const processMessage = useCallback(async (msg: Message): Promise<Message> => {
     try {
       if (msg.decrypted_content) return msg;
-
-      // When reading from DB, msg.encrypted_content is an object. Stringify it for decryption.
       const decrypted_content = await decryptMessage(JSON.stringify(msg.encrypted_content));
       return { ...msg, decrypted_content };
     } catch (e: any) {
-      console.error(`Decryption failed for message ${msg.id}:`, e.message);
+      console.error(`Decryption failed for msg ${msg.id}:`, e.message);
       return { ...msg, decrypted_content: "[Decryption Failed]" };
     }
   }, []);
 
   useEffect(() => {
     if (!user) return;
-
     const fetchConversation = async () => {
       setLoading(true);
       setError(null);
       try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .or(`and(sender_id.eq.${user.id},receiver_id.eq.${recipient.user_id}),and(sender_id.eq.${recipient.user_id},receiver_id.eq.${user.id})`)
-          .order('created_at', { ascending: true });
-
+        const { data, error } = await supabase.from('messages').select('*').or(`and(sender_id.eq.${user.id},receiver_id.eq.${recipient.user_id}),and(sender_id.eq.${recipient.user_id},receiver_id.eq.${user.id})`).order('created_at', { ascending: true });
         if (error) throw error;
-        
         const decryptedMsgs = await Promise.all(data.map(processMessage));
         setMessages(decryptedMsgs);
       } catch (err: any) {
         setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     };
-
     fetchConversation();
   }, [recipient.user_id, user, processMessage]);
 
@@ -80,30 +66,14 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
   }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
-    // PREVENT BROWSER RELOAD - THIS IS THE FIX
     e.preventDefault();
-    
     if (!newMessage.trim() || !user) return;
-
     const tempMessageContent = newMessage;
     setNewMessage('');
-
     try {
-      // encryptMessage now returns a JavaScript object
       const encryptedPayload = await encryptMessage(tempMessageContent, recipient.user_id);
-
-      const { data: sentMessage, error } = await supabase
-        .from('messages')
-        .insert({
-          sender_id: user.id,
-          receiver_id: recipient.user_id,
-          encrypted_content: encryptedPayload, // Insert the object directly
-        })
-        .select()
-        .single();
-
+      const { data: sentMessage, error } = await supabase.from('messages').insert({ sender_id: user.id, receiver_id: recipient.user_id, encrypted_content: encryptedPayload }).select().single();
       if (error) throw error;
-      
       setMessages(prev => [...prev, { ...sentMessage, decrypted_content: tempMessageContent }]);
     } catch (err: any) {
       setError(`Failed to send message: ${err.message}`);
@@ -113,16 +83,12 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
   
   useEffect(() => {
     if (!user) return;
-    const channel = supabase
-      .channel(`chat-room:${[user.id, recipient.user_id].sort().join(':')}`)
-      .on<Message>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
-        const newMessage = payload.new;
-        if (newMessage.sender_id === recipient.user_id && newMessage.receiver_id === user.id) {
-          const processed = await processMessage(newMessage);
+    const channel = supabase.channel(`chat-room:${[user.id, recipient.user_id].sort().join(':')}`).on<Message>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+        if (payload.new.sender_id === recipient.user_id && payload.new.receiver_id === user.id) {
+          const processed = await processMessage(payload.new);
           setMessages((prev) => [...prev, processed]);
         }
-      })
-      .subscribe();
+      }).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [recipient.user_id, user, processMessage]);
 
@@ -132,16 +98,8 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
   return (
     <>
       <div className="p-2 md:p-4 border-b border-dark-tertiary flex items-center space-x-2 flex-shrink-0">
-        {onBack && (
-          <button onClick={onBack} className="p-2 text-gray-300 rounded-full hover:bg-dark-tertiary md:hidden">
-            <BackIcon className="w-6 h-6" />
-          </button>
-        )}
-        <img 
-            src={recipient.avatar_url || `https://ui-avatars.com/api/?name=${recipient.full_name}`} 
-            alt={recipient.username} 
-            className="w-10 h-10 rounded-full object-cover"
-        />
+        {onBack && <button onClick={onBack} className="p-2 text-gray-300 rounded-full hover:bg-dark-tertiary md:hidden"><BackIcon className="w-6 h-6" /></button>}
+        <img src={recipient.avatar_url || `https://ui-avatars.com/api/?name=${recipient.full_name}`} alt={recipient.username} className="w-10 h-10 rounded-full object-cover" />
         <div>
           <h3 className="font-bold text-lg">{recipient.full_name}</h3>
           <p className="text-sm text-gray-500 hidden md:block">@{recipient.username}</p>
@@ -159,16 +117,8 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
       </div>
       <div className="p-4 border-t border-dark-tertiary">
         <form onSubmit={handleSendMessage} className="flex space-x-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 p-2 bg-dark-tertiary border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green"
-          />
-          <button type="submit" className="bg-brand-green text-black font-bold py-2 px-4 rounded-lg hover:bg-brand-green-darker transition-colors">
-            Send
-          </button>
+          <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1 p-2 bg-dark-tertiary border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green" />
+          <button type="submit" className="bg-brand-green text-black font-bold py-2 px-4 rounded-lg hover:bg-brand-green-darker transition-colors">Send</button>
         </form>
       </div>
     </>
