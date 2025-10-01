@@ -9,12 +9,11 @@ async function initSodium() {
   return sodium!;
 }
 
-// --- FIXED KEY MANAGEMENT ---
+// --- SELF-HEALING KEY MANAGEMENT ---
 
 /**
- * Generates a new key pair, deriving the public key from the secret key
- * to ensure they are a valid pair. It stores the secret key locally
- * and the public key remotely.
+ * Generates a new key pair. This is the standard method using crypto_box_keypair.
+ * It stores the secret key locally and the public key remotely.
  */
 export async function generateAndStoreKeyPair() {
   const sodium = await initSodium();
@@ -23,20 +22,15 @@ export async function generateAndStoreKeyPair() {
 
   console.log('Generating a new key pair for user:', user.id);
 
-  // Generate a keypair object
   const keypair = await sodium.crypto_box_keypair();
   const secretKey = await sodium.crypto_box_secretkey(keypair);
-  
-  // FIXED: Derive the public key directly from the secret key to guarantee they match.
-  const publicKey = await sodium.crypto_box_publickey_from_secretkey(secretKey);
+  const publicKey = await sodium.crypto_box_publickey(keypair);
 
   const secretKeyHex = await sodium.sodium_bin2hex(secretKey.getBuffer());
   const publicKeyHex = await sodium.sodium_bin2hex(publicKey.getBuffer());
 
-  // Store the secret key in the browser's local storage
   localStorage.setItem(`spk_${user.id}`, secretKeyHex);
 
-  // Upload the corresponding public key to the database
   const { error } = await supabase
     .from('public_keys')
     .upsert({ user_id: user.id, public_key: publicKeyHex });
@@ -46,9 +40,9 @@ export async function generateAndStoreKeyPair() {
 }
 
 /**
- * Retrieves the user's key pair. It treats the locally stored secret key
- * as the single source of truth and derives the public key from it.
- * If no local secret key is found, it generates a new pair.
+ * Retrieves the user's key pair. This function is self-healing.
+ * It treats the local secret key as the source of truth and ensures
+ * the public key in the database always matches.
  */
 export async function getKeyPair() {
   const sodium = await initSodium();
@@ -57,22 +51,37 @@ export async function getKeyPair() {
 
   const secretKeyHex = localStorage.getItem(`spk_${user.id}`);
   if (!secretKeyHex) {
-    // If no secret key is stored locally, we have no choice but to generate one.
     return generateAndStoreKeyPair();
   }
 
   try {
-    // We found a secret key. This is our source of truth.
+    // 1. Recreate secret key from local storage (our source of truth).
     const secretKeyBuffer = await sodium.sodium_hex2bin(secretKeyHex);
     const secretKey = new X25519SecretKey(secretKeyBuffer);
 
-    // FIXED: Derive the public key from the local secret key. This prevents
-    // any desync issues with the key stored in the database.
+    // 2. Derive the corresponding public key. This is the ONLY correct public key.
     const publicKey = await sodium.crypto_box_publickey_from_secretkey(secretKey);
+    const derivedPublicKeyHex = await sodium.sodium_bin2hex(publicKey.getBuffer());
+
+    // 3. Fetch the public key currently stored in the database.
+    const { data: remoteData } = await supabase
+      .from('public_keys')
+      .select('public_key')
+      .eq('user_id', user.id)
+      .single();
+
+    // 4. Check for desynchronization.
+    if (!remoteData || remoteData.public_key !== derivedPublicKeyHex) {
+      console.warn('Key desync detected! Healing remote public key.');
+      // 5. Heal: Overwrite the remote key with the correct, locally-derived key.
+      const { error: upsertError } = await supabase
+        .from('public_keys')
+        .upsert({ user_id: user.id, public_key: derivedPublicKeyHex });
+      if (upsertError) throw upsertError;
+    }
     
     return { publicKey, secretKey };
   } catch (e) {
-    // The stored key is corrupted or invalid. Delete it and generate a new one.
     console.error("Failed to process stored secret key, regenerating...", e);
     localStorage.removeItem(`spk_${user.id}`);
     return generateAndStoreKeyPair();
@@ -95,46 +104,33 @@ export async function getRecipientPublicKey(userId: string): Promise<X25519Publi
   return new X25519PublicKey(publicKeyBuffer);
 }
 
-// --- ENCRYPTION / DECRYPTION (Reverted to original correct order for sodium-plus) ---
+// --- ENCRYPTION / DECRYPTION (Using correct order for sodium-plus) ---
 
 export async function encryptMessage(message: string, recipientPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
-  const { secretKey } = await getKeyPair(); // sender's secret key
-
+  const { secretKey } = await getKeyPair();
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
   const plaintextBuf = Buffer.from(message, 'utf8');
-
-  // Order for sodium-plus: (message, nonce, senderSecretKey, recipientPublicKey)
   const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, secretKey, recipientPublicKey);
-
   const nonceHex = await sodium.sodium_bin2hex(nonce);
   const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
-
-  console.log('Encrypting message for recipient:', recipientPublicKey.getBuffer().toString('hex').slice(0,16));
   console.log('encryptMessage OK');
-
   return `${nonceHex}:${ciphertextHex}`;
 }
 
 export async function decryptMessage(encrypted: string, senderPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
-  const { secretKey } = await getKeyPair(); // recipient's secret key
-
+  const { secretKey } = await getKeyPair();
   const [nonceHex, ciphertextHex] = encrypted.split(':');
   if (!nonceHex || !ciphertextHex) throw new Error('Invalid encrypted message format');
-
   const nonce = await sodium.sodium_hex2bin(nonceHex);
-  const ciphertext = await sodium.sodium_bin2hex(ciphertextHex);
-
-  // Order for sodium-plus: (ciphertext, nonce, recipientSecretKey, senderPublicKey)
+  const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
   const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, secretKey, senderPublicKey);
   const msg = decryptedBuf.toString('utf8');
-  
-  console.log('Decrypting message from sender:', senderPublicKey.getBuffer().toString('hex').slice(0,16));
   console.log('decryptMessage OK ->', msg);
-
   return msg;
 }
+
 
 // --- SELF TEST ---
 
