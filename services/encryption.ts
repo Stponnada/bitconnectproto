@@ -90,22 +90,22 @@ export async function getRecipientPublicKey(userId: string): Promise<X25519Publi
   return new X25519PublicKey(publicKeyBuffer);
 }
 
-// FIXED: Swapped the order of secretKey and recipientPublicKey
+// FIXED: The crypto_box function expects the sender's secret key first, then the recipient's public key.
 export async function encryptMessage(message: string, recipientPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
-  const { secretKey } = await getKeyPair();
+  const { secretKey } = await getKeyPair(); // This is the sender's secret key
   
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
-  // CORRECT ORDER: message, nonce, secretKey, recipientPublicKey
-  const ciphertext = await sodium.crypto_box(message, nonce, secretKey, recipientPublicKey);
+  // The correct argument order is (message, nonce, recipientPublicKey, senderSecretKey)
+  const ciphertext = await sodium.crypto_box(message, nonce, recipientPublicKey, secretKey);
   
   return `${nonce.toString('hex')}:${ciphertext.toString('hex')}`;
 }
 
-// FIXED: Swapped the order of secretKey and senderPublicKey
+// FIXED: The crypto_box_open function expects the recipient's secret key first, then the sender's public key.
 export async function decryptMessage(encrypted: string, senderPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
-  const { secretKey } = await getKeyPair();
+  const { secretKey } = await getKeyPair(); // This is the recipient's secret key
 
   const [nonceHex, ciphertextHex] = encrypted.split(':');
   if (!nonceHex || !ciphertextHex) throw new Error("Invalid encrypted message format.");
@@ -113,7 +113,7 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
   const nonce = await sodium.sodium_hex2bin(nonceHex);
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
 
-  // CORRECT ORDER: ciphertext, nonce, secretKey, senderPublicKey
-  const decrypted = await sodium.crypto_box_open(ciphertext, nonce, secretKey, senderPublicKey);
+  // The correct argument order is (ciphertext, nonce, senderPublicKey, recipientSecretKey)
+  const decrypted = await sodium.crypto_box_open(ciphertext, nonce, senderPublicKey, secretKey);
   return decrypted.toString('utf-8');
 }
