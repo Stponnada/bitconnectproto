@@ -72,7 +72,8 @@ async function getRecipientDeviceKeys(userId: string): Promise<{ device_id: stri
   }
 
   return Promise.all(data.map(async (key) => {
-    const publicKeyBuffer = await sodium.sodium_bin2bin(key.public_key);
+    // FIXED THE TYPO HERE: It's sodium_hex2bin, not sodium_bin2bin
+    const publicKeyBuffer = await sodium.sodium_hex2bin(key.public_key);
     return {
       device_id: key.device_id,
       public_key: new X25519PublicKey(publicKeyBuffer),
@@ -92,7 +93,6 @@ export async function encryptMessage(message: string, recipientId: string) {
 
   for (const deviceKey of recipientKeys) {
     const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
-    // FIXED: Swapped senderSecretKey and deviceKey.public_key
     const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, senderSecretKey, deviceKey.public_key);
 
     const nonceHex = await sodium.sodium_bin2hex(nonce);
@@ -137,7 +137,6 @@ export async function decryptMessage(encryptedPayloadStr: string) {
   const nonce = await sodium.sodium_hex2bin(nonceHex);
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
 
-  // FIXED: Swapped recipientSecretKey and senderPublicKey
   const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, recipientSecretKey, senderPublicKey);
   const msg = decryptedBuf.toString('utf8');
   console.log('decryptMessage OK ->', msg);
