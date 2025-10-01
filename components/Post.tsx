@@ -86,16 +86,11 @@ const Post = ({ post }: { post: PostType }) => {
         
         {/* Content Column */}
         <div className="flex-1">
-            {/* 
-              THIS IS THE CORRECTED SECTION.
-              It's a vertical column on mobile (`flex-col`) and becomes a horizontal row (`md:flex-row`) on desktop.
-            */}
             <div className="flex flex-col md:flex-row md:items-baseline md:space-x-2">
-                {/* Line 1 (Mobile) / Part 1 (Desktop): Full Name */}
                 <Link to={`/profile/${username}`} className="hover:underline">
-                    <p className="font-bold text-white leading-tight">{displayName}</p>
+                    {/* THIS IS THE CHANGE: font-bold is now font-semibold */}
+                    <p className="font-semibold text-white leading-tight">{displayName}</p>
                 </Link>
-                {/* Line 2 (Mobile) / Part 2 (Desktop): Username & Timestamp */}
                 <div className="flex items-center space-x-2 text-sm text-gray-400">
                     <span>@{username}</span>
                     <span className="text-gray-500">&middot;</span>
@@ -105,21 +100,18 @@ const Post = ({ post }: { post: PostType }) => {
                 </div>
             </div>
             
-            {/* Post Text Content */}
              <Link to={`/post/${post.id}`} className="block mt-1">
                 <p className="text-gray-300 whitespace-pre-wrap">{post.content}</p>
              </Link>
         </div>
       </div>
       
-      {/* Post Image (indented to align with content) */}
       {post.image_url && 
-        <Link to={`/post/${post.id}`} className="block ml-13 mt-3"> {/* ml-13 = w-10 avatar + space-x-3 */}
+        <Link to={`/post/${post.id}`} className="block ml-13 mt-3">
             <img src={post.image_url} alt="Post content" className="rounded-lg w-full max-h-[500px] object-cover" />
         </Link>
       }
 
-      {/* Action Buttons (indented to align with content) */}
       <div className="flex items-center text-gray-400 mt-4 text-sm ml-13">
         <button disabled={isVoting} onClick={() => handleVote('like')} className="flex items-center space-x-2 hover:text-green-500 disabled:opacity-50">
           <ThumbsUpIcon className={`w-5 h-5 ${userVote === 'like' ? 'text-green-500' : ''}`} />

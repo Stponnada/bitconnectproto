@@ -1,22 +1,39 @@
 // src/utils/timeUtils.ts
 
-import { formatDistanceToNow, differenceInDays, format } from 'date-fns';
+import { 
+    format, 
+    differenceInSeconds, 
+    differenceInMinutes, 
+    differenceInHours, 
+    differenceInDays, 
+    differenceInMonths 
+} from 'date-fns';
 
 /**
- * Formats a timestamp into a relative time string (e.g., "5 hours ago").
- * If the timestamp is older than a week, it shows the date (e.g., "Sep 30").
+ * Formats a timestamp into a short, abbreviated relative time string.
+ * Examples: "5s", "10m", "3h", "2d", "4mo"
+ * Falls back to "MMM d" for anything over a year.
  */
 export const formatTimestamp = (timestamp: string): string => {
+  const now = new Date();
   const date = new Date(timestamp);
-  const daysDifference = differenceInDays(new Date(), date);
 
-  if (daysDifference < 1) {
-    return formatDistanceToNow(date, { addSuffix: true });
-  } else if (daysDifference < 7) {
-    return `${daysDifference} day${daysDifference > 1 ? 's' : ''} ago`;
-  } else {
-    return format(date, 'MMM d');
-  }
+  const seconds = differenceInSeconds(now, date);
+  if (seconds < 60) return `${seconds}s`;
+
+  const minutes = differenceInMinutes(now, date);
+  if (minutes < 60) return `${minutes}m`;
+
+  const hours = differenceInHours(now, date);
+  if (hours < 24) return `${hours}h`;
+
+  const days = differenceInDays(now, date);
+  if (days < 30) return `${days}d`;
+  
+  const months = differenceInMonths(now, date);
+  if (months < 12) return `${months}mo`;
+
+  return format(date, 'MMM d, yyyy');
 };
 
 /**

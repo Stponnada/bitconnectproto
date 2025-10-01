@@ -1,5 +1,3 @@
-// src/pages/PostPage.tsx (Updated to match the new wider layout)
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
@@ -10,7 +8,6 @@ import { Post as PostType, Comment as CommentType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { formatTimestamp, formatExactTimestamp } from '../utils/timeUtils';
 
-// Helper for consistent avatars
 const getAvatarUrl = (profile: Profile | null) => {
   if (!profile) return '';
   return profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name || profile.username}&background=E53E3E&color=fff`;
@@ -25,13 +22,16 @@ const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
         <img src={getAvatarUrl(author)} alt={author?.username || 'avatar'} className="w-10 h-10 rounded-full bg-gray-700 object-cover" />
       </Link>
       <div>
-        <div className="flex items-center space-x-2">
-            <Link to={`/profile/${author?.username}`} className="font-bold text-white hover:underline">{author?.full_name || author?.username}</Link>
-            <p className="text-sm text-gray-500">@{author?.username}</p>
-            <span className="text-gray-500">&middot;</span>
-            <p className="text-sm text-gray-500" title={new Date(comment.created_at).toLocaleString()}>
-                {formatTimestamp(comment.created_at)}
-            </p>
+        {/* THIS IS THE CHANGE: Added responsive flex layout and smaller font */}
+        <div className="flex flex-col md:flex-row md:items-baseline md:space-x-2">
+            <Link to={`/profile/${author?.username}`} className="font-semibold text-white hover:underline leading-tight">{author?.full_name || author?.username}</Link>
+            <div className="flex items-center space-x-2 text-sm text-gray-400">
+                <p>@{author?.username}</p>
+                <span className="text-gray-500">&middot;</span>
+                <p title={new Date(comment.created_at).toLocaleString()}>
+                    {formatTimestamp(comment.created_at)}
+                </p>
+            </div>
         </div>
         <p className="text-gray-300 mt-1 whitespace-pre-wrap">{comment.content}</p>
       </div>
@@ -94,7 +94,6 @@ const PostPage: React.FC = () => {
     return <div className="text-center py-10 text-red-400">Post not found.</div>;
   }
 
-  // The only change is in the div below: max-w-2xl -> max-w-4xl
   return (
     <div className="w-full max-w-4xl mx-auto">
       <PostComponent post={post} />
