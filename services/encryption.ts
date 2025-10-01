@@ -1,4 +1,4 @@
-// encryption.ts
+// encryption_with_logging.ts
 
 import { SodiumPlus, X25519PublicKey, X25519SecretKey } from 'sodium-plus';
 import { supabase } from './supabase';
@@ -92,7 +92,8 @@ export async function getRecipientPublicKey(userId: string): Promise<X25519Publi
 export async function encryptMessage(message: string, recipientPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
   const { secretKey } = await getKeyPair(); // sender's secret key (X25519SecretKey)
-  
+  const { publicKey: senderPublicKey } = await getKeyPair(); // sender public for logging
+
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
   const plaintextBuf = Buffer.from(message, 'utf8');
 
@@ -101,6 +102,25 @@ export async function encryptMessage(message: string, recipientPublicKey: X25519
 
   const nonceHex = await sodium.sodium_bin2hex(nonce);
   const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
+
+  // --- SEND LOG: temporary dev-only logging to help debugging ---
+  try {
+    const senderPubHex = await sodium.sodium_bin2hex(senderPublicKey.getBuffer());
+    const recipientPubHex = await sodium.sodium_bin2hex(recipientPublicKey.getBuffer());
+    console.log('SEND LOG', {
+      messagePreview: typeof message === 'string' ? message.slice(0, 30) : null,
+      senderPubHex,
+      recipientPubHex,
+      nonceHex,
+      ciphertextHex,
+      ciphertextLen: ciphertext.length
+    });
+  } catch (e) {
+    // swallow logging errors
+    console.warn('SEND LOG failed', e);
+  }
+
+  // keep API the same: return string payload
   return `${nonceHex}:${ciphertextHex}`;
 }
 
@@ -126,6 +146,21 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
 
   const nonce = await sodium.sodium_hex2bin(nonceHex);
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
+
+  // --- RECV LOG: temporary dev-only logging to help debugging ---
+  try {
+    const senderPubHexUsedByReceiver = await sodium.sodium_bin2hex(senderPK.getBuffer());
+    const recipientSecretHex = await sodium.sodium_bin2hex(secretKey.getBuffer());
+    console.log('RECV LOG', {
+      senderPubHexUsedByReceiver,
+      recipientSecretHex,
+      nonceHex,
+      ciphertextHex,
+      ciphertextLen: ciphertext.length
+    });
+  } catch (e) {
+    console.warn('RECV LOG failed', e);
+  }
 
   // helper to attempt open and return result or throw same error
   async function tryOpenOrder(order: 'senderFirst' | 'secretFirst') {
@@ -163,6 +198,7 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
     }
   }
 }
+
 /**
  * Quick self-test that generates (or loads) your keypair, encrypts a message to yourself,
  * and tries to decrypt it. Returns true if OK, throws with details otherwise.
@@ -247,6 +283,22 @@ export async function selfTest() {
     console.error('selfTest FAILED', e);
     throw e;
   }
+}
+
+export async function verifyLocalMatchesDb() {
+  const sodium = await initSodium();
+  const { publicKey: localPub, secretKey } = await getKeyPair();
+  const localPubHex = await sodium.sodium_bin2hex(localPub.getBuffer());
+  const localSecretHex = await sodium.sodium_bin2hex(secretKey.getBuffer());
+
+  const { data } = await supabase
+    .from('public_keys')
+    .select('public_key')
+    .eq('user_id', (await supabase.auth.getUser()).data.user.id)
+    .single();
+
+  console.log('VERIFY', { localPubHex, localSecretHex, dbPubHex: data?.public_key });
+  return { localPubHex, dbPubHex: data?.public_key };
 }
 
 declare global {
