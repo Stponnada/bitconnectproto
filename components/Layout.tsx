@@ -40,7 +40,7 @@ const Layout = () => {
           isSidebarExpanded ? 'pl-60' : 'pl-20'
         }`}
       >
-        <div className="max-w-3xl mx-auto p-6">
+        <div className="max-w-4xl mx-auto p-6">
           <Outlet />
         </div>
       </main>
