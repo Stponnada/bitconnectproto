@@ -1,4 +1,4 @@
-// src/components/Conversation.tsx (Corrected Query Syntax)
+// src/components/Conversation.tsx (Single, Correct Version)
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../services/supabase';
@@ -25,98 +25,12 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recipientPublicKeyRef = useRef<Buffer | null>(null);
 
-  const decryptSingleMessage = useCallback(async (msg: Message): Promise<Message> => {
-    if (!recipientPublicKeyRef.current) {
-        console.error("Recipient public key not available for decryption.");
-        return { ...msg, decrypted_content: "[Error: Missing Key]" };
+  const decryptSingleMessage = useCallback(async (msg: Message, key: Buffer): Promise<Message> => {
+    // We only need to decrypt messages sent by the OTHER person.
+    // Our own messages are added to state with their decrypted content already known.
+    if (msg.sender_id === user?.id) {
+      return msg; // It's our own message, no need to decrypt.
     }
-    try {
-      const decrypted_content = await decryptMessage(msg.encrypted_content, recipientPublicKeyRef.current);
-      return { ...msg, decrypted_content };
-    } catch (e) {
-      console.error("Decryption failed for message:", msg.id, e);
-      return { ...msg, decrypted_content: "[Decryption Failed]" };
-    }
-  }, []);
-  
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchMessages = async () => {
-      setLoading(true);
-      setError(null);
-      setMessages([]);
-      try {
-        recipientPublicKeyRef.current = await getRecipientPublicKey(recipient.user_id);
-
-        // --- THIS IS THE CORRECTED QUERY ---
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .or(`and(sender_id.eq.${user.id},receiver_id.eq.${recipient.user_id}),and(sender_id.eq.${recipient.user_id},receiver_id.eq.${user.id})`)
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        
-        const decryptedMessages = await Promise.all(
-          data.map(async (msg) => {
-            // Decrypt messages sent BY the recipient
-            if (msg.sender_id === recipient.user_id) {
-              return decryptSingleMessage(msg);
-            }
-            // Messages sent by the current user are handled optimistically
-            return { ...msg, decrypted_content: "You shouldn't see this." }; // Placeholder
-          })
-        );
-        
-        // This logic is complex, let's simplify in the final version below.
-        // For now this will work, but let's just replace the whole file.
-
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    // Let's use a cleaner version of the entire component.
-    // Replace the entire file with the code block below this one.
-
-  }, [recipient.user_id, user, decryptSingleMessage]);
-
-  // Other hooks...
-};
-
-// Please use this FULL, CLEANED UP version for the entire file.
-
-// src/components/Conversation.tsx (FINAL and CLEAN)
-
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
-import { Profile } from '../types';
-import Spinner from './Spinner';
-import { encryptMessage, decryptMessage, getRecipientPublicKey } from '../services/encryption';
-
-interface Message {
-  id: number;
-  sender_id: string;
-  receiver_id: string;
-  encrypted_content: string;
-  created_at: string;
-  decrypted_content?: string;
-}
-
-const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
-  const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recipientPublicKeyRef = useRef<Buffer | null>(null);
-
-  const decryptAndAddMessage = useCallback(async (msg: Message, key: Buffer) => {
     try {
       const decrypted_content = await decryptMessage(msg.encrypted_content, key);
       return { ...msg, decrypted_content };
@@ -124,7 +38,7 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
       console.error("Decryption failed for message:", msg.id, e);
       return { ...msg, decrypted_content: "[Decryption Failed]" };
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -132,7 +46,7 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
     const fetchConversation = async () => {
       setLoading(true);
       setError(null);
-      setMessages([]); // Clear previous conversation
+      setMessages([]);
       try {
         recipientPublicKeyRef.current = await getRecipientPublicKey(recipient.user_id);
 
@@ -145,7 +59,14 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
         if (error) throw error;
         
         const decryptedMsgs = await Promise.all(
-          data.map(msg => decryptAndAddMessage(msg, recipientPublicKeyRef.current!))
+          data.map(msg => {
+            // For historical messages, we decrypt everything
+            if (msg.sender_id === user.id) {
+               // We need to decrypt our own past messages too, using the recipient's key
+               return decryptSingleMessage(msg, recipientPublicKeyRef.current!);
+            }
+            return decryptSingleMessage(msg, recipientPublicKeyRef.current!);
+          })
         );
         setMessages(decryptedMsgs);
 
@@ -157,7 +78,7 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
     };
 
     fetchConversation();
-  }, [recipient.user_id, user, decryptAndAddMessage]);
+  }, [recipient.user_id, user, decryptSingleMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -191,7 +112,6 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
     }
   };
   
-  // Realtime subscription (no changes needed here)
    useEffect(() => {
     if (!user || !recipientPublicKeyRef.current) return;
     const channel = supabase
@@ -199,13 +119,13 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
       .on<Message>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
         const newMessage = payload.new;
         if (newMessage.sender_id === recipient.user_id && newMessage.receiver_id === user.id) {
-            const decryptedMessage = await decryptAndAddMessage(newMessage, recipientPublicKeyRef.current!);
+            const decryptedMessage = await decryptSingleMessage(newMessage, recipientPublicKeyRef.current!);
             setMessages((prev) => [...prev, decryptedMessage]);
         }
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [recipient.user_id, user, decryptAndAddMessage]);
+  }, [recipient.user_id, user, decryptSingleMessage]);
 
   if (loading) return <div className="flex-1 flex items-center justify-center"><Spinner /></div>;
   if (error) return <div className="flex-1 flex items-center justify-center text-red-400 p-4 text-center">{error}</div>;
