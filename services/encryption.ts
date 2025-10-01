@@ -1,4 +1,4 @@
-// src/services/encryption.ts (FINAL - Correct Key Generation)
+// src/services/encryption.ts (Correcting the key extraction)
 
 import { SodiumPlus, X25519PublicKey, X25519SecretKey } from 'sodium-plus';
 import { supabase } from './supabase';
@@ -20,17 +20,14 @@ export async function generateAndStoreKeyPair() {
 
   console.log(`Generating new key pair for user ${user.id}`);
 
-  // Generate the keypair object
   const keypair = await sodium.crypto_box_keypair();
   
-  // Get the public and secret keys directly from the keypair object
-  const publicKey = await keypair.getPublicKey();
-  const secretKey = await keypair.getSecretKey();
+  // --- THE FIX: Use sodium functions to extract keys from the keypair ---
+  const publicKey = await sodium.crypto_box_publickey(keypair);
+  const secretKey = await sodium.crypto_box_secretkey(keypair);
 
-  // Store the secret key (private key) in the browser's local storage
   localStorage.setItem(`spk_${user.id}`, secretKey.getBuffer().toString('hex'));
 
-  // Store the public key in the database
   const { error } = await supabase
     .from('public_keys')
     .upsert({ 
@@ -43,6 +40,9 @@ export async function generateAndStoreKeyPair() {
   console.log(`Successfully stored new key pair for user ${user.id}`);
   return { publicKey, secretKey };
 }
+
+
+// --- NO CHANGES NEEDED IN THE FUNCTIONS BELOW THIS LINE ---
 
 export async function getKeyPair() {
   const { user } = (await supabase.auth.getUser()).data;
@@ -118,7 +118,7 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
   if (!nonceHex || !ciphertextHex) throw new Error("Invalid encrypted message format.");
 
   const nonce = sodium.sodium_hex2bin(nonceHex);
-  const ciphertext = sodium.sodium_hex2bin(ciphertextHex);
+  const ciphertext = sodium.sodium_bin2hex(ciphertextHex);
 
   const decrypted = await sodium.crypto_box_open(ciphertext, nonce, senderPublicKey, secretKey);
   return decrypted.toString('utf-8');
