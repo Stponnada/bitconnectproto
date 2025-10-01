@@ -51,14 +51,14 @@ export async function getKeyPair() {
   return { publicKey, secretKey };
 }
 
-async function getRecipientDeviceKeys(userId: string): Promise<{ device_id: string, public_key: X25519PublicKey }[]> {
+async function getAllDeviceKeysForUser(userId: string): Promise<{ device_id: string, public_key: X25519PublicKey }[]> {
   const sodium = await initSodium();
   const { data, error } = await supabase
     .from('device_keys')
     .select('device_id, public_key')
     .eq('user_id', userId);
   if (error) throw error;
-  if (!data || data.length === 0) throw new Error(`No devices found for user ${userId}.`);
+  if (!data) return [];
   return Promise.all(data.map(async (key) => {
     const publicKeyBuffer = await sodium.sodium_hex2bin(key.public_key);
     return {
@@ -72,16 +72,35 @@ async function getRecipientDeviceKeys(userId: string): Promise<{ device_id: stri
 export async function encryptMessage(message: string, recipientId: string) {
   const sodium = await initSodium();
   const { secretKey: senderSecretKey, publicKey: senderPublicKey } = await getKeyPair();
-  const recipientKeys = await getRecipientDeviceKeys(recipientId);
+  const { user: sender } = (await supabase.auth.getUser()).data;
+  if (!sender) throw new Error("Cannot send message: user not authenticated");
+
+  // Fetch keys for both the recipient and the sender
+  const recipientKeys = await getAllDeviceKeysForUser(recipientId);
+  const senderKeys = await getAllDeviceKeysForUser(sender.id);
+
+  // Combine them into a single map to handle sending to self and avoid duplicates
+  const allKeys = new Map<string, X25519PublicKey>();
+  for (const key of recipientKeys) {
+    allKeys.set(key.device_id, key.public_key);
+  }
+  for (const key of senderKeys) {
+    allKeys.set(key.device_id, key.public_key);
+  }
+
+  if (allKeys.size === 0) {
+    throw new Error("No devices found for sender or recipient.");
+  }
+
   const devicePayload: { [deviceId: string]: string } = {};
   const plaintextBuf = Buffer.from(message, 'utf8');
 
-  for (const deviceKey of recipientKeys) {
+  for (const [deviceId, publicKey] of allKeys.entries()) {
     const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
-    const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, senderSecretKey, deviceKey.public_key);
+    const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, senderSecretKey, publicKey);
     const nonceHex = await sodium.sodium_bin2hex(nonce);
     const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
-    devicePayload[deviceKey.device_id] = `${nonceHex}:${ciphertextHex}`;
+    devicePayload[deviceId] = `${nonceHex}:${ciphertextHex}`;
   }
   
   const senderPublicKeyHex = await sodium.sodium_bin2hex(senderPublicKey.getBuffer());
@@ -89,7 +108,7 @@ export async function encryptMessage(message: string, recipientId: string) {
     sender_key: senderPublicKeyHex,
     devices: devicePayload
   };
-  console.log(`Encrypted for ${recipientKeys.length} device(s).`);
+  console.log(`Encrypted message for ${allKeys.size} total device(s).`);
   return finalPayload;
 }
 
@@ -99,13 +118,13 @@ export async function decryptMessage(encryptedPayloadStr: string) {
   const myDeviceId = getDeviceId();
   const payload = JSON.parse(encryptedPayloadStr);
   
-  if (!payload.sender_key || !payload.devices) throw new Error("Invalid payload.");
+  if (!payload.sender_key || !payload.devices) throw new Error("Invalid payload structure.");
   
   const messageForThisDevice = payload.devices[myDeviceId];
   if (!messageForThisDevice) throw new Error('Message not encrypted for this device.');
 
   const [nonceHex, ciphertextHex] = messageForThisDevice.split(':');
-  if (!nonceHex || !ciphertextHex) throw new Error('Invalid encrypted format');
+  if (!nonceHex || !ciphertextHex) throw new Error('Invalid encrypted message format');
   
   const senderPublicKeyBuffer = await sodium.sodium_hex2bin(payload.sender_key);
   const senderPublicKey = new X25519PublicKey(senderPublicKeyBuffer);
