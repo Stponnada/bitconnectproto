@@ -1,7 +1,8 @@
-// encryption.ts
+// src/services/encryption.ts
 
 import { SodiumPlus, X25519PublicKey, X25519SecretKey } from 'sodium-plus';
 import { supabase } from './supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 let sodium: SodiumPlus | null = null;
 async function initSodium() {
@@ -9,148 +10,134 @@ async function initSodium() {
   return sodium!;
 }
 
-// --- SELF-HEALING KEY MANAGEMENT ---
+// --- DEVICE ID MANAGEMENT ---
 
-/**
- * Generates a new key pair. This is the standard method using crypto_box_keypair.
- * It stores the secret key locally and the public key remotely.
- */
-export async function generateAndStoreKeyPair() {
-  const sodium = await initSodium();
-  const { user } = (await supabase.auth.getUser()).data;
-  if (!user) throw new Error('User not authenticated');
-
-  console.log('Generating a new key pair for user:', user.id);
-
-  const keypair = await sodium.crypto_box_keypair();
-  const secretKey = await sodium.crypto_box_secretkey(keypair);
-  const publicKey = await sodium.crypto_box_publickey(keypair);
-
-  const secretKeyHex = await sodium.sodium_bin2hex(secretKey.getBuffer());
-  const publicKeyHex = await sodium.sodium_bin2hex(publicKey.getBuffer());
-
-  localStorage.setItem(`spk_${user.id}`, secretKeyHex);
-
-  const { error } = await supabase
-    .from('public_keys')
-    .upsert({ user_id: user.id, public_key: publicKeyHex });
-
-  if (error) throw error;
-  return { publicKey, secretKey };
+function getDeviceId(): string {
+  let deviceId = localStorage.getItem('device_id');
+  if (!deviceId) {
+    deviceId = uuidv4();
+    localStorage.setItem('device_id', deviceId);
+  }
+  return deviceId;
 }
 
-/**
- * Retrieves the user's key pair. This function is self-healing.
- * It treats the local secret key as the source of truth and ensures
- * the public key in the database always matches.
- */
+// --- MULTI-DEVICE KEY MANAGEMENT ---
+
 export async function getKeyPair() {
   const sodium = await initSodium();
   const { user } = (await supabase.auth.getUser()).data;
   if (!user) throw new Error('User not authenticated');
+  const deviceId = getDeviceId();
+  
+  // Use a unique localStorage key for each user's secret key
+  const storageKey = `spk_${user.id}`;
+  const secretKeyHex = localStorage.getItem(storageKey);
 
-  const secretKeyHex = localStorage.getItem(`spk_${user.id}`);
   if (!secretKeyHex) {
-    return generateAndStoreKeyPair();
-  }
-
-  try {
-    // 1. Recreate secret key from local storage (our source of truth).
-    const secretKeyBuffer = await sodium.sodium_hex2bin(secretKeyHex);
-    const secretKey = new X25519SecretKey(secretKeyBuffer);
-
-    // 2. Derive the corresponding public key. This is the ONLY correct public key.
-    const publicKey = await sodium.crypto_box_publickey_from_secretkey(secretKey);
-    const derivedPublicKeyHex = await sodium.sodium_bin2hex(publicKey.getBuffer());
-
-    // 3. Fetch the public key currently stored in the database.
-    const { data: remoteData } = await supabase
-      .from('public_keys')
-      .select('public_key')
-      .eq('user_id', user.id)
-      .single();
-
-    // 4. Check for desynchronization.
-    if (!remoteData || remoteData.public_key !== derivedPublicKeyHex) {
-      console.warn('Key desync detected! Healing remote public key.');
-      // 5. Heal: Overwrite the remote key with the correct, locally-derived key.
-      const { error: upsertError } = await supabase
-        .from('public_keys')
-        .upsert({ user_id: user.id, public_key: derivedPublicKeyHex });
-      if (upsertError) throw upsertError;
-    }
+    console.log('No local secret key found for this device. Generating a new one.');
     
+    const keypair = await sodium.crypto_box_keypair();
+    const secretKey = await sodium.crypto_box_secretkey(keypair);
+    const publicKey = await sodium.crypto_box_publickey(keypair);
+
+    const newSecretKeyHex = await sodium.sodium_bin2hex(secretKey.getBuffer());
+    const newPublicKeyHex = await sodium.sodium_bin2hex(publicKey.getBuffer());
+
+    localStorage.setItem(storageKey, newSecretKeyHex);
+
+    const { error } = await supabase
+      .from('device_keys')
+      .upsert({ user_id: user.id, device_id: deviceId, public_key: newPublicKeyHex });
+
+    if (error) throw error;
     return { publicKey, secretKey };
-  } catch (e) {
-    console.error("Failed to process stored secret key, regenerating...", e);
-    localStorage.removeItem(`spk_${user.id}`);
-    return generateAndStoreKeyPair();
   }
+
+  const secretKeyBuffer = await sodium.sodium_hex2bin(secretKeyHex);
+  const secretKey = new X25519SecretKey(secretKeyBuffer);
+  const publicKey = await sodium.crypto_box_publickey_from_secretkey(secretKey);
+
+  return { publicKey, secretKey };
 }
 
-export async function getRecipientPublicKey(userId: string): Promise<X25519PublicKey> {
+async function getRecipientDeviceKeys(userId: string): Promise<{ device_id: string, public_key: X25519PublicKey }[]> {
+  const sodium = await initSodium();
   const { data, error } = await supabase
-    .from('public_keys')
-    .select('public_key')
-    .eq('user_id', userId)
-    .single();
+    .from('device_keys')
+    .select('device_id, public_key')
+    .eq('user_id', userId);
 
-  if (error || !data) {
-    throw new Error(`Could not fetch public key for user ${userId}.`);
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error(`No registered devices found for user ${userId}.`);
   }
 
-  const sodium = await initSodium();
-  const publicKeyBuffer = await sodium.sodium_hex2bin(data.public_key);
-  return new X25519PublicKey(publicKeyBuffer);
+  return Promise.all(data.map(async (key) => {
+    const publicKeyBuffer = await sodium.sodium_hex2bin(key.public_key);
+    return {
+      device_id: key.device_id,
+      public_key: new X25519PublicKey(publicKeyBuffer),
+    };
+  }));
 }
 
-// --- ENCRYPTION / DECRYPTION (Using correct order for sodium-plus) ---
+// --- MULTI-DEVICE ENCRYPTION / DECRYPTION ---
 
-export async function encryptMessage(message: string, recipientPublicKey: X25519PublicKey) {
+export async function encryptMessage(message: string, recipientId: string) {
   const sodium = await initSodium();
-  const { secretKey } = await getKeyPair();
-  const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
+  const { secretKey: senderSecretKey, publicKey: senderPublicKey } = await getKeyPair();
+  const recipientKeys = await getRecipientDeviceKeys(recipientId);
+
+  const devicePayload: { [deviceId: string]: string } = {};
   const plaintextBuf = Buffer.from(message, 'utf8');
-  const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, secretKey, recipientPublicKey);
-  const nonceHex = await sodium.sodium_bin2hex(nonce);
-  const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
-  console.log('encryptMessage OK');
-  return `${nonceHex}:${ciphertextHex}`;
+
+  for (const deviceKey of recipientKeys) {
+    const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
+    const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, deviceKey.public_key, senderSecretKey);
+    const nonceHex = await sodium.sodium_bin2hex(nonce);
+    const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
+    devicePayload[deviceKey.device_id] = `${nonceHex}:${ciphertextHex}`;
+  }
+  
+  const senderPublicKeyHex = await sodium.sodium_bin2hex(senderPublicKey.getBuffer());
+
+  const finalPayload = {
+    sender_key: senderPublicKeyHex,
+    devices: devicePayload
+  };
+
+  console.log(`Encrypted message for ${recipientKeys.length} device(s).`);
+  return JSON.stringify(finalPayload);
 }
 
-export async function decryptMessage(encrypted: string, senderPublicKey: X25519PublicKey) {
+export async function decryptMessage(encryptedPayloadStr: string) {
   const sodium = await initSodium();
-  const { secretKey } = await getKeyPair();
-  const [nonceHex, ciphertextHex] = encrypted.split(':');
+  const { secretKey: recipientSecretKey } = await getKeyPair();
+  const myDeviceId = getDeviceId();
+
+  const payload = JSON.parse(encryptedPayloadStr);
+  
+  if (!payload.sender_key || !payload.devices) {
+      throw new Error("Invalid payload structure: missing sender_key or devices.");
+  }
+  
+  const messageForThisDevice = payload.devices[myDeviceId];
+
+  if (!messageForThisDevice) {
+    throw new Error('Message not encrypted for this device.');
+  }
+
+  const [nonceHex, ciphertextHex] = messageForThisDevice.split(':');
   if (!nonceHex || !ciphertextHex) throw new Error('Invalid encrypted message format');
+  
+  const senderPublicKeyBuffer = await sodium.sodium_hex2bin(payload.sender_key);
+  const senderPublicKey = new X25519PublicKey(senderPublicKeyBuffer);
+
   const nonce = await sodium.sodium_hex2bin(nonceHex);
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
-  const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, secretKey, senderPublicKey);
+
+  const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, senderPublicKey, recipientSecretKey);
   const msg = decryptedBuf.toString('utf8');
   console.log('decryptMessage OK ->', msg);
   return msg;
-}
-
-
-// --- SELF TEST ---
-
-export async function selfTest() {
-  const { publicKey } = await getKeyPair();
-  const message = `selftest ${Date.now()}`;
-  const encrypted = await encryptMessage(message, publicKey);
-  const decrypted = await decryptMessage(encrypted, publicKey);
-
-  if (decrypted !== message) throw new Error('Self-test failed: decrypted != original');
-  console.log('selfTest OK');
-  return true;
-}
-
-declare global {
-  interface Window {
-    selfTest?: () => Promise<any>;
-  }
-}
-
-if (typeof window !== 'undefined') {
-  window.selfTest = selfTest;
 }

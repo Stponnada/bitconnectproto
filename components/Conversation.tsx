@@ -1,12 +1,12 @@
+// src/components/Conversation.tsx
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Profile } from '../types';
 import Spinner from './Spinner';
-import { encryptMessage, decryptMessage, getRecipientPublicKey, getKeyPair } from '../services/encryption';
-import { X25519PublicKey } from 'sodium-plus';
+import { encryptMessage, decryptMessage } from '../services/encryption';
 
-// Back Icon for the mobile header
 const BackIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -24,7 +24,7 @@ interface Message {
 
 interface ConversationProps {
   recipient: Profile;
-  onBack?: () => void; // Optional callback for the back button
+  onBack?: () => void;
 }
 
 const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
@@ -34,44 +34,19 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  const recipientPublicKeyRef = useRef<X25519PublicKey | null>(null);
-  const myPublicKeyRef = useRef<X25519PublicKey | null>(null);
 
-  const decryptContent = useCallback(async (
-    originalMessage: Message,
-    contentToDecrypt: string,
-    senderPublicKey: X25519PublicKey
-  ): Promise<Message> => {
+  const processMessage = useCallback(async (msg: Message): Promise<Message> => {
     try {
-      const decrypted_content = await decryptMessage(contentToDecrypt, senderPublicKey);
-      return { ...originalMessage, decrypted_content };
-    } catch (e) {
-      console.error("Decryption failed for message:", originalMessage.id, e);
-      return { ...originalMessage, decrypted_content: "[Decryption Failed]" };
+      // Decrypt own messages sent from this device instantly
+      if (msg.decrypted_content) return msg;
+
+      const decrypted_content = await decryptMessage(msg.encrypted_content);
+      return { ...msg, decrypted_content };
+    } catch (e: any) {
+      console.error(`Decryption failed for message ${msg.id}:`, e.message);
+      return { ...msg, decrypted_content: "[Decryption Failed]" };
     }
   }, []);
-  
-  const processMessage = useCallback(async (msg: Message): Promise<Message> => {
-    if (!user || !myPublicKeyRef.current || !recipientPublicKeyRef.current) {
-        return { ...msg, decrypted_content: "[Key Error]" };
-    }
-
-    try {
-      const payload = JSON.parse(msg.encrypted_content);
-      if (msg.sender_id === user.id) {
-        return decryptContent(msg, payload.for_sender, myPublicKeyRef.current);
-      } else {
-        return decryptContent(msg, payload.for_recipient, recipientPublicKeyRef.current);
-      }
-    } catch (e) {
-      if (msg.sender_id === user.id) {
-        return { ...msg, decrypted_content: "[Unable to decrypt own message]" };
-      } else {
-        return decryptContent(msg, msg.encrypted_content, recipientPublicKeyRef.current);
-      }
-    }
-  }, [user, decryptContent]);
 
   useEffect(() => {
     if (!user) return;
@@ -80,9 +55,6 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
       setLoading(true);
       setError(null);
       try {
-        recipientPublicKeyRef.current = await getRecipientPublicKey(recipient.user_id);
-        myPublicKeyRef.current = (await getKeyPair()).publicKey;
-
         const { data, error } = await supabase
           .from('messages')
           .select('*')
@@ -109,26 +81,20 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user || !recipientPublicKeyRef.current || !myPublicKeyRef.current) return;
+    if (!newMessage.trim() || !user) return;
 
     const tempMessageContent = newMessage;
     setNewMessage('');
 
     try {
-      const encryptedForRecipient = await encryptMessage(tempMessageContent, recipientPublicKeyRef.current);
-      const encryptedForSender = await encryptMessage(tempMessageContent, myPublicKeyRef.current);
-
-      const payload = {
-        for_recipient: encryptedForRecipient,
-        for_sender: encryptedForSender
-      };
+      const encryptedPayload = await encryptMessage(tempMessageContent, recipient.user_id);
 
       const { data: sentMessage, error } = await supabase
         .from('messages')
         .insert({
           sender_id: user.id,
           receiver_id: recipient.user_id,
-          encrypted_content: JSON.stringify(payload),
+          encrypted_content: encryptedPayload,
         })
         .select()
         .single();

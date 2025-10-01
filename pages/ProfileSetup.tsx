@@ -114,7 +114,7 @@ const ProfileSetup: React.FC = () => {
       if (updateError) throw updateError;
       
       // <-- STEP 2: GENERATE KEYS BEFORE NAVIGATING -->
-      await generateAndStoreKeyPair();
+      await getKeyPair();
 
       navigate('/'); 
     } catch (err: any) {
