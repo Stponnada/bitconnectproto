@@ -1,17 +1,18 @@
-// src/components/Conversation.tsx
+// src/components/Conversation.tsx (FIXED)
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Profile } from '../types';
 import Spinner from './Spinner';
-import { encryptMessage, decryptMessage, getRecipientPublicKey } from '../services/encryption';
+import { encryptMessage, decryptMessage, getRecipientPublicKey, getKeyPair } from '../services/encryption';
+import { X25519PublicKey } from 'sodium-plus';
 
 interface Message {
   id: number;
   sender_id: string;
   receiver_id: string;
-  encrypted_content: string;
+  encrypted_content: string; // Can be a string or a JSON string '{"for_recipient": "...", "for_sender": "..."}'
   created_at: string;
   decrypted_content?: string;
 }
@@ -23,17 +24,47 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recipientPublicKeyRef = useRef<any>(null);
+  
+  // Refs to store keys to avoid re-fetching them repeatedly
+  const recipientPublicKeyRef = useRef<X25519PublicKey | null>(null);
+  const myPublicKeyRef = useRef<X25519PublicKey | null>(null);
 
-  const decryptSingleMessage = useCallback(async (msg: Message, senderPublicKey: any): Promise<Message> => {
+  const decryptContent = useCallback(async (
+    originalMessage: Message,
+    contentToDecrypt: string,
+    senderPublicKey: X25519PublicKey
+  ): Promise<Message> => {
     try {
-      const decrypted_content = await decryptMessage(msg.encrypted_content, senderPublicKey);
-      return { ...msg, decrypted_content };
+      const decrypted_content = await decryptMessage(contentToDecrypt, senderPublicKey);
+      return { ...originalMessage, decrypted_content };
     } catch (e) {
-      console.error("Decryption failed for message:", msg.id, e);
-      return { ...msg, decrypted_content: "[Decryption Failed]" };
+      console.error("Decryption failed for message:", originalMessage.id, e);
+      return { ...originalMessage, decrypted_content: "[Decryption Failed]" };
     }
   }, []);
+  
+  const processMessage = useCallback(async (msg: Message): Promise<Message> => {
+    if (!user || !myPublicKeyRef.current || !recipientPublicKeyRef.current) {
+        return { ...msg, decrypted_content: "[Key Error]" };
+    }
+
+    try {
+      const payload = JSON.parse(msg.encrypted_content);
+      // New format: Decrypt the appropriate version
+      if (msg.sender_id === user.id) {
+        return decryptContent(msg, payload.for_sender, myPublicKeyRef.current);
+      } else {
+        return decryptContent(msg, payload.for_recipient, recipientPublicKeyRef.current);
+      }
+    } catch (e) {
+      // Legacy format: Handle old messages
+      if (msg.sender_id === user.id) {
+        return { ...msg, decrypted_content: "[Unable to decrypt own message]" };
+      } else {
+        return decryptContent(msg, msg.encrypted_content, recipientPublicKeyRef.current);
+      }
+    }
+  }, [user, decryptContent]);
 
   useEffect(() => {
     if (!user) return;
@@ -41,10 +72,10 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
     const fetchConversation = async () => {
       setLoading(true);
       setError(null);
-      setMessages([]);
       try {
-        // Get recipient's public key for decrypting their messages
+        // Fetch and store both keys needed for the conversation
         recipientPublicKeyRef.current = await getRecipientPublicKey(recipient.user_id);
+        myPublicKeyRef.current = (await getKeyPair()).publicKey;
 
         const { data, error } = await supabase
           .from('messages')
@@ -54,20 +85,8 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
 
         if (error) throw error;
         
-        const decryptedMsgs = await Promise.all(
-          data.map(async (msg) => {
-            // Only decrypt messages sent BY THE RECIPIENT
-            if (msg.sender_id === recipient.user_id) {
-              return decryptSingleMessage(msg, recipientPublicKeyRef.current);
-            } else {
-              // Our own messages can't be decrypted after sending
-              // They were encrypted for the recipient, not for us
-              return { ...msg, decrypted_content: "[Unable to decrypt own message]" };
-            }
-          })
-        );
+        const decryptedMsgs = await Promise.all(data.map(processMessage));
         setMessages(decryptedMsgs);
-
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -76,7 +95,7 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
     };
 
     fetchConversation();
-  }, [recipient.user_id, user, decryptSingleMessage]);
+  }, [recipient.user_id, user, processMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -84,26 +103,34 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user || !recipientPublicKeyRef.current) return;
+    if (!newMessage.trim() || !user || !recipientPublicKeyRef.current || !myPublicKeyRef.current) return;
 
     const tempMessageContent = newMessage;
     setNewMessage('');
 
     try {
-      const encryptedContent = await encryptMessage(tempMessageContent, recipientPublicKeyRef.current);
+      // Encrypt for both parties
+      const encryptedForRecipient = await encryptMessage(tempMessageContent, recipientPublicKeyRef.current);
+      const encryptedForSender = await encryptMessage(tempMessageContent, myPublicKeyRef.current);
+
+      const payload = {
+        for_recipient: encryptedForRecipient,
+        for_sender: encryptedForSender
+      };
+
       const { data: sentMessage, error } = await supabase
         .from('messages')
         .insert({
           sender_id: user.id,
           receiver_id: recipient.user_id,
-          encrypted_content: encryptedContent,
+          encrypted_content: JSON.stringify(payload), // Store the JSON object as a string
         })
         .select()
         .single();
 
       if (error) throw error;
       
-      // Add our own message with known plaintext (don't wait for real-time)
+      // Optimistic UI update: show the message immediately
       setMessages(prev => [...prev, { ...sentMessage, decrypted_content: tempMessageContent }]);
     } catch (err: any) {
       setError(`Failed to send message: ${err.message}`);
@@ -112,21 +139,19 @@ const Conversation: React.FC<{ recipient: Profile }> = ({ recipient }) => {
   };
   
   useEffect(() => {
-    if (!user || !recipientPublicKeyRef.current) return;
+    if (!user) return;
     const channel = supabase
       .channel(`chat-room:${[user.id, recipient.user_id].sort().join(':')}`)
       .on<Message>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
         const newMessage = payload.new;
-        // Only process messages SENT BY THE RECIPIENT (incoming messages)
         if (newMessage.sender_id === recipient.user_id && newMessage.receiver_id === user.id) {
-          const decryptedMessage = await decryptSingleMessage(newMessage, recipientPublicKeyRef.current);
-          setMessages((prev) => [...prev, decryptedMessage]);
+          const processed = await processMessage(newMessage);
+          setMessages((prev) => [...prev, processed]);
         }
-        // Ignore our own sent messages - they're added immediately in handleSendMessage
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [recipient.user_id, user, decryptSingleMessage]);
+  }, [recipient.user_id, user, processMessage]);
 
   if (loading) return <div className="flex-1 flex items-center justify-center"><Spinner /></div>;
   if (error) return <div className="flex-1 flex items-center justify-center text-red-400 p-4 text-center">{error}</div>;
