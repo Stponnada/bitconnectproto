@@ -249,3 +249,14 @@ export async function selfTest() {
   }
 }
 
+declare global {
+  interface Window {
+    localSodiumTest?: () => Promise<any>;
+    selfTest?: () => Promise<any>;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.localSodiumTest = localSodiumTest;
+  window.selfTest = selfTest;
+}
