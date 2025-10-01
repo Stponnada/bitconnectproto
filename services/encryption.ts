@@ -1,4 +1,4 @@
-// src/services/encryption.ts (Definitively Correct Version)
+// src/services/encryption.ts (Fixed Version)
 
 import { SodiumPlus, X25519PublicKey, X25519SecretKey } from 'sodium-plus';
 import { supabase } from './supabase';
@@ -21,7 +21,6 @@ export async function generateAndStoreKeyPair() {
   const publicKey = await sodium.crypto_box_publickey(keypair);
   const secretKey = await sodium.crypto_box_secretkey(keypair);
 
-  // Use the library's hex encoder for storing keys to ensure perfect compatibility
   const secretKeyHex = await sodium.sodium_bin2hex(secretKey.getBuffer());
   const publicKeyHex = await sodium.sodium_bin2hex(publicKey.getBuffer());
 
@@ -91,20 +90,19 @@ export async function getRecipientPublicKey(userId: string): Promise<X25519Publi
   return new X25519PublicKey(publicKeyBuffer);
 }
 
-// THIS IS THE CORRECTED FUNCTION
+// FIXED: Swapped the order of secretKey and recipientPublicKey
 export async function encryptMessage(message: string, recipientPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
   const { secretKey } = await getKeyPair();
   
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
-  const ciphertext = await sodium.crypto_box(message, nonce, recipientPublicKey, secretKey);
+  // CORRECT ORDER: message, nonce, secretKey, recipientPublicKey
+  const ciphertext = await sodium.crypto_box(message, nonce, secretKey, recipientPublicKey);
   
-  // --- THE FIX: Use standard Buffer.toString('hex') for nonce and ciphertext ---
-  // These are temporary and don't need the strict compatibility of the stored keys.
   return `${nonce.toString('hex')}:${ciphertext.toString('hex')}`;
 }
 
-// THIS IS THE CORRECTED FUNCTION
+// FIXED: Swapped the order of secretKey and senderPublicKey
 export async function decryptMessage(encrypted: string, senderPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
   const { secretKey } = await getKeyPair();
@@ -112,10 +110,10 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
   const [nonceHex, ciphertextHex] = encrypted.split(':');
   if (!nonceHex || !ciphertextHex) throw new Error("Invalid encrypted message format.");
 
-  // --- THE FIX: Use the library's hex2bin to read the hex string back into a Buffer ---
   const nonce = await sodium.sodium_hex2bin(nonceHex);
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
 
-  const decrypted = await sodium.crypto_box_open(ciphertext, nonce, senderPublicKey, secretKey);
+  // CORRECT ORDER: ciphertext, nonce, secretKey, senderPublicKey
+  const decrypted = await sodium.crypto_box_open(ciphertext, nonce, secretKey, senderPublicKey);
   return decrypted.toString('utf-8');
 }
