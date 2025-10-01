@@ -52,7 +52,7 @@ export async function getKeyPair() {
       return generateAndStoreKeyPair();
     }
 
-    const publicKeyBuffer = await sodium.sodium_hex2bin(publicKeyData.public_key);
+    const publicKeyBuffer = await sodium.sodium_bin2bin(publicKeyData.public_key);
 
     return {
       publicKey: new X25519PublicKey(publicKeyBuffer),
@@ -89,8 +89,9 @@ export async function encryptMessage(message: string, recipientPublicKey: X25519
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
   const plaintextBuf = Buffer.from(message, 'utf8');
 
-  // FIXED: crypto_box expects the standard order: (..., recipientPublicKey, senderSecretKey)
-  const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, recipientPublicKey, secretKey);
+  // FIXED: The TypeErrors proved this library expects a non-standard order for crypto_box:
+  // (message, nonce, senderSecretKey, recipientPublicKey)
+  const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, secretKey, recipientPublicKey);
 
   const nonceHex = await sodium.sodium_bin2hex(nonce);
   const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
@@ -112,7 +113,8 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
   const nonce = await sodium.sodium_hex2bin(nonceHex);
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
 
-  // FIXED: The TypeError revealed crypto_box_open expects the non-standard order: (..., recipientSecretKey, senderPublicKey)
+  // FIXED: The TypeErrors proved this library expects a non-standard order for crypto_box_open:
+  // (ciphertext, nonce, recipientSecretKey, senderPublicKey)
   const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, secretKey, senderPublicKey);
   const msg = decryptedBuf.toString('utf8');
 
