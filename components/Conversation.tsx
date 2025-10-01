@@ -1,6 +1,6 @@
 // src/components/Conversation.tsx
 
-import React, 'useState', 'useEffect', 'useRef', 'useCallback' from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Profile } from '../types';
