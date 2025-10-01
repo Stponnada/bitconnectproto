@@ -1,4 +1,4 @@
-// src/services/encryption.ts (Correcting the key extraction)
+// src/services/encryption.ts (Using Consistent Hex Conversion)
 
 import { SodiumPlus, X25519PublicKey, X25519SecretKey } from 'sodium-plus';
 import { supabase } from './supabase';
@@ -12,7 +12,6 @@ async function initSodium() {
   return sodium;
 }
 
-// THIS IS THE CORRECTED FUNCTION
 export async function generateAndStoreKeyPair() {
   const sodium = await initSodium();
   const { user } = (await supabase.auth.getUser()).data;
@@ -21,18 +20,20 @@ export async function generateAndStoreKeyPair() {
   console.log(`Generating new key pair for user ${user.id}`);
 
   const keypair = await sodium.crypto_box_keypair();
-  
-  // --- THE FIX: Use sodium functions to extract keys from the keypair ---
   const publicKey = await sodium.crypto_box_publickey(keypair);
   const secretKey = await sodium.crypto_box_secretkey(keypair);
 
-  localStorage.setItem(`spk_${user.id}`, secretKey.getBuffer().toString('hex'));
+  // --- THE FIX: Use the library's own hex encoder for consistency ---
+  const secretKeyHex = await sodium.sodium_bin2hex(secretKey.getBuffer());
+  const publicKeyHex = await sodium.sodium_bin2hex(publicKey.getBuffer());
+
+  localStorage.setItem(`spk_${user.id}`, secretKeyHex);
 
   const { error } = await supabase
     .from('public_keys')
     .upsert({ 
       user_id: user.id, 
-      public_key: publicKey.getBuffer().toString('hex') 
+      public_key: publicKeyHex
     });
     
   if (error) throw error;
@@ -40,9 +41,6 @@ export async function generateAndStoreKeyPair() {
   console.log(`Successfully stored new key pair for user ${user.id}`);
   return { publicKey, secretKey };
 }
-
-
-// --- NO CHANGES NEEDED IN THE FUNCTIONS BELOW THIS LINE ---
 
 export async function getKeyPair() {
   const { user } = (await supabase.auth.getUser()).data;
@@ -55,7 +53,7 @@ export async function getKeyPair() {
 
   try {
     const sodium = await initSodium();
-    const secretKeyBuffer = sodium.sodium_hex2bin(secretKeyHex);
+    const secretKeyBuffer = await sodium.sodium_hex2bin(secretKeyHex);
 
     const { data: publicKeyData, error } = await supabase
       .from('public_keys')
@@ -68,7 +66,7 @@ export async function getKeyPair() {
       return generateAndStoreKeyPair();
     }
     
-    const publicKeyBuffer = sodium.sodium_hex2bin(publicKeyData.public_key);
+    const publicKeyBuffer = await sodium.sodium_hex2bin(publicKeyData.public_key);
     
     const secretKey = new X25519SecretKey(secretKeyBuffer);
     const publicKey = new X25519PublicKey(publicKeyBuffer);
@@ -95,7 +93,7 @@ export async function getRecipientPublicKey(userId: string): Promise<X25519Publi
   }
 
   const sodium = await initSodium();
-  const publicKeyBuffer = sodium.sodium_hex2bin(data.public_key);
+  const publicKeyBuffer = await sodium.sodium_hex2bin(data.public_key);
   
   return new X25519PublicKey(publicKeyBuffer);
 }
@@ -107,7 +105,11 @@ export async function encryptMessage(message: string, recipientPublicKey: X25519
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
   const ciphertext = await sodium.crypto_box(message, nonce, recipientPublicKey, secretKey);
   
-  return `${nonce.toString('hex')}:${ciphertext.toString('hex')}`;
+  // Use the library's encoder here as well
+  const nonceHex = await sodium.sodium_bin2hex(nonce);
+  const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
+  
+  return `${nonceHex}:${ciphertextHex}`;
 }
 
 export async function decryptMessage(encrypted: string, senderPublicKey: X25519PublicKey) {
@@ -117,8 +119,8 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
   const [nonceHex, ciphertextHex] = encrypted.split(':');
   if (!nonceHex || !ciphertextHex) throw new Error("Invalid encrypted message format.");
 
-  const nonce = sodium.sodium_hex2bin(nonceHex);
-  const ciphertext = sodium.sodium_hex2bin(ciphertextHex);
+  const nonce = await sodium.sodium_hex2bin(nonceHex);
+  const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
 
   const decrypted = await sodium.crypto_box_open(ciphertext, nonce, senderPublicKey, secretKey);
   return decrypted.toString('utf-8');
