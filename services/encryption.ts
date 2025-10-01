@@ -87,7 +87,6 @@ export async function encryptMessage(message: string, recipientId: string) {
 
   for (const [deviceId, publicKey] of allKeys.entries()) {
     const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
-    // FIXED: Reverted to the non-standard order the library expects: (sender_sk, recipient_pk)
     const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, senderSecretKey, publicKey);
     const nonceHex = await sodium.sodium_bin2hex(nonce);
     const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
@@ -119,10 +118,12 @@ export async function decryptMessage(encryptedPayloadStr: string) {
   
   const senderPublicKeyBuffer = await sodium.sodium_hex2bin(payload.sender_key);
   const senderPublicKey = new X25519PublicKey(senderPublicKeyBuffer);
-  const nonce = await sodium.sodium_bin2bin(nonceHex);
+  
+  // THIS IS THE CORRECTED LINE
+  const nonce = await sodium.sodium_hex2bin(nonceHex);
+  
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
 
-  // FIXED: Reverted to the non-standard order the library expects: (recipient_sk, sender_pk)
   const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, recipientSecretKey, senderPublicKey);
   const msg = decryptedBuf.toString('utf8');
   console.log('decryptMessage OK ->', msg);
