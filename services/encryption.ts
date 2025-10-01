@@ -1,6 +1,6 @@
-// src/services/encryption.ts (Corrected)
+// src/services/encryption.ts (Corrected a final time)
 
-import { SodiumPlus, Hidden } from 'sodium-plus'; // <-- IMPORT 'Hidden' CLASS
+import { SodiumPlus } from 'sodium-plus'; // <-- ONLY IMPORT SodiumPlus
 import { supabase } from './supabase';
 
 let sodium: SodiumPlus | null = null;
@@ -23,17 +23,19 @@ export async function generateAndStoreKeyPair() {
   const publicKey = await sodium.crypto_box_publickey(keypair);
   const secretKey = await sodium.crypto_box_secretkey(keypair);
 
-  // Store the private key in localStorage (NEVER in the database)
   localStorage.setItem(`spk_${user.id}`, secretKey.getBuffer().toString('hex'));
 
-  // Store the public key in the database
   const { error } = await supabase
     .from('public_keys')
     .upsert({ user_id: user.id, public_key: publicKey.getBuffer().toString('hex') });
     
   if (error) throw error;
   
-  return { publicKey: new Hidden(publicKey.getBuffer()), secretKey: new Hidden(secretKey.getBuffer()) };
+  // --- FIX: Access Hidden via SodiumPlus.Hidden ---
+  return { 
+    publicKey: new SodiumPlus.Hidden(publicKey.getBuffer()), 
+    secretKey: new SodiumPlus.Hidden(secretKey.getBuffer()) 
+  };
 }
 
 // Retrieves the current user's key pair, generating if it doesn't exist
@@ -56,16 +58,15 @@ export async function getKeyPair() {
     .single();
 
   if (error || !publicKeyData) {
-     // If key is in local storage but not DB (e.g., DB cleared), regenerate
     return generateAndStoreKeyPair();
   }
   
   const publicKeyBuffer = sodium.sodium_hex2bin(publicKeyData.public_key);
   
-  // --- FIX: Use 'new Hidden()' instead of 'sodium.createHidden()' ---
+  // --- FIX: Access Hidden via SodiumPlus.Hidden ---
   return { 
-      publicKey: new Hidden(publicKeyBuffer), 
-      secretKey: new Hidden(secretKeyBuffer) 
+      publicKey: new SodiumPlus.Hidden(publicKeyBuffer), 
+      secretKey: new SodiumPlus.Hidden(secretKeyBuffer) 
   };
 }
 
@@ -81,24 +82,23 @@ export async function getRecipientPublicKey(userId: string) {
   const sodium = await initSodium();
   const publicKeyBuffer = sodium.sodium_hex2bin(data.public_key);
   
-  // --- FIX: Use 'new Hidden()' instead of 'sodium.createHidden()' ---
-  return new Hidden(publicKeyBuffer);
+  // --- FIX: Access Hidden via SodiumPlus.Hidden ---
+  return new SodiumPlus.Hidden(publicKeyBuffer);
 }
 
 // Encrypts a message for a recipient
-export async function encryptMessage(message: string, recipientPublicKey: Hidden) { // Type hint changed
+export async function encryptMessage(message: string, recipientPublicKey: SodiumPlus.Hidden) {
   const sodium = await initSodium();
   const { secretKey } = await getKeyPair();
   
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
   const ciphertext = await sodium.crypto_box(message, nonce, recipientPublicKey, secretKey);
   
-  // We bundle nonce and ciphertext for storage, separated by a colon
   return `${nonce.toString('hex')}:${ciphertext.toString('hex')}`;
 }
 
 // Decrypts a message
-export async function decryptMessage(encrypted: string, senderPublicKey: Hidden) { // Type hint changed
+export async function decryptMessage(encrypted: string, senderPublicKey: SodiumPlus.Hidden) {
   const sodium = await initSodium();
   const { secretKey } = await getKeyPair();
 
