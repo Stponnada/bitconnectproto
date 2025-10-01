@@ -75,29 +75,20 @@ export async function encryptMessage(message: string, recipientId: string) {
   const { user: sender } = (await supabase.auth.getUser()).data;
   if (!sender) throw new Error("Cannot send message: user not authenticated");
 
-  // Fetch keys for both the recipient and the sender
   const recipientKeys = await getAllDeviceKeysForUser(recipientId);
   const senderKeys = await getAllDeviceKeysForUser(sender.id);
-
-  // Combine them into a single map to handle sending to self and avoid duplicates
   const allKeys = new Map<string, X25519PublicKey>();
-  for (const key of recipientKeys) {
-    allKeys.set(key.device_id, key.public_key);
-  }
-  for (const key of senderKeys) {
-    allKeys.set(key.device_id, key.public_key);
-  }
-
-  if (allKeys.size === 0) {
-    throw new Error("No devices found for sender or recipient.");
-  }
+  for (const key of recipientKeys) { allKeys.set(key.device_id, key.public_key); }
+  for (const key of senderKeys) { allKeys.set(key.device_id, key.public_key); }
+  if (allKeys.size === 0) throw new Error("No devices found for sender or recipient.");
 
   const devicePayload: { [deviceId: string]: string } = {};
   const plaintextBuf = Buffer.from(message, 'utf8');
 
   for (const [deviceId, publicKey] of allKeys.entries()) {
     const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
-    const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, senderSecretKey, publicKey);
+    // FIXED: Use standard libsodium order: (recipient_pk, sender_sk)
+    const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, publicKey, senderSecretKey);
     const nonceHex = await sodium.sodium_bin2hex(nonce);
     const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
     devicePayload[deviceId] = `${nonceHex}:${ciphertextHex}`;
@@ -128,9 +119,11 @@ export async function decryptMessage(encryptedPayloadStr: string) {
   
   const senderPublicKeyBuffer = await sodium.sodium_hex2bin(payload.sender_key);
   const senderPublicKey = new X25519PublicKey(senderPublicKeyBuffer);
-  const nonce = await sodium.sodium_hex2bin(nonceHex);
+  const nonce = await sodium.sodium_bin2bin(nonceHex);
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
-  const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, recipientSecretKey, senderPublicKey);
+
+  // FIXED: Use standard libsodium order: (sender_pk, recipient_sk)
+  const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, senderPublicKey, recipientSecretKey);
   const msg = decryptedBuf.toString('utf8');
   console.log('decryptMessage OK ->', msg);
   return msg;
