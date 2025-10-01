@@ -5,6 +5,7 @@ import { supabase } from '../services/supabase';
 import { Profile, SearchResults as SearchResultsType } from '../types';
 import SearchResults from './SearchResults';
 import { BookOpenIcon } from './icons';
+import { BookOpenIcon, ChatIcon } from './icons';
 
 const Header: React.FC = () => {
     const { user } = useAuth();
@@ -88,6 +89,9 @@ const Header: React.FC = () => {
                 <nav>
                     <Link to="/directory" title="User Directory" className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-dark-tertiary transition-colors">
                         <BookOpenIcon className="w-7 h-7" />
+                    </Link>
+                    <Link to="/chat" title="Direct Messages" className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-dark-tertiary transition-colors">
+                        <ChatIcon className="w-7 h-7" />
                     </Link>
                 </nav>
 
