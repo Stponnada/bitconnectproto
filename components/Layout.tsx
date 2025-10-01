@@ -1,30 +1,22 @@
-// src/components/Layout.tsx
+// src/components/Layout.tsx (Updated for Sidebar)
 
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
-
-// We have removed the "import LeftSidebar from './LeftSidebar';" line
+import RightSidebar from './RightSidebar'; // Import the new sidebar
 
 const Layout = () => {
   return (
     <div>
-      {/* This is your fixed header. It floats on top. */}
       <Header />
+      <RightSidebar />
 
       {/* 
         This is your main content area.
-        - `pt-16`: Pushes the content down to start exactly where the header ends.
-        - We have removed all the sidebar-related padding (`pl-60`, etc.).
+        - `pr-24`: Adds padding to the right to make space for the collapsed sidebar.
       */}
-      <main className="pt-16">
+      <main className="pt-20">
         
-        {/* 
-          This inner div is now responsible for centering your feed.
-          - `max-w-2xl`: Sets a maximum width for your feed (looks good on all screen sizes).
-          - `mx-auto`: This is the magic that centers the container horizontally.
-          - `p-6`: Adds some nice spacing around the content.
-        */}
-        <div className="max-w-3xl mx-auto p-6">
+        <div className="max-w-3xl mx-auto p-6 pr-24">
           <Outlet />
         </div>
       </main>
