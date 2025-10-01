@@ -7,7 +7,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { Profile } from '../types';
 import Spinner from '../components/Spinner';
 
-// A UserCard with a follow button
 const UserCard: React.FC<{
   profile: Profile;
   isCurrentUser: boolean;
@@ -16,8 +15,8 @@ const UserCard: React.FC<{
 }> = ({ profile, isCurrentUser, isToggling, onFollowToggle }) => {
   
   const handleButtonClick = (e: React.MouseEvent) => {
-    e.preventDefault(); // Stop the Link from navigating
-    e.stopPropagation(); // Stop event bubbling
+    e.preventDefault();
+    e.stopPropagation();
     onFollowToggle(profile);
   };
   
@@ -66,7 +65,6 @@ const DirectoryPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        // THE FIX: Call our new, more powerful RPC function
         const { data, error: fetchError } = await supabase
           .rpc('get_all_profiles_with_follow_status');
 
@@ -87,7 +85,6 @@ const DirectoryPage: React.FC = () => {
 
     const isCurrentlyFollowing = profileToToggle.is_following;
 
-    // Optimistic UI update
     setProfiles(currentProfiles => 
       currentProfiles.map(p => 
         p.user_id === profileToToggle.user_id
@@ -114,7 +111,6 @@ const DirectoryPage: React.FC = () => {
       }
     } catch (err) {
       console.error("Failed to toggle follow:", err);
-      // Revert UI on failure
       setProfiles(currentProfiles => 
         currentProfiles.map(p => 
           p.user_id === profileToToggle.user_id ? profileToToggle : p
@@ -134,7 +130,7 @@ const DirectoryPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-6 text-white border-b border-dark-tertiary pb-4">User Directory</h1>
       <div className="space-y-4">
         {profiles.map(profile => (

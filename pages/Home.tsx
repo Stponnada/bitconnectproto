@@ -1,4 +1,4 @@
-// src/pages/Home.tsx (Complete with New Theme)
+// src/pages/Home.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../services/supabase';
@@ -150,7 +150,7 @@ export const HomePage: React.FC = () => {
     }
 
     return (
-        <div className="w-full">
+        <div className="max-w-3xl mx-auto">
             {profile && <CreatePost onPostCreated={addPostToContext} profile={profile} />}
             {posts.length > 0 ? (
                 <div className="space-y-4">

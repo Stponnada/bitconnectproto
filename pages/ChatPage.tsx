@@ -1,4 +1,4 @@
-// src/pages/ChatPage.tsx (Corrected)
+// src/pages/ChatPage.tsx
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
@@ -7,7 +7,7 @@ import { Profile } from '../types';
 import Spinner from '../components/Spinner';
 import Conversation from '../components/Conversation';
 import { ChatIcon } from '../components/icons';
-import { getKeyPair } from '../services/encryption'; // <-- THIS IS THE MISSING IMPORT
+import { getKeyPair } from '../services/encryption';
 
 const ChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -20,7 +20,7 @@ const ChatPage: React.FC = () => {
     const initializeChat = async () => {
       setLoading(true);
       try {
-        await getKeyPair(); // Now this function call will work correctly
+        await getKeyPair(); 
         const { data, error } = await supabase.from('profiles').select('*');
         if (error) throw error;
         setProfiles(data?.filter(p => p.user_id !== user?.id) || []);
@@ -45,7 +45,7 @@ const ChatPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-dark-secondary rounded-xl border border-dark-tertiary shadow-2xl h-[calc(100vh-120px)] flex overflow-hidden">
+    <div className="max-w-7xl mx-auto bg-dark-secondary rounded-xl border border-dark-tertiary shadow-2xl h-[calc(100vh-120px)] flex overflow-hidden">
       
       <div className="w-96 border-r border-dark-tertiary flex flex-col">
         <div className="p-4 border-b border-dark-tertiary">

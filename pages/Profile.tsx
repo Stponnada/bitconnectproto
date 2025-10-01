@@ -1,4 +1,4 @@
-// src/pages/Profile.tsx (Complete and Corrected)
+// src/pages/Profile.tsx
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
@@ -9,7 +9,7 @@ import PostComponent from '../components/Post';
 import { Post as PostType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
-import { isMscBranch, BITS_BRANCHES } from '../data/bitsBranches.ts'; // Corrected path alias
+import { isMscBranch, BITS_BRANCHES } from '../data/bitsBranches.ts';
 
 // Main Page Component
 const ProfilePage: React.FC = () => {
@@ -100,7 +100,7 @@ const ProfilePage: React.FC = () => {
                 <EditProfileModal userProfile={profile} onClose={() => setIsEditModalOpen(false)} onSave={fetchProfileData} />
             )}
             
-            <div className="w-full">
+            <div className="w-full max-w-4xl mx-auto">
                 <div className="h-48 sm:h-64 bg-dark-tertiary border-b-4 border-dark-primary">{profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}</div>
                 <div className="px-4 sm:px-6 relative bg-dark-secondary pb-10">
                     <div className="flex items-end -mt-16 sm:-mt-20">
