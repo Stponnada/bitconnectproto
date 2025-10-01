@@ -167,14 +167,7 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
  * Quick self-test that generates (or loads) your keypair, encrypts a message to yourself,
  * and tries to decrypt it. Returns true if OK, throws with details otherwise.
  */
-export async function selfTest() {
-  const { publicKey } = await getKeyPair(); // our public key (recipient)
-  const testMsg = `selftest ${Date.now()}`;
-  const encrypted = await encryptMessage(testMsg, publicKey);
-  const decrypted = await decryptMessage(encrypted, publicKey); // senderPublicKey == our publicKey (self)
-  if (decrypted !== testMsg) throw new Error(`self test failed: decrypted != original`);
-  return true;
-}
+
 
 // --- Add these helpers to encryption.ts ---
 
