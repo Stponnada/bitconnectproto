@@ -88,11 +88,19 @@ const Post = ({ post }: { post: PostType }) => {
           <Link to={`/profile/${username}`} className="hover:underline">
              <p className="font-bold text-white">{displayName}</p>
           </Link>
-          <div className="flex items-center space-x-2 text-sm text-gray-400">
-              <span>@{username}</span>
-              <span className="text-gray-500">&middot;</span>
-              <Link to={`/post/${post.id}`} className="hover:underline" title={new Date(post.created_at).toLocaleString()}>
-                  {formatTimestamp(post.created_at)}
+          <div className="flex-1">
+              <div className="flex items-baseline flex-wrap space-x-2">
+                  <Link to={`/profile/${username}`} className="hover:underline">
+                      <p className="font-bold text-white leading-5">{displayName}</p>
+                  </Link>
+                  <span className="text-sm text-gray-400 leading-5">@{username}</span>
+                  <span className="text-gray-500 leading-5">&middot;</span>
+                  <Link to={`/post/${post.id}`} className="hover:underline text-sm text-gray-400 leading-5" title={new Date(post.created_at).toLocaleString()}>
+                      {formatTimestamp(post.created_at)}
+                  </Link>
+              </div>
+              <Link to={`/post/${post.id}`} className="block mt-1">
+                  <p className="text-gray-300 whitespace-pre-wrap">{post.content}</p>
               </Link>
           </div>
         </div>
