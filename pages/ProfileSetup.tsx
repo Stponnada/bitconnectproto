@@ -1,4 +1,4 @@
-// src/pages/ProfileSetup.tsx (Complete and Synchronized)
+// src/pages/ProfileSetup.tsx (Updated to generate keys)
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -7,10 +7,11 @@ import { useAuth } from '../contexts/AuthContext';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
 import { BITS_BRANCHES, isMscBranch } from '../data/bitsBranches.ts';
+import { generateAndStoreKeyPair } from '../services/encryption'; // <-- STEP 1: IMPORT THE FUNCTION
 
 const BITS_CAMPUSES = ['Pilani', 'Goa', 'Hyderabad', 'Dubai'];
 const RELATIONSHIP_STATUSES = ['Single', 'In a Relationship', 'Married', "It's Complicated"];
-const DINING_HALLS = ['Mess 1', 'Mess 2']; // <-- NEW: Added dining hall options
+const DINING_HALLS = ['Mess 1', 'Mess 2'];
 
 const ProfileSetup: React.FC = () => {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ const ProfileSetup: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // ... (no changes to useEffect or handleChange hooks)
   useEffect(() => {
     if (formData.campus && BITS_BRANCHES[formData.campus]) {
         const campusData = BITS_BRANCHES[formData.campus];
@@ -65,6 +67,7 @@ const ProfileSetup: React.FC = () => {
           }
       }
   };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,8 +101,8 @@ const ProfileSetup: React.FC = () => {
           dual_degree_branch: formData.dual_degree_branch || null,
           relationship_status: formData.relationship_status,
           dorm_building: formData.dorm_building,
-          dorm_room: formData.dorm_room, // <-- Was missing from here
-          dining_hall: formData.dining_hall, // <-- Was missing from here
+          dorm_room: formData.dorm_room,
+          dining_hall: formData.dining_hall,
           bio: formData.bio,
           avatar_url,
           banner_url,
@@ -109,6 +112,10 @@ const ProfileSetup: React.FC = () => {
         .eq('user_id', user.id); 
 
       if (updateError) throw updateError;
+      
+      // <-- STEP 2: GENERATE KEYS BEFORE NAVIGATING -->
+      await generateAndStoreKeyPair();
+
       navigate('/'); 
     } catch (err: any) {
       setError(err.message);
@@ -117,6 +124,7 @@ const ProfileSetup: React.FC = () => {
     }
   };
   
+  // ... (no changes to the returned JSX)
   const showDualDegreeField = isDualDegreeStudent && formData.admission_year && new Date().getFullYear() >= parseInt(formData.admission_year) + 1;
 
   return (
@@ -149,10 +157,8 @@ const ProfileSetup: React.FC = () => {
                 <div><label htmlFor="relationship_status" className="block text-gray-300 text-sm font-bold mb-2">Relationship Status</label><select name="relationship_status" id="relationship_status" value={formData.relationship_status} onChange={handleChange} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Status</option>{RELATIONSHIP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
                 <div><label htmlFor="dorm_building" className="block text-gray-300 text-sm font-bold mb-2">Dorm Building</label><input type="text" name="dorm_building" id="dorm_building" value={formData.dorm_building} onChange={handleChange} placeholder="e.g. Ram Bhawan" className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm" /></div>
                 
-                {/* --- FIELD ADDED --- */}
                 <div><label htmlFor="dorm_room" className="block text-gray-300 text-sm font-bold mb-2">Dorm Room</label><input type="text" name="dorm_room" id="dorm_room" value={formData.dorm_room} onChange={handleChange} placeholder="e.g. 101" className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm" /></div>
 
-                {/* --- FIELD ADDED --- */}
                 <div><label htmlFor="dining_hall" className="block text-gray-300 text-sm font-bold mb-2">Dining Hall</label><select name="dining_hall" id="dining_hall" value={formData.dining_hall} onChange={handleChange} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Mess</option>{DINING_HALLS.map(hall => <option key={hall} value={hall}>{hall}</option>)}</select></div>
             </div>
 
