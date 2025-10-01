@@ -93,7 +93,7 @@ const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
             {/* Mobile Title */}
             <div className="flex items-center md:hidden">
               {/* THIS IS THE ONLY CHANGE: text-2xl is now text-3xl */}
-              <Link to="/" className="text-3xl font-raleway font-black text-brand-green">litelelo.</Link>
+              <Link to="/" className="text-4xl font-raleway font-black text-brand-green">litelelo.</Link>
             </div>
 
             {/* Right-side Icons */}
