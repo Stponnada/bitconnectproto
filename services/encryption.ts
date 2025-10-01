@@ -175,3 +175,84 @@ export async function selfTest() {
   if (decrypted !== testMsg) throw new Error(`self test failed: decrypted != original`);
   return true;
 }
+
+// --- Add these helpers to encryption.ts ---
+
+/**
+ * Local sodium-only test (no supabase, no stored keys).
+ * Generates two fresh keypairs (A = sender, B = recipient) and tries
+ * encrypt/open with both common argument orders so we can see which order works.
+ */
+export async function localSodiumTest() {
+  const sodium = await initSodium();
+
+  // generate two keypairs
+  const kpA = await sodium.crypto_box_keypair();
+  const kpB = await sodium.crypto_box_keypair();
+
+  const A_pub = await sodium.crypto_box_publickey(kpA);
+  const A_sec = await sodium.crypto_box_secretkey(kpA);
+  const B_pub = await sodium.crypto_box_publickey(kpB);
+  const B_sec = await sodium.crypto_box_secretkey(kpB);
+
+  const plaintext = Buffer.from('local test ' + Date.now(), 'utf8');
+  const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
+
+  // Try encrypt with "secret first, recipient public second"
+  const ct1 = await sodium.crypto_box(plaintext, nonce, A_sec, B_pub);
+  const ct1hex = await sodium.sodium_bin2hex(ct1);
+  const nonceHex = await sodium.sodium_bin2hex(nonce);
+  console.log('localSodiumTest: tried encrypt order (A_sec, B_pub). nonce:', nonceHex, 'ct1 len', ct1.length);
+
+  // Attempt opens in both common orders
+  const tryOpen = async (orderName: string, openArgs: any[]) => {
+    try {
+      const buf = await sodium.crypto_box_open(openArgs[0], openArgs[1], openArgs[2], openArgs[3]);
+      console.log(`OPEN OK (${orderName}) ->`, buf.toString('utf8'));
+      return true;
+    } catch (e: any) {
+      console.warn(`OPEN FAIL (${orderName}) ->`, e && e.message ? e.message : e);
+      return false;
+    }
+  };
+
+  // order A: canonical (senderPublic, recipientSecret)
+  await tryOpen('canonical: (A_pub, B_sec)', [ct1, nonce, A_pub, B_sec]);
+  // order B: alternate wrapper order (recipientSecret, senderPublic)
+  await tryOpen('alternate: (B_sec, A_pub)', [ct1, nonce, B_sec, A_pub]);
+
+  // Now try encrypt with swapped encryption order (recipientPub first, senderSec second)
+  const ct2 = await sodium.crypto_box(plaintext, nonce, B_pub, A_sec);
+  console.log('localSodiumTest: tried encrypt order (B_pub, A_sec). ct2 len', ct2.length);
+  await tryOpen('canonical after swapped encrypt: (A_pub, B_sec) on ct2', [ct2, nonce, A_pub, B_sec]);
+  await tryOpen('alternate after swapped encrypt: (B_sec, A_pub) on ct2', [ct2, nonce, B_sec, A_pub]);
+
+  return {
+    nonceHex,
+    ct1hex,
+    // note: we printed results to console so you can read which order succeeded
+  };
+}
+
+/**
+ * Self test using your app's getKeyPair() (uses stored secret in localStorage and public key from DB).
+ * This tests the full path (your stored keys, encryptMessage() and decryptMessage()).
+ * You must be authenticated and your keys present for this to run.
+ */
+export async function selfTest() {
+  try {
+    const { publicKey } = await getKeyPair(); // behaves as recipient public
+    // encrypt to self using your encryptMessage helper
+    const message = `selftest ${Date.now()}`;
+    const encrypted = await encryptMessage(message, publicKey);
+    // now decrypt assuming senderPublicKey is your own publicKey (self-send)
+    const decrypted = await decryptMessage(encrypted, publicKey);
+    if (decrypted !== message) throw new Error('decrypted != original');
+    console.log('selfTest OK');
+    return true;
+  } catch (e) {
+    console.error('selfTest FAILED', e);
+    throw e;
+  }
+}
+
