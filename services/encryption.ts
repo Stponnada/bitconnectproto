@@ -1,5 +1,4 @@
-// encryption_with_logging.ts
-
+// encryption.ts
 import { SodiumPlus, X25519PublicKey, X25519SecretKey } from 'sodium-plus';
 import { supabase } from './supabase';
 
@@ -7,6 +6,18 @@ let sodium: SodiumPlus | null = null;
 async function initSodium() {
   if (!sodium) sodium = await SodiumPlus.auto();
   return sodium!;
+}
+
+/** --- Key helpers --- */
+export async function loadPublicKeyFromHex(pubHex: string): Promise<X25519PublicKey> {
+  const sodium = await initSodium();
+  const buf = await sodium.sodium_hex2bin(pubHex);
+  return new X25519PublicKey(buf);
+}
+export async function loadSecretKeyFromHex(secretHex: string): Promise<X25519SecretKey> {
+  const sodium = await initSodium();
+  const buf = await sodium.sodium_hex2bin(secretHex);
+  return new X25519SecretKey(buf);
 }
 
 export async function generateAndStoreKeyPair() {
@@ -91,8 +102,7 @@ export async function getRecipientPublicKey(userId: string): Promise<X25519Publi
 // encryption: (message, recipientPublicKey) -> "nonceHex:ciphertextHex"
 export async function encryptMessage(message: string, recipientPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
-  const { secretKey } = await getKeyPair(); // sender's secret key (X25519SecretKey)
-  const { publicKey: senderPublicKey } = await getKeyPair(); // sender public for logging
+  const { secretKey, publicKey: senderPublicKey } = await getKeyPair(); // sender's keypair
 
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
   const plaintextBuf = Buffer.from(message, 'utf8');
@@ -103,7 +113,7 @@ export async function encryptMessage(message: string, recipientPublicKey: X25519
   const nonceHex = await sodium.sodium_bin2hex(nonce);
   const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
 
-  // --- SEND LOG: temporary dev-only logging to help debugging ---
+  // DEV SEND LOG (safe dev-only): shows which keys/nonces were used
   try {
     const senderPubHex = await sodium.sodium_bin2hex(senderPublicKey.getBuffer());
     const recipientPubHex = await sodium.sodium_bin2hex(recipientPublicKey.getBuffer());
@@ -116,30 +126,48 @@ export async function encryptMessage(message: string, recipientPublicKey: X25519
       ciphertextLen: ciphertext.length
     });
   } catch (e) {
-    // swallow logging errors
     console.warn('SEND LOG failed', e);
   }
 
-  // keep API the same: return string payload
   return `${nonceHex}:${ciphertextHex}`;
 }
 
+/**
+ * Prepare an encrypted payload and return sender/recipient pub hexs for storage.
+ * This avoids lookup races on the receiver — store senderPubHex with the message row.
+ */
+export async function prepareEncryptedPayloadForStorage(recipientUserId: string, message: string) {
+  const sodium = await initSodium();
+  const recipientPub = await getRecipientPublicKey(recipientUserId);
+  const { publicKey: senderPublicKey } = await getKeyPair();
 
-// decryption: IMPORTANT: pass senderPublicKey first, then recipient (our) secretKey
-export async function decryptMessage(encrypted: string, senderPublicKey: X25519PublicKey) {
+  const payload = await encryptMessage(message, recipientPub);
+  const senderPubHex = await sodium.sodium_bin2hex(senderPublicKey.getBuffer());
+  const recipientPubHex = await sodium.sodium_bin2hex(recipientPub.getBuffer());
+  return { payload, senderPubHex, recipientPubHex };
+}
+
+// decryption: accepts either X25519PublicKey OR senderPublicKeyHex
+export async function decryptMessage(encrypted: string, senderPublicKeyOrHex: X25519PublicKey | string) {
   const sodium = await initSodium();
 
   // Ensure we have our secret key object
   const { secretKey: possibleSecret } = await getKeyPair();
-  // sometimes getKeyPair returns already-constructed objects, but double-check:
   const secretKey = (possibleSecret instanceof X25519SecretKey)
     ? possibleSecret
     : new X25519SecretKey(possibleSecret.getBuffer ? possibleSecret.getBuffer() : possibleSecret);
 
-  // Ensure senderPublicKey is a X25519PublicKey (if the caller passed a raw buffer/hex)
-  const senderPK = (senderPublicKey instanceof X25519PublicKey)
-    ? senderPublicKey
-    : new X25519PublicKey(senderPublicKey instanceof Buffer ? senderPublicKey : Buffer.from(senderPublicKey));
+  // Accept either an X25519PublicKey or a hex string (senderPubHex)
+  let senderPK: X25519PublicKey;
+  if (typeof senderPublicKeyOrHex === 'string') {
+    senderPK = await loadPublicKeyFromHex(senderPublicKeyOrHex);
+  } else {
+    senderPK = senderPublicKeyOrHex instanceof X25519PublicKey
+      ? senderPublicKeyOrHex
+      : new X25519PublicKey(
+          (senderPublicKeyOrHex as any).getBuffer ? (senderPublicKeyOrHex as any).getBuffer() : Buffer.from(senderPublicKeyOrHex as any)
+        );
+  }
 
   const [nonceHex, ciphertextHex] = encrypted.split(':');
   if (!nonceHex || !ciphertextHex) throw new Error('Invalid encrypted message format (expected nonce:ciphertext).');
@@ -147,7 +175,7 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
   const nonce = await sodium.sodium_hex2bin(nonceHex);
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
 
-  // --- RECV LOG: temporary dev-only logging to help debugging ---
+  // DEV RECV LOG
   try {
     const senderPubHexUsedByReceiver = await sodium.sodium_bin2hex(senderPK.getBuffer());
     const recipientSecretHex = await sodium.sodium_bin2hex(secretKey.getBuffer());
@@ -179,13 +207,10 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
     decryptedBuf = await tryOpenOrder('senderFirst');
     return decryptedBuf.toString('utf8');
   } catch (errFirst: any) {
-    // If the first one fails with a TypeError complaining about arg types,
-    // try the other known ordering.
     try {
       decryptedBuf = await tryOpenOrder('secretFirst');
       return decryptedBuf.toString('utf8');
     } catch (errSecond: any) {
-      // Both failed — produce a helpful diagnostic
       const diag = {
         firstError: String(errFirst && errFirst.message ? errFirst.message : errFirst),
         secondError: String(errSecond && errSecond.message ? errSecond.message : errSecond),
@@ -199,23 +224,10 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
   }
 }
 
-/**
- * Quick self-test that generates (or loads) your keypair, encrypts a message to yourself,
- * and tries to decrypt it. Returns true if OK, throws with details otherwise.
- */
-
-
-// --- Add these helpers to encryption.ts ---
-
-/**
- * Local sodium-only test (no supabase, no stored keys).
- * Generates two fresh keypairs (A = sender, B = recipient) and tries
- * encrypt/open with both common argument orders so we can see which order works.
- */
+/** Local sodium-only test (no supabase, no stored keys). Expose via window in dev. */
 export async function localSodiumTest() {
   const sodium = await initSodium();
 
-  // generate two keypairs
   const kpA = await sodium.crypto_box_keypair();
   const kpB = await sodium.crypto_box_keypair();
 
@@ -227,13 +239,10 @@ export async function localSodiumTest() {
   const plaintext = Buffer.from('local test ' + Date.now(), 'utf8');
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
 
-  // Try encrypt with "secret first, recipient public second"
   const ct1 = await sodium.crypto_box(plaintext, nonce, A_sec, B_pub);
-  const ct1hex = await sodium.sodium_bin2hex(ct1);
   const nonceHex = await sodium.sodium_bin2hex(nonce);
   console.log('localSodiumTest: tried encrypt order (A_sec, B_pub). nonce:', nonceHex, 'ct1 len', ct1.length);
 
-  // Attempt opens in both common orders
   const tryOpen = async (orderName: string, openArgs: any[]) => {
     try {
       const buf = await sodium.crypto_box_open(openArgs[0], openArgs[1], openArgs[2], openArgs[3]);
@@ -245,37 +254,27 @@ export async function localSodiumTest() {
     }
   };
 
-  // order A: canonical (senderPublic, recipientSecret)
   await tryOpen('canonical: (A_pub, B_sec)', [ct1, nonce, A_pub, B_sec]);
-  // order B: alternate wrapper order (recipientSecret, senderPublic)
   await tryOpen('alternate: (B_sec, A_pub)', [ct1, nonce, B_sec, A_pub]);
 
-  // Now try encrypt with swapped encryption order (recipientPub first, senderSec second)
   const ct2 = await sodium.crypto_box(plaintext, nonce, B_pub, A_sec);
   console.log('localSodiumTest: tried encrypt order (B_pub, A_sec). ct2 len', ct2.length);
   await tryOpen('canonical after swapped encrypt: (A_pub, B_sec) on ct2', [ct2, nonce, A_pub, B_sec]);
   await tryOpen('alternate after swapped encrypt: (B_sec, A_pub) on ct2', [ct2, nonce, B_sec, A_pub]);
 
-  return {
-    nonceHex,
-    ct1hex,
-    // note: we printed results to console so you can read which order succeeded
-  };
+  return { nonceHex };
 }
 
-/**
- * Self test using your app's getKeyPair() (uses stored secret in localStorage and public key from DB).
- * This tests the full path (your stored keys, encryptMessage() and decryptMessage()).
- * You must be authenticated and your keys present for this to run.
- */
+/** Self test using your app's getKeyPair() */
 export async function selfTest() {
   try {
-    const { publicKey } = await getKeyPair(); // behaves as recipient public
-    // encrypt to self using your encryptMessage helper
+    const { publicKey } = await getKeyPair();
     const message = `selftest ${Date.now()}`;
     const encrypted = await encryptMessage(message, publicKey);
-    // now decrypt assuming senderPublicKey is your own publicKey (self-send)
-    const decrypted = await decryptMessage(encrypted, publicKey);
+    const decrypted = await decryptMessage(encrypted, await (async () => {
+      const sodium = await initSodium();
+      return await sodium.sodium_bin2hex(publicKey.getBuffer());
+    })());
     if (decrypted !== message) throw new Error('decrypted != original');
     console.log('selfTest OK');
     return true;
@@ -285,6 +284,7 @@ export async function selfTest() {
   }
 }
 
+/** Verify local stored public key matches DB */
 export async function verifyLocalMatchesDb() {
   const sodium = await initSodium();
   const { publicKey: localPub, secretKey } = await getKeyPair();
@@ -301,14 +301,16 @@ export async function verifyLocalMatchesDb() {
   return { localPubHex, dbPubHex: data?.public_key };
 }
 
+/** DEV: expose tests to window for quick console runs. Remove in production */
 declare global {
   interface Window {
     localSodiumTest?: () => Promise<any>;
     selfTest?: () => Promise<any>;
+    prepareEncryptedPayloadForStorage?: (recipientUserId: string, message: string) => Promise<any>;
   }
 }
-
 if (typeof window !== 'undefined') {
   window.localSodiumTest = localSodiumTest;
   window.selfTest = selfTest;
+  window.prepareEncryptedPayloadForStorage = prepareEncryptedPayloadForStorage;
 }
