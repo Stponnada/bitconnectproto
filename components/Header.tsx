@@ -1,10 +1,12 @@
+// src/components/Header.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
 import { Profile, SearchResults as SearchResultsType } from '../types';
 import SearchResults from './SearchResults';
-import { SearchIcon } from './icons'; // Import SearchIcon for mobile
+import { SearchIcon } from './icons';
 
 interface HeaderProps {
     isSidebarExpanded: boolean;
@@ -102,8 +104,8 @@ const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
                     <SearchIcon className="w-7 h-7" />
                 </Link>
 
-                {/* Profile Dropdown */}
-                <div className="relative" ref={dropdownRef}>
+                {/* Profile Dropdown: Hidden on mobile, visible on desktop */}
+                <div ref={dropdownRef} className="relative hidden md:block">
                     <button onClick={() => setDropdownOpen(!dropdownOpen)} className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
                         {profile?.avatar_url ? (
                             <img src={profile.avatar_url} alt="profile" className="w-full h-full rounded-full object-cover" />

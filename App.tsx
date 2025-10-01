@@ -1,4 +1,4 @@
-// src/App.tsx (Corrected)
+// src/App.tsx
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -10,10 +10,11 @@ import Login from './pages/Login';
 import ProfilePage from './pages/Profile';
 import PostPage from './pages/PostPage';
 import ProfileSetup from './pages/ProfileSetup';
-import DirectoryPage from './pages/DirectoryPage'; // <-- THIS IS THE LINE THAT WAS MISSING
+import DirectoryPage from './pages/DirectoryPage';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import SearchPage from './pages/SearchPage';
 
 const App = () => {
   return (
@@ -24,6 +25,7 @@ const App = () => {
             <Route path="/login" element={<Login />} />
 
             <Route element={<ProtectedRoute />}>
+              {/* Routes that use the main Layout (with side/bottom bars) */}
               <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/directory" element={<DirectoryPage />} />
@@ -33,6 +35,10 @@ const App = () => {
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/chat/:username" element={<ChatPage />} />   
               </Route>
+              
+              {/* The Search page is a protected, full-screen route without the main layout */}
+              <Route path="/search" element={<SearchPage />} />
+
             </Route>
             
             <Route path="*" element={<NotFound />} /> 
