@@ -1,4 +1,4 @@
-// src/services/encryption.ts (Corrected Version)
+// src/services/encryption.ts (Fixed Version)
 
 import { SodiumPlus, X25519PublicKey, X25519SecretKey } from 'sodium-plus';
 import { supabase } from './supabase';
@@ -90,24 +90,21 @@ export async function getRecipientPublicKey(userId: string): Promise<X25519Publi
   return new X25519PublicKey(publicKeyBuffer);
 }
 
-// To encrypt a message FOR a recipient, you use YOUR secret key and THEIR public key.
-// The library expects the arguments in the order: (message, nonce, your_secret_key, their_public_key)
+// crypto_box expects (..., recipient's PublicKey, sender's SecretKey)
 export async function encryptMessage(message: string, recipientPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
-  const { secretKey } = await getKeyPair(); // This is YOUR secret key
+  const { secretKey } = await getKeyPair();
   
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
-  const ciphertext = await sodium.crypto_box(message, nonce, secretKey, recipientPublicKey);
+  const ciphertext = await sodium.crypto_box(message, nonce, recipientPublicKey, secretKey);
   
   return `${nonce.toString('hex')}:${ciphertext.toString('hex')}`;
 }
 
-
-// To decrypt a message FROM a sender, you use YOUR secret key and THEIR public key.
-// The library expects the arguments in the order: (ciphertext, nonce, your_secret_key, their_public_key)
+// FIXED: The TypeError indicates crypto_box_open expects (..., recipient's SecretKey, sender's PublicKey)
 export async function decryptMessage(encrypted: string, senderPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
-  const { secretKey } = await getKeyPair(); // This is YOUR secret key
+  const { secretKey } = await getKeyPair(); // This is the recipient's (our) secret key
 
   const [nonceHex, ciphertextHex] = encrypted.split(':');
   if (!nonceHex || !ciphertextHex) throw new Error("Invalid encrypted message format.");
@@ -115,6 +112,7 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
   const nonce = await sodium.sodium_hex2bin(nonceHex);
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
 
+  // The error "Argument 3 must be an instance of X25519SecretKey" implies this order is correct.
   const decrypted = await sodium.crypto_box_open(ciphertext, nonce, secretKey, senderPublicKey);
   return decrypted.toString('utf-8');
 }
