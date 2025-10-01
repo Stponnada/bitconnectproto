@@ -82,33 +82,18 @@ async function getRecipientDeviceKeys(userId: string): Promise<{ device_id: stri
 }
 
 // --- MULTI-DEVICE ENCRYPTION / DECRYPTION ---
-
 export async function encryptMessage(message: string, recipientId: string) {
-  const sodium = await initSodium();
-  const { secretKey: senderSecretKey, publicKey: senderPublicKey } = await getKeyPair();
-  const recipientKeys = await getRecipientDeviceKeys(recipientId);
-
-  const devicePayload: { [deviceId: string]: string } = {};
-  const plaintextBuf = Buffer.from(message, 'utf8');
-
-  for (const deviceKey of recipientKeys) {
-    const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
-    const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, senderSecretKey, deviceKey.public_key);
-
-    const nonceHex = await sodium.sodium_bin2hex(nonce);
-    const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
-    devicePayload[deviceKey.device_id] = `${nonceHex}:${ciphertextHex}`;
-  }
+  // ... (all the encryption logic before this is correct) ...
   
-  const senderPublicKeyHex = await sodium.sodium_bin2hex(senderPublicKey.getBuffer());
-
   const finalPayload = {
     sender_key: senderPublicKeyHex,
     devices: devicePayload
   };
 
   console.log(`Encrypted message for ${recipientKeys.length} device(s).`);
-  return JSON.stringify(finalPayload);
+  
+  // THIS IS THE CHANGE: Return the object itself
+  return finalPayload; 
 }
 
 export async function decryptMessage(encryptedPayloadStr: string) {

@@ -37,10 +37,11 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
 
   const processMessage = useCallback(async (msg: Message): Promise<Message> => {
     try {
-      // Decrypt own messages sent from this device instantly
       if (msg.decrypted_content) return msg;
 
-      const decrypted_content = await decryptMessage(msg.encrypted_content);
+      // THIS IS THE CHANGE: Stringify the object from the DB before decrypting
+      const decrypted_content = await decryptMessage(JSON.stringify(msg.encrypted_content));
+      
       return { ...msg, decrypted_content };
     } catch (e: any) {
       console.error(`Decryption failed for message ${msg.id}:`, e.message);
@@ -78,34 +79,24 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+// src/components/Conversation.tsx -> inside handleSendMessage
 
   const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !user) return;
+    // ...
+    // This now returns an object, not a string
+    const encryptedPayload = await encryptMessage(tempMessageContent, recipient.user_id);
 
-    const tempMessageContent = newMessage;
-    setNewMessage('');
-
-    try {
-      const encryptedPayload = await encryptMessage(tempMessageContent, recipient.user_id);
-
-      const { data: sentMessage, error } = await supabase
-        .from('messages')
-        .insert({
-          sender_id: user.id,
-          receiver_id: recipient.user_id,
-          encrypted_content: encryptedPayload,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      setMessages(prev => [...prev, { ...sentMessage, decrypted_content: tempMessageContent }]);
-    } catch (err: any) {
-      setError(`Failed to send message: ${err.message}`);
-      setNewMessage(tempMessageContent);
-    }
+    const { data: sentMessage, error } = await supabase
+      .from('messages')
+      .insert({
+        sender_id: user.id,
+        receiver_id: recipient.user_id,
+        // THIS IS CORRECT: Pass the object directly
+        encrypted_content: encryptedPayload, 
+      })
+      .select()
+      .single();
+    // ...
   };
   
   useEffect(() => {
