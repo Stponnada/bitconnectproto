@@ -86,16 +86,23 @@ const Post = ({ post }: { post: PostType }) => {
         
         {/* Content Column */}
         <div className="flex-1">
-            {/* User Info Header: Wraps gracefully on mobile */}
-            <div className="flex items-baseline flex-wrap space-x-2">
+            {/* 
+              THIS IS THE CORRECTED SECTION.
+              It's a vertical column on mobile (`flex-col`) and becomes a horizontal row (`md:flex-row`) on desktop.
+            */}
+            <div className="flex flex-col md:flex-row md:items-baseline md:space-x-2">
+                {/* Line 1 (Mobile) / Part 1 (Desktop): Full Name */}
                 <Link to={`/profile/${username}`} className="hover:underline">
-                    <p className="font-bold text-white leading-5">{displayName}</p>
+                    <p className="font-bold text-white leading-tight">{displayName}</p>
                 </Link>
-                <span className="text-sm text-gray-400 leading-5">@{username}</span>
-                <span className="text-gray-500 leading-5">&middot;</span>
-                <Link to={`/post/${post.id}`} className="hover:underline text-sm text-gray-400 leading-5" title={new Date(post.created_at).toLocaleString()}>
-                    {formatTimestamp(post.created_at)}
-                </Link>
+                {/* Line 2 (Mobile) / Part 2 (Desktop): Username & Timestamp */}
+                <div className="flex items-center space-x-2 text-sm text-gray-400">
+                    <span>@{username}</span>
+                    <span className="text-gray-500">&middot;</span>
+                    <Link to={`/post/${post.id}`} className="hover:underline" title={new Date(post.created_at).toLocaleString()}>
+                        {formatTimestamp(post.created_at)}
+                    </Link>
+                </div>
             </div>
             
             {/* Post Text Content */}
