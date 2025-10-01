@@ -118,7 +118,7 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
   if (!nonceHex || !ciphertextHex) throw new Error("Invalid encrypted message format.");
 
   const nonce = sodium.sodium_hex2bin(nonceHex);
-  const ciphertext = sodium.sodium_bin2hex(ciphertextHex);
+  const ciphertext = sodium.sodium_hex2bin(ciphertextHex);
 
   const decrypted = await sodium.crypto_box_open(ciphertext, nonce, senderPublicKey, secretKey);
   return decrypted.toString('utf-8');
