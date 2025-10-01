@@ -72,7 +72,6 @@ async function getRecipientDeviceKeys(userId: string): Promise<{ device_id: stri
   }
 
   return Promise.all(data.map(async (key) => {
-    // FIXED THE TYPO HERE: It's sodium_hex2bin, not sodium_bin2bin
     const publicKeyBuffer = await sodium.sodium_hex2bin(key.public_key);
     return {
       device_id: key.device_id,
@@ -82,18 +81,34 @@ async function getRecipientDeviceKeys(userId: string): Promise<{ device_id: stri
 }
 
 // --- MULTI-DEVICE ENCRYPTION / DECRYPTION ---
+
 export async function encryptMessage(message: string, recipientId: string) {
-  // ... (all the encryption logic before this is correct) ...
+  const sodium = await initSodium();
+  const { secretKey: senderSecretKey, publicKey: senderPublicKey } = await getKeyPair();
+  const recipientKeys = await getRecipientDeviceKeys(recipientId);
+
+  const devicePayload: { [deviceId: string]: string } = {};
+  const plaintextBuf = Buffer.from(message, 'utf8');
+
+  for (const deviceKey of recipientKeys) {
+    const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
+    const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, senderSecretKey, deviceKey.public_key);
+
+    const nonceHex = await sodium.sodium_bin2hex(nonce);
+    const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
+    devicePayload[deviceKey.device_id] = `${nonceHex}:${ciphertextHex}`;
+  }
   
+  const senderPublicKeyHex = await sodium.sodium_bin2hex(senderPublicKey.getBuffer());
+
   const finalPayload = {
+    // THIS IS THE CORRECTED LINE - Fixed the typo
     sender_key: senderPublicKeyHex,
     devices: devicePayload
   };
 
   console.log(`Encrypted message for ${recipientKeys.length} device(s).`);
-  
-  // THIS IS THE CHANGE: Return the object itself
-  return finalPayload; 
+  return finalPayload;
 }
 
 export async function decryptMessage(encryptedPayloadStr: string) {
