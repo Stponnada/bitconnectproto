@@ -1,11 +1,10 @@
-// src/services/encryption.ts (FINAL CORRECTED VERSION)
+// src/services/encryption.ts (Final Correction for Key Types)
 
-import { SodiumPlus } from 'sodium-plus';
+import { SodiumPlus, X25519PublicKey, X25519SecretKey } from 'sodium-plus'; // <-- IMPORT a/X25519PublicKey, X25519SecretKey
 import { supabase } from './supabase';
 
 let sodium: SodiumPlus | null = null;
 
-// Initialize Sodium-Plus
 async function initSodium() {
   if (!sodium) {
     sodium = await SodiumPlus.auto();
@@ -13,7 +12,6 @@ async function initSodium() {
   return sodium;
 }
 
-// Generates a new key pair for the current user
 export async function generateAndStoreKeyPair() {
   const sodium = await initSodium();
   const { user } = (await supabase.auth.getUser()).data;
@@ -23,21 +21,17 @@ export async function generateAndStoreKeyPair() {
   const publicKey = await sodium.crypto_box_publickey(keypair);
   const secretKey = await sodium.crypto_box_secretkey(keypair);
 
-  // Store the private key in localStorage (NEVER in the database)
   localStorage.setItem(`spk_${user.id}`, secretKey.getBuffer().toString('hex'));
 
-  // Store the public key in the database
   const { error } = await supabase
     .from('public_keys')
     .upsert({ user_id: user.id, public_key: publicKey.getBuffer().toString('hex') });
     
   if (error) throw error;
   
-  // Return the raw library objects
   return { publicKey, secretKey };
 }
 
-// Retrieves the current user's key pair, generating if it doesn't exist
 export async function getKeyPair() {
   const { user } = (await supabase.auth.getUser()).data;
   if (!user) throw new Error('User not authenticated');
@@ -48,7 +42,7 @@ export async function getKeyPair() {
   }
 
   const sodium = await initSodium();
-  const secretKey = sodium.sodium_hex2bin(secretKeyHex); // Returns a Buffer
+  const secretKeyBuffer = sodium.sodium_hex2bin(secretKeyHex);
 
   const { data: publicKeyData, error } = await supabase
     .from('public_keys')
@@ -60,14 +54,16 @@ export async function getKeyPair() {
     return generateAndStoreKeyPair();
   }
   
-  const publicKey = sodium.sodium_hex2bin(publicKeyData.public_key); // Returns a Buffer
+  const publicKeyBuffer = sodium.sodium_hex2bin(publicKeyData.public_key);
   
-  // Return the keys as simple Buffers
+  // --- THE FIX: Re-wrap the Buffers into the special key objects ---
+  const secretKey = new X25519SecretKey(secretKeyBuffer);
+  const publicKey = new X25519PublicKey(publicKeyBuffer);
+  
   return { publicKey, secretKey };
 }
 
-// Fetches another user's public key from the database and returns it as a Buffer
-export async function getRecipientPublicKey(userId: string) {
+export async function getRecipientPublicKey(userId: string): Promise<X25519PublicKey> {
   const { data, error } = await supabase
     .from('public_keys')
     .select('public_key')
@@ -76,12 +72,13 @@ export async function getRecipientPublicKey(userId: string) {
   if (error) throw new Error(`Could not fetch public key for user ${userId}. They may not have used chat yet.`);
 
   const sodium = await initSodium();
-  // Return the key as a simple Buffer
-  return sodium.sodium_hex2bin(data.public_key);
+  const publicKeyBuffer = sodium.sodium_hex2bin(data.public_key);
+  
+  // --- THE FIX: Re-wrap the Buffer into the special public key object ---
+  return new X25519PublicKey(publicKeyBuffer);
 }
 
-// Encrypts a message for a recipient
-export async function encryptMessage(message: string, recipientPublicKey: Buffer) {
+export async function encryptMessage(message: string, recipientPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
   const { secretKey } = await getKeyPair();
   
@@ -91,8 +88,7 @@ export async function encryptMessage(message: string, recipientPublicKey: Buffer
   return `${nonce.toString('hex')}:${ciphertext.toString('hex')}`;
 }
 
-// Decrypts a message
-export async function decryptMessage(encrypted: string, senderPublicKey: Buffer) {
+export async function decryptMessage(encrypted: string, senderPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
   const { secretKey } = await getKeyPair();
 
