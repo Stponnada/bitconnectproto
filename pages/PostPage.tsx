@@ -21,7 +21,7 @@ const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
   const author = comment.profiles;
   return (
     <div className="flex items-start space-x-3 p-4 border-b border-dark-tertiary">
-      <Link to={`/profile/${author?.username}`}>
+      <Link to={`/profile/${author?.username}`} className="flex-shrink-0">
         <img src={getAvatarUrl(author)} alt={author?.username || 'avatar'} className="w-10 h-10 rounded-full bg-gray-700 object-cover" />
       </Link>
       <div>
