@@ -1,5 +1,3 @@
-// src/components/Post.tsx (Complete with Timestamp)
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
@@ -7,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePosts } from '../contexts/PostsContext';
 import { Post as PostType } from '../types';
 import { ThumbsUpIcon, ThumbsDownIcon, CommentIcon } from './icons';
-import { formatTimestamp } from '../utils/timeUtils'; // <-- IMPORT
+import { formatTimestamp } from '../utils/timeUtils';
 
 const Post = ({ post }: { post: PostType }) => {
   const { user } = useAuth();
@@ -78,40 +76,44 @@ const Post = ({ post }: { post: PostType }) => {
 
   return (
     <article className="bg-dark-secondary p-4 rounded-lg border border-dark-tertiary">
-      <div className="flex items-center mb-3">
+      <div className="flex items-start space-x-3">
+        {/* Avatar Column */}
         <Link to={`/profile/${username}`} className="flex-shrink-0">
-          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold mr-3">
+          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold">
             {avatarUrl ? <img src={avatarUrl} alt={displayName} className="w-full h-full rounded-full object-cover" /> : <span>{avatarInitial}</span>}
           </div>
         </Link>
-        <div>
-          <Link to={`/profile/${username}`} className="hover:underline">
-             <p className="font-bold text-white">{displayName}</p>
-          </Link>
-          <div className="flex-1">
-              <div className="flex items-baseline flex-wrap space-x-2">
-                  <Link to={`/profile/${username}`} className="hover:underline">
-                      <p className="font-bold text-white leading-5">{displayName}</p>
-                  </Link>
-                  <span className="text-sm text-gray-400 leading-5">@{username}</span>
-                  <span className="text-gray-500 leading-5">&middot;</span>
-                  <Link to={`/post/${post.id}`} className="hover:underline text-sm text-gray-400 leading-5" title={new Date(post.created_at).toLocaleString()}>
-                      {formatTimestamp(post.created_at)}
-                  </Link>
-              </div>
-              <Link to={`/post/${post.id}`} className="block mt-1">
-                  <p className="text-gray-300 whitespace-pre-wrap">{post.content}</p>
-              </Link>
-          </div>
+        
+        {/* Content Column */}
+        <div className="flex-1">
+            {/* User Info Header: Wraps gracefully on mobile */}
+            <div className="flex items-baseline flex-wrap space-x-2">
+                <Link to={`/profile/${username}`} className="hover:underline">
+                    <p className="font-bold text-white leading-5">{displayName}</p>
+                </Link>
+                <span className="text-sm text-gray-400 leading-5">@{username}</span>
+                <span className="text-gray-500 leading-5">&middot;</span>
+                <Link to={`/post/${post.id}`} className="hover:underline text-sm text-gray-400 leading-5" title={new Date(post.created_at).toLocaleString()}>
+                    {formatTimestamp(post.created_at)}
+                </Link>
+            </div>
+            
+            {/* Post Text Content */}
+             <Link to={`/post/${post.id}`} className="block mt-1">
+                <p className="text-gray-300 whitespace-pre-wrap">{post.content}</p>
+             </Link>
         </div>
       </div>
       
-      <Link to={`/post/${post.id}`} className="block">
-        <p className="text-gray-300 mb-3 whitespace-pre-wrap">{post.content}</p>
-        {post.image_url && <img src={post.image_url} alt="Post content" className="rounded-lg w-full max-h-[500px] object-cover" />}
-      </Link>
+      {/* Post Image (indented to align with content) */}
+      {post.image_url && 
+        <Link to={`/post/${post.id}`} className="block ml-13 mt-3"> {/* ml-13 = w-10 avatar + space-x-3 */}
+            <img src={post.image_url} alt="Post content" className="rounded-lg w-full max-h-[500px] object-cover" />
+        </Link>
+      }
 
-      <div className="flex items-center text-gray-400 mt-4 text-sm">
+      {/* Action Buttons (indented to align with content) */}
+      <div className="flex items-center text-gray-400 mt-4 text-sm ml-13">
         <button disabled={isVoting} onClick={() => handleVote('like')} className="flex items-center space-x-2 hover:text-green-500 disabled:opacity-50">
           <ThumbsUpIcon className={`w-5 h-5 ${userVote === 'like' ? 'text-green-500' : ''}`} />
           <span>{post.like_count}</span>
