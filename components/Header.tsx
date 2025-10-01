@@ -1,3 +1,5 @@
+// src/components/Header.tsx (Updated for Left Sidebar)
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -5,7 +7,11 @@ import { supabase } from '../services/supabase';
 import { Profile, SearchResults as SearchResultsType } from '../types';
 import SearchResults from './SearchResults';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+    isSidebarExpanded: boolean;
+}
+
+const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
     const { user } = useAuth();
     const [profile, setProfile] = useState<Profile | null>(null);
     const navigate = useNavigate();
@@ -15,8 +21,9 @@ const Header: React.FC = () => {
     const [results, setResults] = useState<SearchResultsType | null>(null);
     const [loadingSearch, setLoadingSearch] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
-    const searchRef = useRef<HTMLDivElement>(null); // <-- THIS IS THE LINE THAT WAS MISSING
+    const searchRef = useRef<HTMLDivElement>(null);
 
+    // All existing useEffects and handlers remain the same...
     useEffect(() => {
         const fetchHeaderProfile = async () => {
             if (user) {
@@ -65,7 +72,11 @@ const Header: React.FC = () => {
     };
 
     return (
-        <header className="fixed top-0 left-0 right-0 bg-dark-secondary border-b border-dark-tertiary h-20 flex items-center justify-between px-6 z-40">
+        <header 
+            className={`fixed top-0 right-0 bg-dark-secondary border-b border-dark-tertiary h-20 flex items-center justify-between px-6 z-20 transition-all duration-300 ease-in-out ${
+                isSidebarExpanded ? 'left-60' : 'left-20'
+            }`}
+        >
             <div className="flex-shrink-0">
                 <Link 
                   to="/" 
@@ -83,7 +94,6 @@ const Header: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-4 flex-shrink-0">
-                {/* Nav items are now in the RightSidebar */}
                 <div className="relative" ref={dropdownRef}>
                     <button onClick={() => setDropdownOpen(!dropdownOpen)} className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
                         {profile?.avatar_url ? (
