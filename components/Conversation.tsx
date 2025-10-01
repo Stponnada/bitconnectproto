@@ -1,6 +1,6 @@
 // src/components/Conversation.tsx
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, 'useState', 'useEffect', 'useRef', 'useCallback' from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Profile } from '../types';
@@ -17,7 +17,7 @@ interface Message {
   id: number;
   sender_id: string;
   receiver_id: string;
-  encrypted_content: string;
+  encrypted_content: any; // Can be object from DB or string
   created_at: string;
   decrypted_content?: string;
 }
@@ -39,9 +39,8 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
     try {
       if (msg.decrypted_content) return msg;
 
-      // THIS IS THE CHANGE: Stringify the object from the DB before decrypting
+      // When reading from DB, msg.encrypted_content is an object. Stringify it for decryption.
       const decrypted_content = await decryptMessage(JSON.stringify(msg.encrypted_content));
-      
       return { ...msg, decrypted_content };
     } catch (e: any) {
       console.error(`Decryption failed for message ${msg.id}:`, e.message);
@@ -79,24 +78,37 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-// src/components/Conversation.tsx -> inside handleSendMessage
 
   const handleSendMessage = async (e: React.FormEvent) => {
-    // ...
-    // This now returns an object, not a string
-    const encryptedPayload = await encryptMessage(tempMessageContent, recipient.user_id);
+    // PREVENT BROWSER RELOAD - THIS IS THE FIX
+    e.preventDefault();
+    
+    if (!newMessage.trim() || !user) return;
 
-    const { data: sentMessage, error } = await supabase
-      .from('messages')
-      .insert({
-        sender_id: user.id,
-        receiver_id: recipient.user_id,
-        // THIS IS CORRECT: Pass the object directly
-        encrypted_content: encryptedPayload, 
-      })
-      .select()
-      .single();
-    // ...
+    const tempMessageContent = newMessage;
+    setNewMessage('');
+
+    try {
+      // encryptMessage now returns a JavaScript object
+      const encryptedPayload = await encryptMessage(tempMessageContent, recipient.user_id);
+
+      const { data: sentMessage, error } = await supabase
+        .from('messages')
+        .insert({
+          sender_id: user.id,
+          receiver_id: recipient.user_id,
+          encrypted_content: encryptedPayload, // Insert the object directly
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setMessages(prev => [...prev, { ...sentMessage, decrypted_content: tempMessageContent }]);
+    } catch (err: any) {
+      setError(`Failed to send message: ${err.message}`);
+      setNewMessage(tempMessageContent);
+    }
   };
   
   useEffect(() => {
