@@ -91,19 +91,19 @@ export async function getRecipientPublicKey(userId: string): Promise<X25519Publi
 // encryption: (message, recipientPublicKey) -> "nonceHex:ciphertextHex"
 export async function encryptMessage(message: string, recipientPublicKey: X25519PublicKey) {
   const sodium = await initSodium();
-  const { secretKey } = await getKeyPair(); // sender's secret key
-
+  const { secretKey } = await getKeyPair(); // sender's secret key (X25519SecretKey)
+  
   const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
-  // plaintext as Buffer
   const plaintextBuf = Buffer.from(message, 'utf8');
 
-  // crypto_box(plaintextBuf, nonce, recipientPublicKey, senderSecretKey)
-  const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, recipientPublicKey, secretKey);
+  // IMPORTANT: pass sender's secret key first, then recipient's public key
+  const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, secretKey, recipientPublicKey);
 
   const nonceHex = await sodium.sodium_bin2hex(nonce);
   const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
   return `${nonceHex}:${ciphertextHex}`;
 }
+
 
 // decryption: IMPORTANT: pass senderPublicKey first, then recipient (our) secretKey
 export async function decryptMessage(encrypted: string, senderPublicKey: X25519PublicKey) {
