@@ -1,6 +1,6 @@
-// src/services/encryption.ts (Final Correction for Key Types)
+// src/services/encryption.ts (FINAL - Correct Key Generation)
 
-import { SodiumPlus, X25519PublicKey, X25519SecretKey } from 'sodium-plus'; // <-- IMPORT a/X25519PublicKey, X25519SecretKey
+import { SodiumPlus, X25519PublicKey, X25519SecretKey } from 'sodium-plus';
 import { supabase } from './supabase';
 
 let sodium: SodiumPlus | null = null;
@@ -12,23 +12,35 @@ async function initSodium() {
   return sodium;
 }
 
+// THIS IS THE CORRECTED FUNCTION
 export async function generateAndStoreKeyPair() {
   const sodium = await initSodium();
   const { user } = (await supabase.auth.getUser()).data;
   if (!user) throw new Error('User not authenticated');
 
-  const keypair = await sodium.crypto_box_keypair();
-  const publicKey = await sodium.crypto_box_publickey(keypair);
-  const secretKey = await sodium.crypto_box_secretkey(keypair);
+  console.log(`Generating new key pair for user ${user.id}`);
 
+  // Generate the keypair object
+  const keypair = await sodium.crypto_box_keypair();
+  
+  // Get the public and secret keys directly from the keypair object
+  const publicKey = await keypair.getPublicKey();
+  const secretKey = await keypair.getSecretKey();
+
+  // Store the secret key (private key) in the browser's local storage
   localStorage.setItem(`spk_${user.id}`, secretKey.getBuffer().toString('hex'));
 
+  // Store the public key in the database
   const { error } = await supabase
     .from('public_keys')
-    .upsert({ user_id: user.id, public_key: publicKey.getBuffer().toString('hex') });
+    .upsert({ 
+      user_id: user.id, 
+      public_key: publicKey.getBuffer().toString('hex') 
+    });
     
   if (error) throw error;
   
+  console.log(`Successfully stored new key pair for user ${user.id}`);
   return { publicKey, secretKey };
 }
 
@@ -41,26 +53,33 @@ export async function getKeyPair() {
     return generateAndStoreKeyPair();
   }
 
-  const sodium = await initSodium();
-  const secretKeyBuffer = sodium.sodium_hex2bin(secretKeyHex);
+  try {
+    const sodium = await initSodium();
+    const secretKeyBuffer = sodium.sodium_hex2bin(secretKeyHex);
 
-  const { data: publicKeyData, error } = await supabase
-    .from('public_keys')
-    .select('public_key')
-    .eq('user_id', user.id)
-    .single();
+    const { data: publicKeyData, error } = await supabase
+      .from('public_keys')
+      .select('public_key')
+      .eq('user_id', user.id)
+      .single();
 
-  if (error || !publicKeyData) {
+    if (error || !publicKeyData) {
+      console.warn("Public key not in DB. Regenerating pair.");
+      return generateAndStoreKeyPair();
+    }
+    
+    const publicKeyBuffer = sodium.sodium_hex2bin(publicKeyData.public_key);
+    
+    const secretKey = new X25519SecretKey(secretKeyBuffer);
+    const publicKey = new X25519PublicKey(publicKeyBuffer);
+    
+    return { publicKey, secretKey };
+
+  } catch (error) {
+    console.warn("Invalid key found. Regenerating...", error);
+    localStorage.removeItem(`spk_${user.id}`);
     return generateAndStoreKeyPair();
   }
-  
-  const publicKeyBuffer = sodium.sodium_hex2bin(publicKeyData.public_key);
-  
-  // --- THE FIX: Re-wrap the Buffers into the special key objects ---
-  const secretKey = new X25519SecretKey(secretKeyBuffer);
-  const publicKey = new X25519PublicKey(publicKeyBuffer);
-  
-  return { publicKey, secretKey };
 }
 
 export async function getRecipientPublicKey(userId: string): Promise<X25519PublicKey> {
@@ -69,12 +88,15 @@ export async function getRecipientPublicKey(userId: string): Promise<X25519Publi
     .select('public_key')
     .eq('user_id', userId)
     .single();
-  if (error) throw new Error(`Could not fetch public key for user ${userId}. They may not have used chat yet.`);
+
+  if (error) {
+    console.error(`Failed to get public key for ${userId}`, error);
+    throw new Error(`Could not fetch public key for user ${userId}. They may not have used chat yet.`);
+  }
 
   const sodium = await initSodium();
   const publicKeyBuffer = sodium.sodium_hex2bin(data.public_key);
   
-  // --- THE FIX: Re-wrap the Buffer into the special public key object ---
   return new X25519PublicKey(publicKeyBuffer);
 }
 
