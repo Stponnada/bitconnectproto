@@ -1,6 +1,6 @@
-// src/services/encryption.ts
+// src/services/encryption.ts (Corrected)
 
-import { SodiumPlus } from 'sodium-plus';
+import { SodiumPlus, Hidden } from 'sodium-plus'; // <-- IMPORT 'Hidden' CLASS
 import { supabase } from './supabase';
 
 let sodium: SodiumPlus | null = null;
@@ -33,7 +33,7 @@ export async function generateAndStoreKeyPair() {
     
   if (error) throw error;
   
-  return { publicKey, secretKey };
+  return { publicKey: new Hidden(publicKey.getBuffer()), secretKey: new Hidden(secretKey.getBuffer()) };
 }
 
 // Retrieves the current user's key pair, generating if it doesn't exist
@@ -47,7 +47,7 @@ export async function getKeyPair() {
   }
 
   const sodium = await initSodium();
-  const secretKey = sodium.sodium_hex2bin(secretKeyHex);
+  const secretKeyBuffer = sodium.sodium_hex2bin(secretKeyHex);
 
   const { data: publicKeyData, error } = await supabase
     .from('public_keys')
@@ -60,9 +60,13 @@ export async function getKeyPair() {
     return generateAndStoreKeyPair();
   }
   
-  const publicKey = sodium.sodium_hex2bin(publicKeyData.public_key);
+  const publicKeyBuffer = sodium.sodium_hex2bin(publicKeyData.public_key);
   
-  return { publicKey: await sodium.createHidden(publicKey), secretKey: await sodium.createHidden(secretKey) };
+  // --- FIX: Use 'new Hidden()' instead of 'sodium.createHidden()' ---
+  return { 
+      publicKey: new Hidden(publicKeyBuffer), 
+      secretKey: new Hidden(secretKeyBuffer) 
+  };
 }
 
 // Fetches another user's public key from the database
@@ -75,12 +79,14 @@ export async function getRecipientPublicKey(userId: string) {
   if (error) throw new Error(`Could not fetch public key for user ${userId}. They may not have used chat yet.`);
 
   const sodium = await initSodium();
-  const publicKey = sodium.sodium_hex2bin(data.public_key);
-  return sodium.createHidden(publicKey);
+  const publicKeyBuffer = sodium.sodium_hex2bin(data.public_key);
+  
+  // --- FIX: Use 'new Hidden()' instead of 'sodium.createHidden()' ---
+  return new Hidden(publicKeyBuffer);
 }
 
 // Encrypts a message for a recipient
-export async function encryptMessage(message: string, recipientPublicKey: any) {
+export async function encryptMessage(message: string, recipientPublicKey: Hidden) { // Type hint changed
   const sodium = await initSodium();
   const { secretKey } = await getKeyPair();
   
@@ -92,7 +98,7 @@ export async function encryptMessage(message: string, recipientPublicKey: any) {
 }
 
 // Decrypts a message
-export async function decryptMessage(encrypted: string, senderPublicKey: any) {
+export async function decryptMessage(encrypted: string, senderPublicKey: Hidden) { // Type hint changed
   const sodium = await initSodium();
   const { secretKey } = await getKeyPair();
 
