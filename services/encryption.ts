@@ -95,7 +95,10 @@ export async function encryptMessage(message: string, recipientPublicKey: X25519
   const nonceHex = await sodium.sodium_bin2hex(nonce);
   const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
 
+  // log before returning
+  console.log('Encrypting message for recipient:', recipientPublicKey.getBuffer().toString('hex').slice(0,16));
   console.log('encryptMessage OK', { nonceHex, len: ciphertext.length });
+
   return `${nonceHex}:${ciphertextHex}`;
 }
 
@@ -113,7 +116,10 @@ export async function decryptMessage(encrypted: string, senderPublicKey: X25519P
   const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, secretKey, senderPublicKey);
   const msg = decryptedBuf.toString('utf8');
 
+  // log before returning
+  console.log('Decrypting message from sender:', senderPublicKey.getBuffer().toString('hex').slice(0,16));
   console.log('decryptMessage OK ->', msg);
+
   return msg;
 }
 
