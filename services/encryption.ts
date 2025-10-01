@@ -29,7 +29,6 @@ export async function getKeyPair() {
   if (!user) throw new Error('User not authenticated');
   const deviceId = getDeviceId();
   
-  // Use a unique localStorage key for each user's secret key
   const storageKey = `spk_${user.id}`;
   const secretKeyHex = localStorage.getItem(storageKey);
 
@@ -73,7 +72,7 @@ async function getRecipientDeviceKeys(userId: string): Promise<{ device_id: stri
   }
 
   return Promise.all(data.map(async (key) => {
-    const publicKeyBuffer = await sodium.sodium_hex2bin(key.public_key);
+    const publicKeyBuffer = await sodium.sodium_bin2bin(key.public_key);
     return {
       device_id: key.device_id,
       public_key: new X25519PublicKey(publicKeyBuffer),
@@ -93,7 +92,9 @@ export async function encryptMessage(message: string, recipientId: string) {
 
   for (const deviceKey of recipientKeys) {
     const nonce = await sodium.randombytes_buf(sodium.CRYPTO_BOX_NONCEBYTES);
-    const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, deviceKey.public_key, senderSecretKey);
+    // FIXED: Swapped senderSecretKey and deviceKey.public_key
+    const ciphertext = await sodium.crypto_box(plaintextBuf, nonce, senderSecretKey, deviceKey.public_key);
+
     const nonceHex = await sodium.sodium_bin2hex(nonce);
     const ciphertextHex = await sodium.sodium_bin2hex(ciphertext);
     devicePayload[deviceKey.device_id] = `${nonceHex}:${ciphertextHex}`;
@@ -136,7 +137,8 @@ export async function decryptMessage(encryptedPayloadStr: string) {
   const nonce = await sodium.sodium_hex2bin(nonceHex);
   const ciphertext = await sodium.sodium_hex2bin(ciphertextHex);
 
-  const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, senderPublicKey, recipientSecretKey);
+  // FIXED: Swapped recipientSecretKey and senderPublicKey
+  const decryptedBuf = await sodium.crypto_box_open(ciphertext, nonce, recipientSecretKey, senderPublicKey);
   const msg = decryptedBuf.toString('utf8');
   console.log('decryptMessage OK ->', msg);
   return msg;
