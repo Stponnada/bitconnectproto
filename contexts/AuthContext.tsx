@@ -1,6 +1,6 @@
 // src/contexts/AuthContext.tsx
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'; // Add useCallback
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 import { Profile } from '../types';
@@ -10,7 +10,7 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   isLoading: boolean;
-  refreshProfile: () => Promise<void>; // <-- ADD THIS
+  refreshProfile: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -18,7 +18,7 @@ export const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   isLoading: true,
-  refreshProfile: async () => {}, // <-- ADD DEFAULT
+  refreshProfile: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -27,38 +27,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- START: NEW FUNCTION ---
   const refreshProfile = useCallback(async () => {
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     if (currentUser) {
-      const { data: profileData } = await supabase
+      const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', currentUser.id)
         .single();
+      if (error) console.error("Error refreshing profile:", error);
       setProfile(profileData as Profile | null);
       console.log('Profile refreshed in context.');
     }
   }, []);
-  // --- END: NEW FUNCTION ---
 
   useEffect(() => {
+    // This handles the initial session load and any subsequent auth changes.
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setIsLoading(true);
-        const currentUser = session?.user ?? null;
-        setSession(session);
-        setUser(currentUser);
-        if (currentUser) {
-          const { data: profileData } = await supabase.from('profiles').select('*').eq('user_id', currentUser.id).single();
-          setProfile(profileData as Profile | null);
-        } else {
-          setProfile(null);
+        // --- START OF THE FIX ---
+        // We wrap the entire logic in a try/finally block. This ensures that
+        // setIsLoading(false) is ALWAYS called, preventing the app from getting
+        // stuck on a loading screen if the profile fetch fails on reload.
+        try {
+          setIsLoading(true);
+          const currentUser = session?.user ?? null;
+          setSession(session);
+          setUser(currentUser);
+
+          if (currentUser) {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', currentUser.id)
+              .single();
+            setProfile(profileData as Profile | null);
+          } else {
+            setProfile(null);
+          }
+        } catch (error) {
+          console.error("Error in onAuthStateChange handler:", error);
+          setProfile(null); // Reset profile on error
+        } finally {
+          setIsLoading(false);
         }
-        setIsLoading(false);
+        // --- END OF THE FIX ---
       }
     );
-    
+
+    // Initial check in case onAuthStateChange doesn't fire immediately.
     supabase.auth.getSession().then(({ data: { session } }) => { 
         if (!session) {
              setIsLoading(false);
@@ -70,7 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  const value = { session, user, profile, isLoading, refreshProfile }; // <-- ADD refreshProfile
+  const value = { session, user, profile, isLoading, refreshProfile };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
