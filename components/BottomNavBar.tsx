@@ -4,12 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon } from './icons';
+import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon } from './icons'; // <-- MODIFIED: Swapped SearchIcon for UserIcon
 
 const BottomNavBar: React.FC = () => {
   const { user } = useAuth();
   const [username, setUsername] = useState<string | null>(null);
 
+  // <-- NEW: Fetch username to create the correct profile link
   useEffect(() => {
     const fetchUsername = async () => {
       if (user) {
@@ -48,6 +49,7 @@ const BottomNavBar: React.FC = () => {
       >
         <ChatIcon className="w-7 h-7" />
       </NavLink>
+      {/* <-- MODIFIED: This now links to the user's profile page */}
       {username && (
         <NavLink 
           to={`/profile/${username}`} 

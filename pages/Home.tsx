@@ -124,10 +124,22 @@ const MediaPreview: React.FC<{ file: File, onRemove: () => void }> = ({ file, on
 // HomePage Component
 export const HomePage: React.FC = () => {
     const { posts, loading: postsLoading, error: postsError, addPostToContext } = usePosts();
-    // --- THIS IS THE FIX ---
-    // Use the global profile and loading state from AuthContext.
-    // This removes the buggy local state management.
-    const { profile, isLoading: profileLoading } = useAuth();
+    const { user } = useAuth();
+    
+    const [profile, setProfile] = useState<Profile | null>(null);
+    const [profileLoading, setProfileLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchProfile = async () => {
+            if (!user) return;
+            setProfileLoading(true);
+            const { data, error } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+            if (error) console.error("Error fetching profile:", error);
+            else setProfile(data);
+            setProfileLoading(false);
+        };
+        fetchProfile();
+    }, [user]);
 
     if (postsLoading || profileLoading) {
         return <div className="text-center p-8"><Spinner /></div>;
@@ -139,10 +151,7 @@ export const HomePage: React.FC = () => {
 
     return (
         <div className="max-w-3xl mx-auto">
-            {/* The CreatePost component will only render if the profile is loaded and complete,
-                as ensured by ProtectedRoute and this check. */}
             {profile && <CreatePost onPostCreated={addPostToContext} profile={profile} />}
-            
             {posts.length > 0 ? (
                 <div className="space-y-4">
                     {posts.map(post => <PostComponent key={post.id} post={post} />)}

@@ -1,19 +1,13 @@
-// src/components/ProtectedRoute.tsx
-
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import Spinner from './Spinner';
+import Spinner from './Spinner'; // Assuming you have a loading spinner component
 
 const ProtectedRoute = () => {
   const { user, isLoading } = useAuth();
 
   // 1. While we're checking for a user, show a loading spinner
   if (isLoading) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center bg-dark-primary">
-            <Spinner />
-        </div>
-    );
+    return <Spinner />; // Or any loading indicator
   }
 
   // 2. After loading, if there's a user, show the requested page

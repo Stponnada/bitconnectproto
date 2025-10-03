@@ -1,4 +1,4 @@
-// src/pages/Login.tsx
+// src/pages/Login.tsx (Complete with new Logo)
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -22,7 +22,7 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { session, isLoading: authLoading } = useAuth();
+  const { session, loading: authLoading } = useAuth();
   
   const idleImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.57.42%20PM.png';
   const activeImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.41.01%20PM.png';
@@ -97,6 +97,7 @@ const Login: React.FC = () => {
       </div>
       <div className="w-full max-w-md lg:w-1/2 flex items-center justify-center p-8 order-first lg:order-last">
         <div className="text-center lg:text-left">
+          {/* --- MODIFIED: Logo text and font classes updated --- */}
           <h1 className="text-5xl lg:text-6xl font-raleway font-black text-brand-green">litelelo.</h1>
           <p className="text-gray-400 mt-4 text-lg">The exclusive social network for BITSians.</p>
         </div>
