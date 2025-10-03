@@ -42,50 +42,69 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    // This handles the initial session load and any subsequent auth changes.
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        // --- START OF THE FIX ---
-        // We wrap the entire logic in a try/finally block. This ensures that
-        // setIsLoading(false) is ALWAYS called, preventing the app from getting
-        // stuck on a loading screen if the profile fetch fails on reload.
-        try {
-          setIsLoading(true);
-          const currentUser = session?.user ?? null;
-          setSession(session);
-          setUser(currentUser);
+    let isMounted = true;
 
-          if (currentUser) {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', currentUser.id)
-              .single();
-            setProfile(profileData as Profile | null);
-          } else {
-            setProfile(null);
-          }
-        } catch (error) {
-          console.error("Error in onAuthStateChange handler:", error);
-          setProfile(null); // Reset profile on error
-        } finally {
+    // --- START OF THE FIX ---
+    // This function handles the very first load of the application.
+    async function getInitialSession() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (isMounted) {
+            setSession(session);
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+            
+            if (currentUser) {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .single();
+              setProfile(profileData as Profile | null);
+            }
+        }
+      } catch (error) {
+        console.error("Error fetching initial session:", error);
+      } finally {
+        // This is the most important part: GUARANTEE that loading is set to false.
+        if (isMounted) {
           setIsLoading(false);
         }
-        // --- END OF THE FIX ---
+      }
+    }
+
+    getInitialSession();
+    // --- END OF THE FIX ---
+
+    // Set up a listener for real-time auth changes (e.g., login, logout).
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (isMounted) {
+            setSession(session);
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+
+            if(currentUser) {
+                const { data: profileData } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .single();
+                setProfile(profileData as Profile | null);
+            } else {
+                setProfile(null);
+            }
+        }
       }
     );
 
-    // Initial check in case onAuthStateChange doesn't fire immediately.
-    supabase.auth.getSession().then(({ data: { session } }) => { 
-        if (!session) {
-             setIsLoading(false);
-        }
-    });
-
     return () => {
+      isMounted = false;
       authListener.subscription.unsubscribe();
     };
   }, []);
+
 
   const value = { session, user, profile, isLoading, refreshProfile };
 
