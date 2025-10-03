@@ -18,6 +18,8 @@ export interface Profile {
   dorm_building: string | null;
   dorm_room: string | null;
   dining_hall: string | null;
+  gender: string | null;
+  birthday: string | null; // <-- ADD THIS LINE
   clubs?: string | null;
   profile_complete?: boolean;
   created_at?: string;
