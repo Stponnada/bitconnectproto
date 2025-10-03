@@ -8,7 +8,7 @@ import { usePosts } from '../contexts/PostsContext';
 import { Post as PostType } from '../types';
 import { ThumbsUpIcon, ThumbsDownIcon, CommentIcon } from './icons';
 import { formatTimestamp } from '../utils/timeUtils';
-import LightBox from './LightBox'; // <-- MODIFIED: Import the new component
+import LightBox from './lightbox.tsx'; // <-- MODIFIED: Import the new component
 
 const Post = ({ post }: { post: PostType }) => {
   const { user } = useAuth();
