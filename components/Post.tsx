@@ -1,3 +1,5 @@
+// src/components/Post.tsx
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
@@ -6,6 +8,7 @@ import { usePosts } from '../contexts/PostsContext';
 import { Post as PostType } from '../types';
 import { ThumbsUpIcon, ThumbsDownIcon, CommentIcon } from './icons';
 import { formatTimestamp } from '../utils/timeUtils';
+import LightBox from './LightBox'; // <-- MODIFIED: Import the new component
 
 const Post = ({ post }: { post: PostType }) => {
   const { user } = useAuth();
@@ -13,6 +16,7 @@ const Post = ({ post }: { post: PostType }) => {
 
   const [userVote, setUserVote] = useState(post.user_vote);
   const [isVoting, setIsVoting] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false); // <-- MODIFIED: Add state for lightbox
 
   const handleVote = async (newVoteType: 'like' | 'dislike') => {
     if (!user || isVoting) return;
@@ -75,58 +79,71 @@ const Post = ({ post }: { post: PostType }) => {
   const avatarInitial = displayName.charAt(0).toUpperCase();
 
   return (
-    <article className="bg-dark-secondary p-4 rounded-lg border border-dark-tertiary">
-      <div className="flex items-start space-x-3">
-        {/* Avatar Column */}
-        <Link to={`/profile/${username}`} className="flex-shrink-0">
-          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold">
-            {avatarUrl ? <img src={avatarUrl} alt={displayName} className="w-full h-full rounded-full object-cover" /> : <span>{avatarInitial}</span>}
-          </div>
-        </Link>
-        
-        {/* Content Column */}
-        <div className="flex-1">
-            <div className="flex flex-col md:flex-row md:items-baseline md:space-x-2">
-                <Link to={`/profile/${username}`} className="hover:underline">
-                    {/* THIS IS THE CHANGE: font-bold is now font-semibold */}
-                    <p className="font-semibold text-white leading-tight">{displayName}</p>
-                </Link>
-                <div className="flex items-center space-x-2 text-sm text-gray-400">
-                    <span>@{username}</span>
-                    <span className="text-gray-500">&middot;</span>
-                    <Link to={`/post/${post.id}`} className="hover:underline" title={new Date(post.created_at).toLocaleString()}>
-                        {formatTimestamp(post.created_at)}
-                    </Link>
-                </div>
+    <>
+      <article className="bg-dark-secondary p-4 rounded-lg border border-dark-tertiary">
+        <div className="flex items-start space-x-3">
+          {/* Avatar Column */}
+          <Link to={`/profile/${username}`} className="flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold">
+              {avatarUrl ? <img src={avatarUrl} alt={displayName} className="w-full h-full rounded-full object-cover" /> : <span>{avatarInitial}</span>}
             </div>
-            
-             <Link to={`/post/${post.id}`} className="block mt-1">
-                <p className="text-gray-300 whitespace-pre-wrap">{post.content}</p>
-             </Link>
+          </Link>
+          
+          {/* Content Column */}
+          <div className="flex-1">
+              <div className="flex flex-col md:flex-row md:items-baseline md:space-x-2">
+                  <Link to={`/profile/${username}`} className="hover:underline">
+                      <p className="font-semibold text-white leading-tight">{displayName}</p>
+                  </Link>
+                  <div className="flex items-center space-x-2 text-sm text-gray-400">
+                      <span>@{username}</span>
+                      <span className="text-gray-500">&middot;</span>
+                      <Link to={`/post/${post.id}`} className="hover:underline" title={new Date(post.created_at).toLocaleString()}>
+                          {formatTimestamp(post.created_at)}
+                      </Link>
+                  </div>
+              </div>
+              
+               <Link to={`/post/${post.id}`} className="block mt-1">
+                  <p className="text-gray-300 whitespace-pre-wrap">{post.content}</p>
+               </Link>
+          </div>
         </div>
-      </div>
-      
-      {post.image_url && 
-        <Link to={`/post/${post.id}`} className="block ml-13 mt-3">
-            <img src={post.image_url} alt="Post content" className="rounded-lg w-full max-h-[500px] object-cover" />
-        </Link>
-      }
+        
+        {/* -- MODIFIED: This block now handles opening the lightbox -- */}
+        {post.image_url && 
+          <div className="block ml-13 mt-3">
+            <button onClick={() => setIsLightboxOpen(true)} className="w-full h-full focus:outline-none">
+              <img 
+                src={post.image_url} 
+                alt="Post content" 
+                className="rounded-lg w-full max-h-[500px] object-cover cursor-pointer" 
+              />
+            </button>
+          </div>
+        }
 
-      <div className="flex items-center text-gray-400 mt-4 text-sm ml-13">
-        <button disabled={isVoting} onClick={() => handleVote('like')} className="flex items-center space-x-2 hover:text-green-500 disabled:opacity-50">
-          <ThumbsUpIcon className={`w-5 h-5 ${userVote === 'like' ? 'text-green-500' : ''}`} />
-          <span>{post.like_count}</span>
-        </button>
-        <button disabled={isVoting} onClick={() => handleVote('dislike')} className="flex items-center space-x-2 ml-4 hover:text-red-500 disabled:opacity-50">
-          <ThumbsDownIcon className={`w-5 h-5 ${userVote === 'dislike' ? 'text-red-500' : ''}`} />
-          <span>{post.dislike_count}</span>
-        </button>
-        <Link to={`/post/${post.id}`} className="flex items-center space-x-2 ml-4 hover:text-blue-500">
-            <CommentIcon className="w-5 h-5" />
-            <span>{post.comment_count || 0}</span>
-        </Link>
-      </div>
-    </article>
+        <div className="flex items-center text-gray-400 mt-4 text-sm ml-13">
+          <button disabled={isVoting} onClick={() => handleVote('like')} className="flex items-center space-x-2 hover:text-green-500 disabled:opacity-50">
+            <ThumbsUpIcon className={`w-5 h-5 ${userVote === 'like' ? 'text-green-500' : ''}`} />
+            <span>{post.like_count}</span>
+          </button>
+          <button disabled={isVoting} onClick={() => handleVote('dislike')} className="flex items-center space-x-2 ml-4 hover:text-red-500 disabled:opacity-50">
+            <ThumbsDownIcon className={`w-5 h-5 ${userVote === 'dislike' ? 'text-red-500' : ''}`} />
+            <span>{post.dislike_count}</span>
+          </button>
+          <Link to={`/post/${post.id}`} className="flex items-center space-x-2 ml-4 hover:text-blue-500">
+              <CommentIcon className="w-5 h-5" />
+              <span>{post.comment_count || 0}</span>
+          </Link>
+        </div>
+      </article>
+
+      {/* -- MODIFIED: Conditionally render the lightbox component -- */}
+      {isLightboxOpen && post.image_url && (
+          <LightBox imageUrl={post.image_url} onClose={() => setIsLightboxOpen(false)} />
+      )}
+    </>
   );
 };
 
