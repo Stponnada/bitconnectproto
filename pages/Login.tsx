@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/supabase';
 import Spinner from '../components/Spinner';
-// --- REMOVED: useNavigate and useAuth are no longer needed here ---
 
 const BITS_DOMAINS = [
   'hyderabad.bits-pilani.ac.in',
@@ -26,8 +25,6 @@ const Login: React.FC = () => {
   
   const [activeImage, setActiveImage] = useState<string>(idleImageUrl);
 
-  // --- REMOVED: All useEffect hooks for navigation have been removed ---
-
   const validateEmail = (email: string) => {
     const domain = email.split('@')[1];
     return BITS_DOMAINS.includes(domain);
@@ -41,7 +38,7 @@ const Login: React.FC = () => {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // Navigation is now handled by our routing components
+        // On success, AuthContext will update and routing components will redirect.
       } else {
         if (password !== confirmPassword) { throw new Error("Passwords do not match."); }
         if (!validateEmail(email)) { throw new Error("Please use a valid BITS Pilani email address."); }
@@ -50,7 +47,7 @@ const Login: React.FC = () => {
         if (!data.user) throw new Error("Sign up successful, but no user data returned.");
         const { error: profileError } = await supabase.from('profiles').insert({ user_id: data.user.id, username: username, email: data.user.email });
         if (profileError) { throw profileError; }
-        // Navigation is now handled by our routing components
+        // On success, AuthContext will update and routing components will redirect.
       }
     } catch (error: any) {
       setError(error.message);
@@ -58,8 +55,6 @@ const Login: React.FC = () => {
       setLoading(false);
     }
   };
-  
-  // --- REMOVED: All conditional spinner logic is now in the route components ---
 
   return (
     <div className="flex flex-col lg:flex-row items-center justify-center min-h-screen bg-dark-primary p-4">
