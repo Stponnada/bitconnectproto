@@ -5,8 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import Spinner from './Spinner';
 
 const UnauthenticatedRoute = () => {
-  // We need the profile here to make an intelligent redirect decision.
-  const { user, profile, isLoading } = useAuth();
+  // We ONLY need user and isLoading here. The profile check is handled by ProtectedRoute.
+  const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -16,17 +16,10 @@ const UnauthenticatedRoute = () => {
     );
   }
 
-  // If a user is logged in, we need to redirect them away from the login page.
+  // If a user is logged in, redirect them away from the login page.
+  // The ProtectedRoute component will then correctly handle routing them
+  // to either the homepage or the setup page.
   if (user) {
-    
-    // --- THIS IS THE FIX ---
-    // Instead of always redirecting to "/", we check the profile status first.
-    if (profile && !profile.profile_complete) {
-      // If the profile is incomplete, send them directly to the setup page.
-      return <Navigate to="/setup" replace />;
-    }
-    
-    // Otherwise, the profile is complete, so send them to the homepage.
     return <Navigate to="/" replace />;
   }
 
