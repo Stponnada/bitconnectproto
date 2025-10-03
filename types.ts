@@ -28,6 +28,15 @@ export interface Profile {
   is_following: boolean; // Is the current user following this profile?
 }
 
+// --- NEW TYPE for the chat list ---
+export interface ConversationSummary {
+  participant: Profile;
+  last_message_sender_id: string;
+  last_message_content: string;
+  last_message_at: string;
+  unread_count: number;
+}
+
 // ... Post, Comment, and Search interfaces remain the same
 
 export interface Post {

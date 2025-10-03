@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useChat } from '../contexts/ChatContext'; // <-- Import useChat
 import { supabase } from '../services/supabase';
 import {
   HomeIcon,
@@ -24,6 +24,7 @@ interface LeftSidebarProps {
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, username }) => {
   const navigate = useNavigate();
+  const { totalUnreadCount } = useChat(); // <-- Get unread count
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -59,7 +60,16 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, us
         <nav className="flex-grow mt-4">
           <NavLink to="/" icon={<HomeIcon className="w-7 h-7 flex-shrink-0" />} text="Home" />
           <NavLink to="/directory" icon={<BookOpenIcon className="w-7 h-7 flex-shrink-0" />} text="Directory" />
-          <NavLink to="/chat" icon={<ChatIcon className="w-7 h-7 flex-shrink-0" />} text="Messages" />
+          <NavLink
+            to="/chat"
+            icon={
+              <div className="relative">
+                <ChatIcon className="w-7 h-7 flex-shrink-0" />
+                {totalUnreadCount > 0 && <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-brand-green ring-2 ring-dark-secondary" />}
+              </div>
+            }
+            text="Messages"
+          />
           {username && (
             <NavLink to={`/profile/${username}`} icon={<UserIcon className="w-7 h-7 flex-shrink-0" />} text="Profile" />
           )}

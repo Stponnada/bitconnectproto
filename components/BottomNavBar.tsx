@@ -3,12 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useChat } from '../contexts/ChatContext'; // <-- Import useChat
 import { supabase } from '../services/supabase';
 import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon } from './icons'; // <-- MODIFIED: Swapped SearchIcon for UserIcon
 
 const BottomNavBar: React.FC = () => {
   const { user } = useAuth();
   const [username, setUsername] = useState<string | null>(null);
+  const { totalUnreadCount } = useChat(); // <-- Get unread count
 
   // <-- NEW: Fetch username to create the correct profile link
   useEffect(() => {
@@ -47,7 +49,10 @@ const BottomNavBar: React.FC = () => {
         to="/chat" 
         className={({ isActive }) => `flex-1 flex flex-col items-center justify-center ${isActive ? activeLinkStyle : inactiveLinkStyle}`}
       >
-        <ChatIcon className="w-7 h-7" />
+        <div className="relative">
+          <ChatIcon className="w-7 h-7" />
+          {totalUnreadCount > 0 && <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-brand-green ring-2 ring-dark-secondary" />}
+        </div>
       </NavLink>
       {/* <-- MODIFIED: This now links to the user's profile page */}
       {username && (

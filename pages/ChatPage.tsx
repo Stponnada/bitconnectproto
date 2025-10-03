@@ -1,40 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../services/supabase';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Profile } from '../types';
 import Spinner from '../components/Spinner';
 import Conversation from '../components/Conversation';
-import { getKeyPair } from '../services/encryption';
+import { useChat } from '../contexts/ChatContext'; // <-- Import the new context hook
+import { formatTimestamp } from '../utils/timeUtils'; // To format the last message time
 
 const ChatPage: React.FC = () => {
   const { user } = useAuth();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
+  // State from our new context, conversations are now sorted by recency
+  const { conversations, loading, markConversationAsRead } = useChat();
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    const initializeChat = async () => {
-      setLoading(true);
-      try {
-        await getKeyPair(); 
-        const { data, error } = await supabase.from('profiles').select('*');
-        if (error) throw error;
-        setProfiles(data?.filter(p => p.user_id !== user?.id) || []);
-      } catch (error: any) {
-        console.error("Error initializing chat:", error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (user) {
-        initializeChat();
-    }
-  }, [user]);
+  const handleSelectConversation = useCallback((profile: Profile) => {
+    setSelectedProfile(profile);
+    // When a conversation is selected, mark its messages as read
+    markConversationAsRead(profile.user_id);
+  }, [markConversationAsRead]);
   
-  const filteredProfiles = profiles.filter(profile =>
-    profile.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    profile.username.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter conversations based on the search term
+  const filteredConversations = conversations.filter(conv =>
+    conv.participant.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    conv.participant.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -55,7 +43,7 @@ const ChatPage: React.FC = () => {
         {/* Pane 1: Contacts List */}
         <div className="w-full h-full flex-shrink-0 md:w-96 md:border-r md:border-dark-tertiary flex flex-col">
           <div className="p-4 border-b border-dark-tertiary">
-            <h2 className="text-xl font-bold">Contacts</h2>
+            <h2 className="text-xl font-bold">Messages</h2>
             <input
               type="text" 
               placeholder="Search contacts..." 
@@ -65,20 +53,31 @@ const ChatPage: React.FC = () => {
             />
           </div>
           <ul className="flex-1 overflow-y-auto">
-            {filteredProfiles.map(profile => (
+            {filteredConversations.map(conv => (
               <li 
-                key={profile.user_id} 
-                onClick={() => setSelectedProfile(profile)}
+                key={conv.participant.user_id} 
+                onClick={() => handleSelectConversation(conv.participant)}
                 className="p-4 flex items-center space-x-4 cursor-pointer hover:bg-dark-tertiary transition-colors"
               >
                 <img 
-                  src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name || profile.username}`} 
-                  alt={profile.username} 
+                  src={conv.participant.avatar_url || `https://ui-avatars.com/api/?name=${conv.participant.full_name || conv.participant.username}`} 
+                  alt={conv.participant.username} 
                   className="w-12 h-12 rounded-full object-cover"
                 />
-                <div>
-                  <p className="font-bold text-white">{profile.full_name}</p>
-                  <p className="text-sm text-gray-400">@{profile.username}</p>
+                <div className="flex-1 overflow-hidden">
+                  <div className="flex justify-between items-baseline">
+                    <p className="font-bold text-white truncate">{conv.participant.full_name}</p>
+                    <p className="text-xs text-gray-500 flex-shrink-0">{formatTimestamp(conv.last_message_at)}</p>
+                  </div>
+                  <div className="flex justify-between items-start mt-1">
+                     <p className={`text-sm truncate ${conv.unread_count > 0 ? 'text-white font-semibold' : 'text-gray-400'}`}>
+                        {conv.last_message_sender_id === user?.id ? 'You: ' : ''}
+                        {conv.last_message_content}
+                     </p>
+                    {conv.unread_count > 0 && (
+                       <span className="flex-shrink-0 ml-2 bg-brand-green text-black text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{conv.unread_count}</span>
+                    )}
+                  </div>
                 </div>
               </li>
             ))}
