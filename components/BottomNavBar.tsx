@@ -1,12 +1,12 @@
 // src/components/BottomNavBar.tsx
 
 import React from 'react';
-import { NavLink } from 'react-router-dom'; // <-- THIS LINE WAS MISSING. THIS IS THE FIX.
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon } from './icons';
 
 const BottomNavBar: React.FC = () => {
-  const { profile } = useAuth(); // Use profile from context
+  const { profile } = useAuth();
   const username = profile?.username;
 
   const activeLinkStyle = 'text-brand-green';

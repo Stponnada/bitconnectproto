@@ -2,14 +2,12 @@
 
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import Header from './Header';
 import LeftSidebar from './LeftSidebar';
 import BottomNavBar from './BottomNavBar';
 
 const Layout = () => {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
-  // <-- REMOVED: Redundant useEffect and state for username
   
   return (
     <div className="md:flex">
@@ -17,7 +15,6 @@ const Layout = () => {
         <LeftSidebar 
           isExpanded={isSidebarExpanded} 
           setIsExpanded={setIsSidebarExpanded}
-          // <-- REMOVED: username prop is no longer needed
         />
       </div>
 

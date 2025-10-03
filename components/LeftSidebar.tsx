@@ -1,12 +1,22 @@
 // src/components/LeftSidebar.tsx
 
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon, LogoutIcon } from './icons';
+import {
+  HomeIcon,
+  BookOpenIcon,
+  ChatIcon,
+  UserIcon,
+  LogoutIcon,
+} from './icons';
 
-// ... (MenuIcon remains the same)
+const MenuIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+  </svg>
+);
 
 interface LeftSidebarProps {
     isExpanded: boolean;
@@ -14,7 +24,7 @@ interface LeftSidebarProps {
 }
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded }) => {
-  const { profile } = useAuth(); // <-- MODIFIED: Use profile from context
+  const { profile } = useAuth();
   const username = profile?.username;
   const navigate = useNavigate();
 
@@ -23,7 +33,10 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded }) 
     navigate('/login');
   };
   
-  // ... (NavLink component remains the same) ...
+  const baseLinkStyle = "flex items-center p-3 my-1 space-x-4 rounded-lg";
+  const activeLinkStyle = "bg-dark-tertiary text-white";
+  const inactiveLinkStyle = "text-gray-300 hover:bg-dark-tertiary hover:text-white";
+  const linkClassName = ({ isActive }: {isActive: boolean}) => `${baseLinkStyle} ${isActive ? activeLinkStyle : inactiveLinkStyle}`;
 
   return (
     <aside
@@ -32,16 +45,45 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded }) 
       }`}
     >
       <div className="flex flex-col h-full p-3 pt-6">
-        { /* ... button and nav items ... */ }
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center p-3 mb-4 space-x-4 rounded-lg hover:bg-dark-tertiary"
+        >
+          <MenuIcon className="w-7 h-7 flex-shrink-0" />
+        </button>
+
         <nav className="flex-grow mt-4">
-          <NavLink to="/" icon={<HomeIcon className="w-7 h-7 flex-shrink-0" />} text="Home" />
-          <NavLink to="/directory" icon={<BookOpenIcon className="w-7 h-7 flex-shrink-0" />} text="Directory" />
-          <NavLink to="/chat" icon={<ChatIcon className="w-7 h-7 flex-shrink-0" />} text="Messages" />
+          <NavLink to="/" end className={linkClassName}>
+            <HomeIcon className="w-7 h-7 flex-shrink-0" />
+            <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>Home</span>
+          </NavLink>
+          <NavLink to="/directory" className={linkClassName}>
+            <BookOpenIcon className="w-7 h-7 flex-shrink-0" />
+            <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>Directory</span>
+          </NavLink>
+          <NavLink to="/chat" className={linkClassName}>
+            <ChatIcon className="w-7 h-7 flex-shrink-0" />
+            <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>Messages</span>
+          </NavLink>
           {username && (
-            <NavLink to={`/profile/${username}`} icon={<UserIcon className="w-7 h-7 flex-shrink-0" />} text="Profile" />
+             <NavLink to={`/profile/${username}`} className={linkClassName}>
+              <UserIcon className="w-7 h-7 flex-shrink-0" />
+              <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>Profile</span>
+            </NavLink>
           )}
         </nav>
-        { /* ... logout button ... */ }
+
+        <div className="mt-auto">
+           <button
+              onClick={handleSignOut}
+              className="flex items-center w-full p-3 space-x-4 rounded-lg text-red-400 hover:bg-dark-tertiary hover:text-red-300 transition-colors duration-200"
+            >
+              <LogoutIcon className="w-7 h-7 flex-shrink-0" />
+              <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+                Logout
+              </span>
+            </button>
+        </div>
       </div>
     </aside>
   );
