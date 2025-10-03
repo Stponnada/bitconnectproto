@@ -26,14 +26,16 @@ export interface Profile {
   following_count: number;
   follower_count: number;
   is_following: boolean; // Is the current user following this profile?
+  is_followed_by?: boolean; // Is this profile following the current user?
 }
 
 // --- NEW TYPE for the chat list ---
 export interface ConversationSummary {
   participant: Profile;
-  last_message_sender_id: string;
-  last_message_content: string;
-  last_message_at: string;
+  // MODIFIED: These can now be null for contacts without a chat history
+  last_message_sender_id: string | null;
+  last_message_content: string | null;
+  last_message_at: string | null;
   unread_count: number;
 }
 

@@ -1,25 +1,40 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useLocation } from 'react-router-dom'; // <-- Import useLocation
 import { useAuth } from '../contexts/AuthContext';
 import { Profile } from '../types';
 import Spinner from '../components/Spinner';
 import Conversation from '../components/Conversation';
-import { useChat } from '../contexts/ChatContext'; // <-- Import the new context hook
-import { formatTimestamp } from '../utils/timeUtils'; // To format the last message time
+import { useChat } from '../contexts/ChatContext';
+import { formatTimestamp } from '../utils/timeUtils';
+import { ChatIcon } from '../components/icons';
 
 const ChatPage: React.FC = () => {
   const { user } = useAuth();
-  // State from our new context, conversations are now sorted by recency
+  const location = useLocation(); // <-- Add useLocation hook
   const { conversations, loading, markConversationAsRead } = useChat();
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // <-- NEW: Effect to handle incoming recipient from navigation state
+  useEffect(() => {
+    const recipient = location.state?.recipient as Profile | undefined;
+    if (recipient) {
+      // Check if this conversation already exists to prevent duplicate state updates
+      const existsInList = conversations.some(c => c.participant.user_id === recipient.user_id);
+      setSelectedProfile(recipient);
+      if(existsInList) {
+          markConversationAsRead(recipient.user_id);
+      }
+      // Clear the state after using it to prevent re-triggering on component re-renders
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, conversations, markConversationAsRead]);
+
   const handleSelectConversation = useCallback((profile: Profile) => {
     setSelectedProfile(profile);
-    // When a conversation is selected, mark its messages as read
     markConversationAsRead(profile.user_id);
   }, [markConversationAsRead]);
   
-  // Filter conversations based on the search term
   const filteredConversations = conversations.filter(conv =>
     conv.participant.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     conv.participant.username.toLowerCase().includes(searchTerm.toLowerCase())
@@ -34,13 +49,10 @@ const ChatPage: React.FC = () => {
   }
 
   return (
-    // This container manages the overall size and appearance.
     <div className="relative h-[calc(100vh-80px)] md:h-[calc(100vh-120px)] w-full overflow-hidden bg-dark-secondary md:rounded-xl md:border md:border-dark-tertiary md:shadow-2xl">
       
-      {/* This inner container handles the sliding animation for mobile. */}
       <div className={`relative w-full h-full flex transition-transform duration-300 ease-in-out md:transform-none ${selectedProfile ? '-translate-x-full' : 'translate-x-0'}`}>
         
-        {/* Pane 1: Contacts List */}
         <div className="w-full h-full flex-shrink-0 md:w-96 md:border-r md:border-dark-tertiary flex flex-col">
           <div className="p-4 border-b border-dark-tertiary">
             <h2 className="text-xl font-bold">Messages</h2>
@@ -57,7 +69,7 @@ const ChatPage: React.FC = () => {
               <li 
                 key={conv.participant.user_id} 
                 onClick={() => handleSelectConversation(conv.participant)}
-                className="p-4 flex items-center space-x-4 cursor-pointer hover:bg-dark-tertiary transition-colors"
+                className={`p-4 flex items-center space-x-4 cursor-pointer hover:bg-dark-tertiary transition-colors ${selectedProfile?.user_id === conv.participant.user_id ? 'bg-dark-tertiary' : ''}`}
               >
                 <img 
                   src={conv.participant.avatar_url || `https://ui-avatars.com/api/?name=${conv.participant.full_name || conv.participant.username}`} 
@@ -67,12 +79,20 @@ const ChatPage: React.FC = () => {
                 <div className="flex-1 overflow-hidden">
                   <div className="flex justify-between items-baseline">
                     <p className="font-bold text-white truncate">{conv.participant.full_name}</p>
-                    <p className="text-xs text-gray-500 flex-shrink-0">{formatTimestamp(conv.last_message_at)}</p>
+                    {conv.last_message_at && (
+                      <p className="text-xs text-gray-500 flex-shrink-0">{formatTimestamp(conv.last_message_at)}</p>
+                    )}
                   </div>
                   <div className="flex justify-between items-start mt-1">
                      <p className={`text-sm truncate ${conv.unread_count > 0 ? 'text-white font-semibold' : 'text-gray-400'}`}>
-                        {conv.last_message_sender_id === user?.id ? 'You: ' : ''}
-                        {conv.last_message_content}
+                        {conv.last_message_content ? (
+                            <>
+                                {conv.last_message_sender_id === user?.id && 'You: '}
+                                {conv.last_message_content}
+                            </>
+                        ) : (
+                            <span className="italic">No messages yet</span>
+                        )}
                      </p>
                     {conv.unread_count > 0 && (
                        <span className="flex-shrink-0 ml-2 bg-brand-green text-black text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{conv.unread_count}</span>
@@ -84,13 +104,18 @@ const ChatPage: React.FC = () => {
           </ul>
         </div>
 
-        {/* Pane 2: Conversation View */}
         <div className="w-full h-full flex-shrink-0 md:flex-1 flex flex-col">
-          {selectedProfile && (
+          {selectedProfile ? (
             <Conversation 
               recipient={selectedProfile} 
-              onBack={() => setSelectedProfile(null)} // This function allows the mobile view to slide back
+              onBack={() => setSelectedProfile(null)}
             />
+          ) : (
+            <div className="hidden md:flex flex-col items-center justify-center h-full text-center text-gray-500">
+                <ChatIcon className="w-16 h-16 mb-4"/>
+                <h3 className="text-xl font-semibold text-white">Select a conversation</h3>
+                <p>Choose from your contacts to start chatting.</p>
+            </div>
           )}
         </div>
 
