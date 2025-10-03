@@ -1,14 +1,22 @@
+// src/contexts/AuthContext.tsx
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../services/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 import { Profile } from '../types';
 
 interface AuthContextType {
-  session: Session | null; user: User | null; profile: Profile | null; isLoading: boolean;
+  session: Session | null;
+  user: User | null;
+  profile: Profile | null;
+  isLoading: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType>({
-  session: null, user: null, profile: null, isLoading: true,
+  session: null,
+  user: null,
+  profile: null,
+  isLoading: true,
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -33,16 +41,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsLoading(false);
       }
     );
-    supabase.auth.getSession().then(({ data: { session } }) => { if (!session) setIsLoading(false); });
-    return () => { authListener.subscription.unsubscribe(); };
+    
+    supabase.auth.getSession().then(({ data: { session } }) => { 
+        if (!session) {
+             setIsLoading(false);
+        }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const value = { session, user, profile, isLoading };
-  return <AuthContext.Provider value={value}>{children}</Auth-Provider>;
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>; // <-- THIS IS THE CORRECTED CLOSING TAG
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) { throw new Error('useAuth must be used within an AuthProvider'); }
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
   return context;
 };
