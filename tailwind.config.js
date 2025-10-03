@@ -9,12 +9,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // Your custom fonts from index.html
         sans: ['Poppins', 'sans-serif'],
         raleway: ['Raleway', 'sans-serif'], 
       },
       colors: {
-        // Your custom colors from index.html
         'brand-green': '#3cfba2',
         'brand-green-darker': '#2fae85',
         'dark-primary': '#020617',
