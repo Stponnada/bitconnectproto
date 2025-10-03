@@ -32,9 +32,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const currentUser = session?.user ?? null;
         setSession(session);
         setUser(currentUser);
+
         if (currentUser) {
-          const { data: profileData } = await supabase.from('profiles').select('*').eq('user_id', currentUser.id).single();
+          // --- START: MODIFIED CODE ---
+          // This logic fixes the race condition where the profile might not be
+          // available immediately after a user signs up.
+          let attempts = 0;
+          let profileData = null;
+
+          while (attempts < 3 && !profileData) {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', currentUser.id)
+              .single();
+
+            if (data) {
+              profileData = data;
+            } else {
+              attempts++;
+              if (attempts < 3) {
+                console.warn(`Profile not found for user ${currentUser.id}, attempt ${attempts}. Retrying in 500ms...`);
+                await new Promise(res => setTimeout(res, 500));
+              } else {
+                console.error("Failed to fetch profile after multiple attempts.", error);
+              }
+            }
+          }
           setProfile(profileData as Profile | null);
+          // --- END: MODIFIED CODE ---
         } else {
           setProfile(null);
         }
@@ -55,7 +81,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const value = { session, user, profile, isLoading };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>; // <-- THIS IS THE CORRECTED CLOSING TAG
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
