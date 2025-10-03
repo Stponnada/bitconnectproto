@@ -1,4 +1,4 @@
-// src/pages/ProfileSetup.tsx (Updated to generate keys)
+// src/pages/ProfileSetup.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -7,9 +7,8 @@ import { useAuth } from '../contexts/AuthContext';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
 import { BITS_BRANCHES, isMscBranch } from '../data/bitsBranches.ts';
-import { generateAndStoreKeyPair } from '../services/encryption'; // <-- STEP 1: IMPORT THE FUNCTION
+import { getKeyPair } from '../services/encryption'; // <-- MODIFIED: Corrected the import
 
-const BITS_CAMPUSES = ['Pilani', 'Goa', 'Hyderabad', 'Dubai'];
 const RELATIONSHIP_STATUSES = ['Single', 'In a Relationship', 'Married', "It's Complicated"];
 const DINING_HALLS = ['Mess 1', 'Mess 2'];
 
@@ -35,12 +34,34 @@ const ProfileSetup: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // ... (no changes to useEffect or handleChange hooks)
+  // --- NEW: Automatically detect campus from user's email ---
+  useEffect(() => {
+    if (user?.email) {
+      const emailDomain = user.email.split('@')[1]; // e.g., "hyderabad.bits-pilani.ac.in"
+      const campusSubdomain = emailDomain?.split('.')[0]; // e.g., "hyderabad"
+
+      const campusMap: { [key: string]: string } = {
+        pilani: 'Pilani',
+        goa: 'Goa',
+        hyderabad: 'Hyderabad',
+        dubai: 'Dubai'
+      };
+
+      const detectedCampus = campusSubdomain ? campusMap[campusSubdomain] : '';
+
+      if (detectedCampus) {
+        setFormData(prev => ({ ...prev, campus: detectedCampus }));
+      }
+    }
+  }, [user]); // This effect runs once the user object becomes available.
+  
+  // This existing effect will now trigger automatically once the campus is detected.
   useEffect(() => {
     if (formData.campus && BITS_BRANCHES[formData.campus]) {
         const campusData = BITS_BRANCHES[formData.campus];
         setAvailableBranches([...campusData['B.E.'], ...campusData['M.Sc.']]);
     } else { setAvailableBranches([]); }
+    // Reset branch selections when campus changes to avoid invalid combinations.
     setFormData(prev => ({ ...prev, branch: '', dual_degree_branch: '' }));
   }, [formData.campus]);
 
@@ -95,7 +116,7 @@ const ProfileSetup: React.FC = () => {
         .from('profiles')
         .update({
           full_name: formData.full_name,
-          campus: formData.campus,
+          campus: formData.campus, // This is now the auto-detected value
           admission_year: parseInt(formData.admission_year),
           branch: formData.branch,
           dual_degree_branch: formData.dual_degree_branch || null,
@@ -113,7 +134,6 @@ const ProfileSetup: React.FC = () => {
 
       if (updateError) throw updateError;
       
-      // <-- STEP 2: GENERATE KEYS BEFORE NAVIGATING -->
       await getKeyPair();
 
       navigate('/'); 
@@ -124,7 +144,6 @@ const ProfileSetup: React.FC = () => {
     }
   };
   
-  // ... (no changes to the returned JSX)
   const showDualDegreeField = isDualDegreeStudent && formData.admission_year && new Date().getFullYear() >= parseInt(formData.admission_year) + 1;
 
   return (
@@ -145,12 +164,25 @@ const ProfileSetup: React.FC = () => {
                 </div>
             </div>
 
-            <div className="col-span-full"><label htmlFor="full_name" className="block text-gray-300 text-sm font-bold mb-2">Full Name <span className="text-bits-red">*</span></label><input type="text" name="full_name" id="full_name" value={formData.full_name} onChange={handleChange} required className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm" /></div>
+            <div className="col-span-full"><label htmlFor="full_name" className="block text-gray-300 text-sm font-bold mb-2">Full Name <span className="text-red-500">*</span></label><input type="text" name="full_name" id="full_name" value={formData.full_name} onChange={handleChange} required className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm" /></div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label htmlFor="campus" className="block text-gray-300 text-sm font-bold mb-2">Campus <span className="text-bits-red">*</span></label><select name="campus" id="campus" value={formData.campus} onChange={handleChange} required className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Campus</option>{BITS_CAMPUSES.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-                <div><label htmlFor="admission_year" className="block text-gray-300 text-sm font-bold mb-2">Admission Year <span className="text-bits-red">*</span></label><select name="admission_year" id="admission_year" value={formData.admission_year} onChange={handleChange} required className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Year</option>{Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
-                <div className={showDualDegreeField ? 'col-span-1' : 'md:col-span-2'}><label htmlFor="branch" className="block text-gray-300 text-sm font-bold mb-2">Primary Degree <span className="text-bits-red">*</span></label><select name="branch" id="branch" value={formData.branch} onChange={handleChange} required disabled={!formData.campus} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm disabled:opacity-50"><option value="">Select Branch</option>{availableBranches.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
+                {/* --- MODIFIED: Campus select is now a read-only display --- */}
+                <div>
+                  <label className="block text-gray-300 text-sm font-bold mb-2">Campus</label>
+                  <div className="w-full p-3 bg-dark-primary border border-gray-600 rounded-md text-sm text-gray-300 cursor-not-allowed">
+                    {formData.campus ? (
+                      <>
+                        {formData.campus} <span className="text-xs text-gray-500">(Auto-Detected)</span>
+                      </>
+                    ) : (
+                      'Detecting from email...'
+                    )}
+                  </div>
+                </div>
+
+                <div><label htmlFor="admission_year" className="block text-gray-300 text-sm font-bold mb-2">Admission Year <span className="text-red-500">*</span></label><select name="admission_year" id="admission_year" value={formData.admission_year} onChange={handleChange} required className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Year</option>{Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
+                <div className={showDualDegreeField ? 'col-span-1' : 'md:col-span-2'}><label htmlFor="branch" className="block text-gray-300 text-sm font-bold mb-2">Primary Degree <span className="text-red-500">*</span></label><select name="branch" id="branch" value={formData.branch} onChange={handleChange} required disabled={!formData.campus} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm disabled:opacity-50"><option value="">Select Branch</option>{availableBranches.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
                 {showDualDegreeField && (
                     <div><label htmlFor="dual_degree_branch" className="block text-gray-300 text-sm font-bold mb-2">B.E. Branch <span className="text-gray-400">(Optional)</span></label><select name="dual_degree_branch" id="dual_degree_branch" value={formData.dual_degree_branch} onChange={handleChange} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select B.E. Branch</option>{formData.campus ? BITS_BRANCHES[formData.campus]['B.E.'].map(b => <option key={b} value={b}>{b}</option>): null}</select></div>
                 )}
@@ -164,7 +196,7 @@ const ProfileSetup: React.FC = () => {
 
             <div className="col-span-full"><label htmlFor="bio" className="block text-gray-300 text-sm font-bold mb-2">Bio</label><textarea name="bio" id="bio" value={formData.bio} onChange={handleChange} rows={3} placeholder="Intro de ..." className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm resize-y" /></div>
             {error && <p className="col-span-full text-red-400 text-center text-sm">{error}</p>}
-            <div className="col-span-full mt-4"><button type="submit" disabled={isSaving} className="w-full bg-bits-red text-white font-semibold rounded-md py-3 transition duration-300 ease-in-out hover:bg-red-700 disabled:opacity-50">{isSaving ? <Spinner /> : 'Save Profile & Continue'}</button></div>
+            <div className="col-span-full mt-4"><button type="submit" disabled={isSaving || !formData.campus} className="w-full bg-brand-green text-black font-bold rounded-md py-3 transition duration-300 ease-in-out hover:bg-brand-green-darker disabled:opacity-50 disabled:cursor-not-allowed">{isSaving ? <Spinner /> : 'Save Profile & Continue'}</button></div>
         </form>
       </div>
     </div>
