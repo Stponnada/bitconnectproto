@@ -4,7 +4,10 @@
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./App.tsx", // Scan the root App component
+    "./components/**/*.{js,ts,jsx,tsx}", // Scan the components folder
+    "./pages/**/*.{js,ts,jsx,tsx}", // Scan the pages folder
+    "./contexts/**/*.{js,ts,jsx,tsx}", // Scan the contexts folder
   ],
   theme: {
     extend: {
@@ -23,4 +26,3 @@ export default {
   },
   plugins: [],
 }
-

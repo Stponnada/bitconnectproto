@@ -1,8 +1,10 @@
+// index.tsx
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { Buffer } from 'buffer';
-import '../index.css';
+import './index.css'; // <-- THE PATH IS CORRECTED BACK TO THIS
 
 window.Buffer = Buffer;
 
