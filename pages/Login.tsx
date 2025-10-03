@@ -1,10 +1,9 @@
 // src/pages/Login.tsx
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
+// --- REMOVED: useNavigate and useAuth are no longer needed here ---
 
 const BITS_DOMAINS = [
   'hyderabad.bits-pilani.ac.in',
@@ -21,31 +20,13 @@ const Login: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-  
-  // --- MODIFIED: We now listen for the profile object as well ---
-  const { profile, isLoading: authLoading } = useAuth();
-  
+
   const idleImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.57.42%20PM.png';
   const activeImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.41.01%20PM.png';
   
   const [activeImage, setActiveImage] = useState<string>(idleImageUrl);
 
-  // --- MODIFIED: This is the core of the fix ---
-  // This effect runs whenever the profile state changes.
-  useEffect(() => {
-    // If we have a profile, the user is logged in. Now, decide where to send them.
-    if (profile) {
-      // If their profile is marked complete, send them to the main app.
-      if (profile.profile_complete) {
-        navigate('/');
-      } else {
-        // Otherwise, force them to the setup page.
-        navigate('/setup');
-      }
-    }
-    // This effect depends on the profile object.
-  }, [profile, navigate]);
+  // --- REMOVED: All useEffect hooks for navigation have been removed ---
 
   const validateEmail = (email: string) => {
     const domain = email.split('@')[1];
@@ -60,7 +41,7 @@ const Login: React.FC = () => {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // --- REMOVED: navigate('/') --- The useEffect will now handle redirection.
+        // Navigation is now handled by our routing components
       } else {
         if (password !== confirmPassword) { throw new Error("Passwords do not match."); }
         if (!validateEmail(email)) { throw new Error("Please use a valid BITS Pilani email address."); }
@@ -69,7 +50,7 @@ const Login: React.FC = () => {
         if (!data.user) throw new Error("Sign up successful, but no user data returned.");
         const { error: profileError } = await supabase.from('profiles').insert({ user_id: data.user.id, username: username, email: data.user.email });
         if (profileError) { throw profileError; }
-        // --- REMOVED: navigate('/setup') --- The useEffect will now handle redirection.
+        // Navigation is now handled by our routing components
       }
     } catch (error: any) {
       setError(error.message);
@@ -77,17 +58,8 @@ const Login: React.FC = () => {
       setLoading(false);
     }
   };
-
-  // We should still show a spinner if the initial auth check is happening.
-  if (authLoading) {
-    return <div className="flex items-center justify-center h-screen bg-dark-primary"><Spinner /></div>;
-  }
   
-  // While we are logged in but waiting for the useEffect to navigate, show a spinner too.
-  // This prevents the login form from flashing briefly after a successful login.
-  if (profile) {
-     return <div className="flex items-center justify-center h-screen bg-dark-primary"><Spinner /></div>;
-  }
+  // --- REMOVED: All conditional spinner logic is now in the route components ---
 
   return (
     <div className="flex flex-col lg:flex-row items-center justify-center min-h-screen bg-dark-primary p-4">

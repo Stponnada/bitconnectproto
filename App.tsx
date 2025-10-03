@@ -14,6 +14,7 @@ import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import SearchPage from './pages/SearchPage';
+import UnauthenticatedRoute from './components/UnauthenticatedRoute'; // <-- NEW: Import the component
 
 const App = () => {
   return (
@@ -21,10 +22,13 @@ const App = () => {
       <PostsProvider>
         <Router>
           <Routes>
-            <Route path="/login" element={<Login />} />
+            {/* --- MODIFIED: Routes for users who are NOT logged in --- */}
+            <Route element={<UnauthenticatedRoute />}>
+              <Route path="/login" element={<Login />} />
+            </Route>
 
+            {/* --- Routes for users who ARE logged in --- */}
             <Route element={<ProtectedRoute />}>
-              {/* Routes that use the main Layout (with side/bottom bars) */}
               <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/directory" element={<DirectoryPage />} />
@@ -34,10 +38,8 @@ const App = () => {
                 <Route path="/chat/:username" element={<ChatPage />} />   
               </Route>
               
-              {/* --- MODIFIED: /setup is now a full-screen, protected route without the main layout --- */}
               <Route path="/setup" element={<ProfileSetup />} />
               <Route path="/search" element={<SearchPage />} />
-
             </Route>
             
             <Route path="*" element={<NotFound />} /> 
