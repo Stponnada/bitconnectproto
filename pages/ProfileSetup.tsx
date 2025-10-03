@@ -18,7 +18,7 @@ const YEARS = Array.from({ length: 20 }, (_, i) => currentYear - 17 - i);
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 const ProfileSetup: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth(); // <-- GET refreshProfile
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -136,6 +136,10 @@ const ProfileSetup: React.FC = () => {
       if (updateError) throw updateError;
       
       await getKeyPair();
+      
+      // --- THIS IS THE FIX ---
+      // Before navigating, explicitly tell the AuthContext to refetch the profile.
+      await refreshProfile(); 
       navigate('/'); 
     } catch (err: any) {
       setError(err.message);
@@ -146,6 +150,7 @@ const ProfileSetup: React.FC = () => {
   
   const showDualDegreeField = isDualDegreeStudent && formData.admission_year && new Date().getFullYear() >= parseInt(formData.admission_year) + 1;
 
+  // ... rest of the component remains the same
   return (
     <div className="flex items-center justify-center min-h-screen bg-dark p-4">
       <div className="bg-dark-secondary p-8 rounded-lg shadow-lg w-full max-w-2xl">
