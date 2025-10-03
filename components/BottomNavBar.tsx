@@ -1,29 +1,13 @@
 // src/components/BottomNavBar.tsx
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/supabase';
-import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon } from './icons'; // <-- MODIFIED: Swapped SearchIcon for UserIcon
+import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon } from './icons';
 
 const BottomNavBar: React.FC = () => {
-  const { user } = useAuth();
-  const [username, setUsername] = useState<string | null>(null);
-
-  // <-- NEW: Fetch username to create the correct profile link
-  useEffect(() => {
-    const fetchUsername = async () => {
-      if (user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('user_id', user.id)
-          .single();
-        if (data) setUsername(data.username);
-      }
-    };
-    fetchUsername();
-  }, [user]);
+  const { profile } = useAuth(); // <-- MODIFIED: Use profile from context
+  const username = profile?.username;
 
   const activeLinkStyle = 'text-brand-green';
   const inactiveLinkStyle = 'text-gray-400';
@@ -49,7 +33,6 @@ const BottomNavBar: React.FC = () => {
       >
         <ChatIcon className="w-7 h-7" />
       </NavLink>
-      {/* <-- MODIFIED: This now links to the user's profile page */}
       {username && (
         <NavLink 
           to={`/profile/${username}`} 

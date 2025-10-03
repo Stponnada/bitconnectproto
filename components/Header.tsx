@@ -1,8 +1,10 @@
+// src/components/Header.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext'; // <-- This now provides the profile
 import { supabase } from '../services/supabase';
-import { Profile, SearchResults as SearchResultsType } from '../types';
+import { SearchResults as SearchResultsType } from '../types';
 import SearchResults from './SearchResults';
 import { SearchIcon } from './icons';
 
@@ -11,8 +13,8 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
-    const { user } = useAuth();
-    const [profile, setProfile] = useState<Profile | null>(null);
+    // --- MODIFIED: Get profile directly from the global AuthContext ---
+    const { user, profile } = useAuth();
     const navigate = useNavigate();
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -21,17 +23,8 @@ const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
     const [loadingSearch, setLoadingSearch] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const fetchHeaderProfile = async () => {
-            if (user) {
-                const { data, error } = await supabase.from('profiles').select('username, avatar_url, full_name').eq('user_id', user.id).single();
-                if (error) console.error("Header could not fetch profile:", error);
-                else setProfile(data);
-            }
-        };
-        fetchHeaderProfile();
-    }, [user]);
+    
+    // --- REMOVED: The old useEffect to fetch the profile is no longer needed ---
 
     useEffect(() => {
       const performSearch = async () => {
@@ -92,7 +85,6 @@ const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
             
             {/* Mobile Title */}
             <div className="flex items-center md:hidden">
-              {/* THIS IS THE ONLY CHANGE: text-2xl is now text-3xl */}
               <Link to="/" className="text-4xl font-raleway font-black text-brand-green">litelelo.</Link>
             </div>
 

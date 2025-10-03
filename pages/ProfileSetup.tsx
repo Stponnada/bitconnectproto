@@ -12,10 +12,8 @@ import { getKeyPair } from '../services/encryption';
 const RELATIONSHIP_STATUSES = ['Single', 'In a Relationship', 'Married', "It's Complicated"];
 const DINING_HALLS = ['Mess 1', 'Mess 2'];
 
-// --- NEW: Helper arrays for birthday dropdowns ---
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const currentYear = new Date().getFullYear();
-// Generate years, assuming a typical college student age range
 const YEARS = Array.from({ length: 20 }, (_, i) => currentYear - 17 - i);
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
@@ -23,7 +21,6 @@ const ProfileSetup: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // --- MODIFIED: Added gender and birthday fields to state ---
   const [formData, setFormData] = useState({
     full_name: '', campus: '', admission_year: '', branch: '',
     dual_degree_branch: '', relationship_status: '', dorm_building: '',
@@ -43,14 +40,11 @@ const ProfileSetup: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // --- UNCHANGED ---
   useEffect(() => {
     if (user?.email) {
       const emailDomain = user.email.split('@')[1]; 
       const campusSubdomain = emailDomain?.split('.')[0]; 
-      const campusMap: { [key: string]: string } = {
-        pilani: 'Pilani', goa: 'Goa', hyderabad: 'Hyderabad', dubai: 'Dubai'
-      };
+      const campusMap: { [key: string]: string } = { pilani: 'Pilani', goa: 'Goa', hyderabad: 'Hyderabad', dubai: 'Dubai' };
       const detectedCampus = campusSubdomain ? campusMap[campusSubdomain] : '';
       if (detectedCampus) {
         setFormData(prev => ({ ...prev, campus: detectedCampus }));
@@ -58,7 +52,6 @@ const ProfileSetup: React.FC = () => {
     }
   }, [user]);
   
-  // --- UNCHANGED ---
   useEffect(() => {
     if (formData.campus && BITS_BRANCHES[formData.campus]) {
         const campusData = BITS_BRANCHES[formData.campus];
@@ -67,19 +60,16 @@ const ProfileSetup: React.FC = () => {
     setFormData(prev => ({ ...prev, branch: '', dual_degree_branch: '' }));
   }, [formData.campus]);
 
-  // --- UNCHANGED ---
   useEffect(() => {
     const isMsc = isMscBranch(formData.branch, formData.campus);
     setIsDualDegreeStudent(isMsc);
     if (!isMsc) setFormData(prev => ({ ...prev, dual_degree_branch: '' }));
   }, [formData.branch, formData.campus]);
 
-  // --- UNCHANGED ---
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
   
-  // --- UNCHANGED ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => {
       if (e.target.files && e.target.files[0]) {
           const file = e.target.files[0];
@@ -93,6 +83,7 @@ const ProfileSetup: React.FC = () => {
           }
       }
   };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,12 +107,10 @@ const ProfileSetup: React.FC = () => {
             banner_url = `${publicUrl}?t=${new Date().getTime()}`;
         }
         
-        // --- NEW: Format birthday string before submitting ---
         const birthdayString = formData.birth_year && formData.birth_month && formData.birth_day
             ? `${formData.birth_year}-${String(formData.birth_month).padStart(2, '0')}-${String(formData.birth_day).padStart(2, '0')}`
             : null;
 
-      // --- MODIFIED: Added gender and birthday to the update payload ---
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -129,8 +118,8 @@ const ProfileSetup: React.FC = () => {
           campus: formData.campus,
           admission_year: parseInt(formData.admission_year),
           branch: formData.branch,
-          gender: formData.gender, // ADDED
-          birthday: birthdayString, // ADDED
+          gender: formData.gender,
+          birthday: birthdayString,
           dual_degree_branch: formData.dual_degree_branch || null,
           relationship_status: formData.relationship_status,
           dorm_building: formData.dorm_building,
@@ -187,7 +176,6 @@ const ProfileSetup: React.FC = () => {
                 <div><label htmlFor="admission_year" className="block text-gray-300 text-sm font-bold mb-2">Admission Year <span className="text-red-500">*</span></label><select name="admission_year" id="admission_year" value={formData.admission_year} onChange={handleChange} required className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Year</option>{Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
             </div>
 
-            {/* --- NEW: Birthday Selector --- */}
             <div>
               <label className="block text-gray-300 text-sm font-bold mb-2">Birthday <span className="text-red-500">*</span></label>
               <div className="grid grid-cols-3 gap-2">
@@ -197,7 +185,6 @@ const ProfileSetup: React.FC = () => {
               </div>
             </div>
 
-            {/* --- NEW: Gender Radio Buttons --- */}
             <div>
               <label className="block text-gray-300 text-sm font-bold mb-2">Gender <span className="text-red-500">*</span></label>
               <div className="flex items-center space-x-6 mt-2">

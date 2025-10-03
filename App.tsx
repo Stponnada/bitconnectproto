@@ -4,7 +4,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { PostsProvider } from './contexts/PostsContext';
 import ChatPage from './pages/ChatPage';
-
 import { HomePage as Home } from './pages/Home';
 import Login from './pages/Login';
 import ProfilePage from './pages/Profile';
@@ -30,13 +29,13 @@ const App = () => {
                 <Route path="/" element={<Home />} />
                 <Route path="/directory" element={<DirectoryPage />} />
                 <Route path="/profile/:username" element={<ProfilePage />} />
-                <Route path="/setup" element={<ProfileSetup />} />
                 <Route path="/post/:postId" element={<PostPage />} />
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/chat/:username" element={<ChatPage />} />   
               </Route>
               
-              {/* The Search page is a protected, full-screen route without the main layout */}
+              {/* --- MODIFIED: /setup is now a full-screen, protected route without the main layout --- */}
+              <Route path="/setup" element={<ProfileSetup />} />
               <Route path="/search" element={<SearchPage />} />
 
             </Route>
