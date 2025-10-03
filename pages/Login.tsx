@@ -1,6 +1,7 @@
 // src/pages/Login.tsx
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import Spinner from '../components/Spinner';
 
@@ -12,6 +13,7 @@ const BITS_DOMAINS = [
 ];
 
 const Login: React.FC = () => {
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -38,16 +40,23 @@ const Login: React.FC = () => {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // On success, AuthContext will update and routing components will redirect.
+        // On successful login, the existing router setup will correctly navigate to '/'
       } else {
+        // --- SIGN UP FLOW ---
         if (password !== confirmPassword) { throw new Error("Passwords do not match."); }
         if (!validateEmail(email)) { throw new Error("Please use a valid BITS Pilani email address."); }
+        
         const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
         if (signUpError) throw signUpError;
         if (!data.user) throw new Error("Sign up successful, but no user data returned.");
+
+        // Insert the basic profile row
         const { error: profileError } = await supabase.from('profiles').insert({ user_id: data.user.id, username: username, email: data.user.email });
         if (profileError) { throw profileError; }
-        // On success, AuthContext will update and routing components will redirect.
+
+        // --- THIS IS THE FIX ---
+        // After creating the user and their profile, navigate directly to setup.
+        navigate('/setup');
       }
     } catch (error: any) {
       setError(error.message);
