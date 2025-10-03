@@ -8,28 +8,25 @@ const ProtectedRoute = () => {
   const { user, profile, isLoading } = useAuth();
   const location = useLocation();
 
-  // 1. While checking for user and profile, show a loading spinner
   if (isLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
+      <div className="flex h-screen w-full items-center justify-center bg-dark-primary">
         <Spinner />
       </div>
     );
   }
 
-  // 2. After loading, if there's no user, redirect to login
+  // If loading is finished and there's no user, redirect to login.
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // 3. --- NEW LOGIC ---
-  // If the user has a profile but it's incomplete, redirect to the setup page,
-  // unless they are already on the setup page (to prevent a loop).
+  // If user exists, but their profile is incomplete, force them to setup.
   if (profile && !profile.profile_complete && location.pathname !== '/setup') {
     return <Navigate to="/setup" replace />;
   }
   
-  // 4. If everything is fine, show the requested page
+  // If everything is fine, show the intended page.
   return <Outlet />;
 };
 

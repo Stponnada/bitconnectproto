@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Spinner from './Spinner';
 
 const UnauthenticatedRoute = () => {
-  const { user, profile, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -15,17 +15,12 @@ const UnauthenticatedRoute = () => {
     );
   }
 
+  // If loading is finished AND a user exists, redirect them away from login.
   if (user) {
-    // User is logged in, so redirect them away from the login page
-    if (profile && !profile.profile_complete) {
-      // If profile is incomplete, force them to the setup page
-      return <Navigate to="/setup" replace />;
-    }
-    // Otherwise, they are fully set up, so send them to the homepage
     return <Navigate to="/" replace />;
   }
 
-  // User is not logged in, so allow them to see the child route (the Login page)
+  // If loading is finished and there is no user, show the login page.
   return <Outlet />;
 };
 
