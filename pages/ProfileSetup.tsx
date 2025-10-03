@@ -7,7 +7,8 @@ import { useAuth } from '../contexts/AuthContext';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
 import { BITS_BRANCHES, isMscBranch } from '../data/bitsBranches.ts';
-import { getKeyPair } from '../services/encryption'; // <-- MODIFIED: Corrected the import
+import { getKeyPair } from '../services/encryption';
+import ImageCropper from '../components/ImageCropper';
 
 const RELATIONSHIP_STATUSES = ['Single', 'In a Relationship', 'Married', "It's Complicated"];
 const DINING_HALLS = ['Mess 1', 'Mess 2'];
@@ -29,39 +30,32 @@ const ProfileSetup: React.FC = () => {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   
+  const [cropperState, setCropperState] = useState<{
+    isOpen: boolean;
+    type: 'avatar' | 'banner' | null;
+    src: string | null;
+  }>({ isOpen: false, type: null, src: null });
+
   const [availableBranches, setAvailableBranches] = useState<string[]>([]);
   const [isDualDegreeStudent, setIsDualDegreeStudent] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // --- NEW: Automatically detect campus from user's email ---
   useEffect(() => {
     if (user?.email) {
-      const emailDomain = user.email.split('@')[1]; // e.g., "hyderabad.bits-pilani.ac.in"
-      const campusSubdomain = emailDomain?.split('.')[0]; // e.g., "hyderabad"
-
-      const campusMap: { [key: string]: string } = {
-        pilani: 'Pilani',
-        goa: 'Goa',
-        hyderabad: 'Hyderabad',
-        dubai: 'Dubai'
-      };
-
+      const emailDomain = user.email.split('@')[1];
+      const campusSubdomain = emailDomain?.split('.')[0];
+      const campusMap: { [key: string]: string } = { pilani: 'Pilani', goa: 'Goa', hyderabad: 'Hyderabad', dubai: 'Dubai' };
       const detectedCampus = campusSubdomain ? campusMap[campusSubdomain] : '';
-
-      if (detectedCampus) {
-        setFormData(prev => ({ ...prev, campus: detectedCampus }));
-      }
+      if (detectedCampus) setFormData(prev => ({ ...prev, campus: detectedCampus }));
     }
-  }, [user]); // This effect runs once the user object becomes available.
+  }, [user]);
   
-  // This existing effect will now trigger automatically once the campus is detected.
   useEffect(() => {
     if (formData.campus && BITS_BRANCHES[formData.campus]) {
         const campusData = BITS_BRANCHES[formData.campus];
         setAvailableBranches([...campusData['B.E.'], ...campusData['M.Sc.']]);
     } else { setAvailableBranches([]); }
-    // Reset branch selections when campus changes to avoid invalid combinations.
     setFormData(prev => ({ ...prev, branch: '', dual_degree_branch: '' }));
   }, [formData.campus]);
 
@@ -78,23 +72,31 @@ const ProfileSetup: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => {
       if (e.target.files && e.target.files[0]) {
           const file = e.target.files[0];
-          const previewUrl = URL.createObjectURL(file);
-          if (type === 'avatar') {
-              setAvatarFile(file);
-              setAvatarPreview(previewUrl);
-          } else {
-              setBannerFile(file);
-              setBannerPreview(previewUrl);
-          }
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              setCropperState({ isOpen: true, type, src: reader.result as string });
+          };
+          reader.readAsDataURL(file);
       }
+      e.target.value = '';
   };
-
+  
+  const handleCropSave = (croppedImageFile: File) => {
+    const previewUrl = URL.createObjectURL(croppedImageFile);
+    if (cropperState.type === 'avatar') {
+        setAvatarFile(croppedImageFile);
+        setAvatarPreview(previewUrl);
+    } else if (cropperState.type === 'banner') {
+        setBannerFile(croppedImageFile);
+        setBannerPreview(previewUrl);
+    }
+    setCropperState({ isOpen: false, type: null, src: null });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    setIsSaving(true);
-    setError(null);
+    setIsSaving(true); setError(null);
     try {
         let avatar_url = null;
         let banner_url = null;
@@ -112,40 +114,38 @@ const ProfileSetup: React.FC = () => {
             banner_url = `${publicUrl}?t=${new Date().getTime()}`;
         }
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          full_name: formData.full_name,
-          campus: formData.campus, // This is now the auto-detected value
-          admission_year: parseInt(formData.admission_year),
-          branch: formData.branch,
-          dual_degree_branch: formData.dual_degree_branch || null,
-          relationship_status: formData.relationship_status,
-          dorm_building: formData.dorm_building,
-          dorm_room: formData.dorm_room,
-          dining_hall: formData.dining_hall,
-          bio: formData.bio,
-          avatar_url,
-          banner_url,
-          profile_complete: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id); 
+      const { error: updateError } = await supabase.from('profiles').update({
+          full_name: formData.full_name, campus: formData.campus, admission_year: parseInt(formData.admission_year),
+          branch: formData.branch, dual_degree_branch: formData.dual_degree_branch || null,
+          relationship_status: formData.relationship_status, dorm_building: formData.dorm_building,
+          dorm_room: formData.dorm_room, dining_hall: formData.dining_hall, bio: formData.bio,
+          avatar_url, banner_url, profile_complete: true, updated_at: new Date().toISOString(),
+        }).eq('user_id', user.id); 
 
       if (updateError) throw updateError;
       
       await getKeyPair();
-
       navigate('/'); 
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsSaving(false);
-    }
+    } catch (err: any) { setError(err.message); } finally { setIsSaving(false); }
   };
   
   const showDualDegreeField = isDualDegreeStudent && formData.admission_year && new Date().getFullYear() >= parseInt(formData.admission_year) + 1;
 
+  // --- THIS IS THE FIX ---
+  // If the cropper is open, render ONLY the cropper.
+  if (cropperState.isOpen && cropperState.src) {
+    return (
+        <ImageCropper
+            imageSrc={cropperState.src}
+            aspect={cropperState.type === 'avatar' ? 1 : 16 / 6}
+            cropShape={cropperState.type === 'avatar' ? 'round' : 'rect'}
+            onSave={handleCropSave}
+            onClose={() => setCropperState({ isOpen: false, type: null, src: null })}
+        />
+    );
+  }
+
+  // Otherwise, render the main setup page.
   return (
     <div className="flex items-center justify-center min-h-screen bg-dark p-4">
       <div className="bg-dark-secondary p-8 rounded-lg shadow-lg w-full max-w-2xl">
@@ -167,17 +167,10 @@ const ProfileSetup: React.FC = () => {
             <div className="col-span-full"><label htmlFor="full_name" className="block text-gray-300 text-sm font-bold mb-2">Full Name <span className="text-red-500">*</span></label><input type="text" name="full_name" id="full_name" value={formData.full_name} onChange={handleChange} required className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm" /></div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* --- MODIFIED: Campus select is now a read-only display --- */}
                 <div>
                   <label className="block text-gray-300 text-sm font-bold mb-2">Campus</label>
                   <div className="w-full p-3 bg-dark-primary border border-gray-600 rounded-md text-sm text-gray-300 cursor-not-allowed">
-                    {formData.campus ? (
-                      <>
-                        {formData.campus} <span className="text-xs text-gray-500">(Auto-Detected)</span>
-                      </>
-                    ) : (
-                      'Detecting from email...'
-                    )}
+                    {formData.campus ? (<>{formData.campus} <span className="text-xs text-gray-500">(Auto-Detected)</span></>) : ('Detecting from email...')}
                   </div>
                 </div>
 

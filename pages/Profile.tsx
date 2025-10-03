@@ -10,8 +10,9 @@ import { Post as PostType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
 import { isMscBranch, BITS_BRANCHES } from '../data/bitsBranches.ts';
+import ImageCropper from '../components/ImageCropper';
 
-// Main Page Component
+// Main Page Component (No changes here)
 const ProfilePage: React.FC = () => {
     const { username } = useParams<{ username: string }>();
     const { user: currentUser } = useAuth();
@@ -149,7 +150,8 @@ const ProfilePage: React.FC = () => {
     );
 };
 
-// Updated Edit Profile Modal Component
+
+// --- MODIFIED Edit Profile Modal ---
 const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, onSave: () => void }> = ({ userProfile, onClose, onSave }) => {
     const { user } = useAuth();
     const [profileData, setProfileData] = useState(userProfile);
@@ -159,10 +161,15 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
     const [bannerPreview, setBannerPreview] = useState<string | null>(userProfile.banner_url);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
+    
+    const [cropperState, setCropperState] = useState<{
+      isOpen: boolean;
+      type: 'avatar' | 'banner' | null;
+      src: string | null;
+    }>({ isOpen: false, type: null, src: null });
 
     const [availableBranches, setAvailableBranches] = useState<string[]>([]);
     const [isDualDegreeStudent, setIsDualDegreeStudent] = useState(false);
-
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -179,15 +186,25 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
-            const previewUrl = URL.createObjectURL(file);
-            if (type === 'avatar') {
-                setAvatarFile(file);
-                setAvatarPreview(previewUrl);
-            } else {
-                setBannerFile(file);
-                setBannerPreview(previewUrl);
-            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setCropperState({ isOpen: true, type, src: reader.result as string });
+            };
+            reader.readAsDataURL(file);
         }
+        e.target.value = '';
+    };
+    
+    const handleCropSave = (croppedImageFile: File) => {
+        const previewUrl = URL.createObjectURL(croppedImageFile);
+        if (cropperState.type === 'avatar') {
+            setAvatarFile(croppedImageFile);
+            setAvatarPreview(previewUrl);
+        } else if (cropperState.type === 'banner') {
+            setBannerFile(croppedImageFile);
+            setBannerPreview(previewUrl);
+        }
+        setCropperState({ isOpen: false, type: null, src: null });
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -204,8 +221,7 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
-        setIsSaving(true);
-        setError('');
+        setIsSaving(true); setError('');
         try {
             let avatar_url = profileData.avatar_url;
             let banner_url = profileData.banner_url;
@@ -216,7 +232,6 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
                 const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
                 avatar_url = `${publicUrl}?t=${new Date().getTime()}`;
             }
-
             if (bannerFile) {
                 const filePath = `${user.id}/banner.${bannerFile.name.split('.').pop()}`;
                 await supabase.storage.from('avatars').upload(filePath, bannerFile, { upsert: true });
@@ -224,34 +239,34 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
                 banner_url = `${publicUrl}?t=${new Date().getTime()}`;
             }
 
-            const { error: updateError } = await supabase
-                .from('profiles')
-                .update({
-                    full_name: profileData.full_name,
-                    bio: profileData.bio,
-                    branch: profileData.branch,
-                    dual_degree_branch: profileData.dual_degree_branch || null,
-                    relationship_status: profileData.relationship_status,
-                    dorm_building: profileData.dorm_building,
-                    dorm_room: profileData.dorm_room,
-                    dining_hall: profileData.dining_hall,
-                    avatar_url,
-                    banner_url,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq('user_id', user.id);
+            const { error: updateError } = await supabase.from('profiles').update({
+                full_name: profileData.full_name, bio: profileData.bio, branch: profileData.branch,
+                dual_degree_branch: profileData.dual_degree_branch || null, relationship_status: profileData.relationship_status,
+                dorm_building: profileData.dorm_building, dorm_room: profileData.dorm_room, dining_hall: profileData.dining_hall,
+                avatar_url, banner_url, updated_at: new Date().toISOString(),
+            }).eq('user_id', user.id);
 
             if (updateError) throw updateError;
-            
             onSave();
             onClose();
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setIsSaving(false);
-        }
+        } catch (err: any) { setError(err.message); } finally { setIsSaving(false); }
     };
-
+    
+    // --- THIS IS THE FIX ---
+    // If the cropper is open, render ONLY the cropper.
+    if (cropperState.isOpen && cropperState.src) {
+        return (
+            <ImageCropper
+                imageSrc={cropperState.src}
+                aspect={cropperState.type === 'avatar' ? 1 : 16 / 6}
+                cropShape={cropperState.type === 'avatar' ? 'round' : 'rect'}
+                onSave={handleCropSave}
+                onClose={() => setCropperState({ isOpen: false, type: null, src: null })}
+            />
+        );
+    }
+    
+    // Otherwise, render the main edit profile modal.
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-dark-secondary rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
