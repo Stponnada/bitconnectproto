@@ -1,20 +1,35 @@
 // src/components/Layout.tsx
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabase';
 import Header from './Header';
 import LeftSidebar from './LeftSidebar';
 import BottomNavBar from './BottomNavBar';
 
 const Layout = () => {
+  const { user } = useAuth();
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
-  
+  const [username, setUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUsername = async () => {
+      if (user) {
+        const { data } = await supabase.from('profiles').select('username').eq('user_id', user.id).single();
+        if (data) setUsername(data.username);
+      }
+    };
+    fetchUsername();
+  }, [user]);
+
   return (
     <div className="md:flex">
       <div className="hidden md:block">
         <LeftSidebar 
           isExpanded={isSidebarExpanded} 
-          setIsExpanded={setIsSidebarExpanded}
+          setIsExpanded={setIsSidebarExpanded} 
+          username={username}
         />
       </div>
 

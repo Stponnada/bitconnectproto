@@ -1,116 +1,70 @@
 // src/contexts/AuthContext.tsx
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../services/supabase';
 import type { Session, User } from '@supabase/supabase-js';
-import { Profile } from '../types';
 
+// Define the shape of your context data
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  profile: Profile | null;
   isLoading: boolean;
-  refreshProfile: () => Promise<void>;
 }
 
+// Create the context with a default value
 export const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
-  profile: null,
-  isLoading: true,
-  refreshProfile: async () => {},
+  isLoading: true, // Start in a loading state
 });
 
+// Create a provider component
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshProfile = useCallback(async () => {
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    if (currentUser) {
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .single();
-      if (error) console.error("Error refreshing profile:", error);
-      setProfile(profileData as Profile | null);
-      console.log('Profile refreshed in context.');
-    }
-  }, []);
-
   useEffect(() => {
-    let isMounted = true;
+    // 1. Check for an active session when the component mounts
+    const getActiveSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
 
-    // --- START OF THE FIX ---
-    // This function handles the very first load of the application.
-    async function getInitialSession() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (isMounted) {
-            setSession(session);
-            const currentUser = session?.user ?? null;
-            setUser(currentUser);
-            
-            if (currentUser) {
-              const { data: profileData } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .single();
-              setProfile(profileData as Profile | null);
-            }
-        }
-      } catch (error) {
-        console.error("Error fetching initial session:", error);
-      } finally {
-        // This is the most important part: GUARANTEE that loading is set to false.
-        if (isMounted) {
-          setIsLoading(false);
-        }
+      if (error) {
+        console.error('Error getting session:', error);
       }
-    }
+      
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      setIsLoading(false); // We're done loading
+    };
 
-    getInitialSession();
-    // --- END OF THE FIX ---
+    getActiveSession();
 
-    // Set up a listener for real-time auth changes (e.g., login, logout).
+    // 2. Listen for changes in authentication state (login, logout)
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (isMounted) {
-            setSession(session);
-            const currentUser = session?.user ?? null;
-            setUser(currentUser);
-
-            if(currentUser) {
-                const { data: profileData } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .single();
-                setProfile(profileData as Profile | null);
-            } else {
-                setProfile(null);
-            }
-        }
+      (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false); // Also done loading after a change
       }
     );
 
+    // Cleanup the listener when the component unmounts
     return () => {
-      isMounted = false;
       authListener.subscription.unsubscribe();
     };
   }, []);
 
-
-  const value = { session, user, profile, isLoading, refreshProfile };
+  const value = {
+    session,
+    user,
+    isLoading,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// Create a custom hook for easy access to the context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

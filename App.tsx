@@ -14,7 +14,6 @@ import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import SearchPage from './pages/SearchPage';
-import UnauthenticatedRoute from './components/UnauthenticatedRoute'; // <-- NEW: Import the component
 
 const App = () => {
   return (
@@ -22,24 +21,23 @@ const App = () => {
       <PostsProvider>
         <Router>
           <Routes>
-            {/* --- MODIFIED: Routes for users who are NOT logged in --- */}
-            <Route element={<UnauthenticatedRoute />}>
-              <Route path="/login" element={<Login />} />
-            </Route>
+            <Route path="/login" element={<Login />} />
 
-            {/* --- Routes for users who ARE logged in --- */}
             <Route element={<ProtectedRoute />}>
+              {/* Routes that use the main Layout (with side/bottom bars) */}
               <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/directory" element={<DirectoryPage />} />
                 <Route path="/profile/:username" element={<ProfilePage />} />
+                <Route path="/setup" element={<ProfileSetup />} />
                 <Route path="/post/:postId" element={<PostPage />} />
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/chat/:username" element={<ChatPage />} />   
               </Route>
               
-              <Route path="/setup" element={<ProfileSetup />} />
+              {/* The Search page is a protected, full-screen route without the main layout */}
               <Route path="/search" element={<SearchPage />} />
+
             </Route>
             
             <Route path="*" element={<NotFound />} /> 

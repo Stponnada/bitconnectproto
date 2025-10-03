@@ -1,13 +1,28 @@
 // src/components/BottomNavBar.tsx
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabase';
 import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon } from './icons';
 
 const BottomNavBar: React.FC = () => {
-  const { profile } = useAuth();
-  const username = profile?.username;
+  const { user } = useAuth();
+  const [username, setUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUsername = async () => {
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('user_id', user.id)
+          .single();
+        if (data) setUsername(data.username);
+      }
+    };
+    fetchUsername();
+  }, [user]);
 
   const activeLinkStyle = 'text-brand-green';
   const inactiveLinkStyle = 'text-gray-400';

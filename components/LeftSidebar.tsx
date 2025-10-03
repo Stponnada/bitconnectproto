@@ -1,8 +1,7 @@
 // src/components/LeftSidebar.tsx
 
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import {
   HomeIcon,
@@ -21,22 +20,28 @@ const MenuIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) =
 interface LeftSidebarProps {
     isExpanded: boolean;
     setIsExpanded: (expanded: boolean) => void;
+    username: string | null;
 }
 
-const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded }) => {
-  const { profile } = useAuth();
-  const username = profile?.username;
+const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, username }) => {
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate('/login');
   };
-  
-  const baseLinkStyle = "flex items-center p-3 my-1 space-x-4 rounded-lg";
-  const activeLinkStyle = "bg-dark-tertiary text-white";
-  const inactiveLinkStyle = "text-gray-300 hover:bg-dark-tertiary hover:text-white";
-  const linkClassName = ({ isActive }: {isActive: boolean}) => `${baseLinkStyle} ${isActive ? activeLinkStyle : inactiveLinkStyle}`;
+
+  const NavLink: React.FC<{ to: string; icon: React.ReactNode; text: string }> = ({ to, icon, text }) => (
+    <Link
+      to={to}
+      className="flex items-center p-3 my-1 space-x-4 rounded-lg text-gray-300 hover:bg-dark-tertiary hover:text-white transition-colors duration-200"
+    >
+      {icon}
+      <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+        {text}
+      </span>
+    </Link>
+  );
 
   return (
     <aside
@@ -53,23 +58,11 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded }) 
         </button>
 
         <nav className="flex-grow mt-4">
-          <NavLink to="/" end className={linkClassName}>
-            <HomeIcon className="w-7 h-7 flex-shrink-0" />
-            <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>Home</span>
-          </NavLink>
-          <NavLink to="/directory" className={linkClassName}>
-            <BookOpenIcon className="w-7 h-7 flex-shrink-0" />
-            <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>Directory</span>
-          </NavLink>
-          <NavLink to="/chat" className={linkClassName}>
-            <ChatIcon className="w-7 h-7 flex-shrink-0" />
-            <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>Messages</span>
-          </NavLink>
+          <NavLink to="/" icon={<HomeIcon className="w-7 h-7 flex-shrink-0" />} text="Home" />
+          <NavLink to="/directory" icon={<BookOpenIcon className="w-7 h-7 flex-shrink-0" />} text="Directory" />
+          <NavLink to="/chat" icon={<ChatIcon className="w-7 h-7 flex-shrink-0" />} text="Messages" />
           {username && (
-             <NavLink to={`/profile/${username}`} className={linkClassName}>
-              <UserIcon className="w-7 h-7 flex-shrink-0" />
-              <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>Profile</span>
-            </NavLink>
+            <NavLink to={`/profile/${username}`} icon={<UserIcon className="w-7 h-7 flex-shrink-0" />} text="Profile" />
           )}
         </nav>
 

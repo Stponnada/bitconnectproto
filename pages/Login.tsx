@@ -1,8 +1,9 @@
 // src/pages/Login.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
+import { useAuth } from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
 
 const BITS_DOMAINS = [
@@ -13,7 +14,6 @@ const BITS_DOMAINS = [
 ];
 
 const Login: React.FC = () => {
-  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -21,11 +21,17 @@ const Login: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const navigate = useNavigate();
+  const { session, isLoading: authLoading } = useAuth();
+  
   const idleImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.57.42%20PM.png';
   const activeImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.41.01%20PM.png';
   
   const [activeImage, setActiveImage] = useState<string>(idleImageUrl);
+
+  useEffect(() => {
+    if (session) { navigate('/'); }
+  }, [session, navigate]);
 
   const validateEmail = (email: string) => {
     const domain = email.split('@')[1];
@@ -40,22 +46,15 @@ const Login: React.FC = () => {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // On successful login, the existing router setup will correctly navigate to '/'
+        navigate('/');
       } else {
-        // --- SIGN UP FLOW ---
         if (password !== confirmPassword) { throw new Error("Passwords do not match."); }
         if (!validateEmail(email)) { throw new Error("Please use a valid BITS Pilani email address."); }
-        
         const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
         if (signUpError) throw signUpError;
         if (!data.user) throw new Error("Sign up successful, but no user data returned.");
-
-        // Insert the basic profile row
         const { error: profileError } = await supabase.from('profiles').insert({ user_id: data.user.id, username: username, email: data.user.email });
         if (profileError) { throw profileError; }
-
-        // --- THIS IS THE FIX ---
-        // After creating the user and their profile, navigate directly to setup.
         navigate('/setup');
       }
     } catch (error: any) {
@@ -64,6 +63,10 @@ const Login: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (authLoading || session) {
+    return <div className="flex items-center justify-center h-screen bg-dark-primary"><Spinner /></div>;
+  }
 
   return (
     <div className="flex flex-col lg:flex-row items-center justify-center min-h-screen bg-dark-primary p-4">
