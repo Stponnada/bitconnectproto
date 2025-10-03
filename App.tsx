@@ -3,7 +3,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { PostsProvider } from './contexts/PostsContext';
-import { ChatProvider } from './contexts/ChatContext'; // <-- Import ChatProvider
+import { ChatProvider } from './contexts/ChatContext';
 import ChatPage from './pages/ChatPage';
 
 import { HomePage as Home } from './pages/Home';
@@ -21,7 +21,7 @@ const App = () => {
   return (
     <AuthProvider>
       <PostsProvider>
-        <ChatProvider> {/* <-- Wrap routes with ChatProvider */}
+        <ChatProvider>
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -32,18 +32,19 @@ const App = () => {
                   <Route path="/" element={<Home />} />
                   <Route path="/directory" element={<DirectoryPage />} />
                   <Route path="/profile/:username" element={<ProfilePage />} />
-                  <Route path="/setup" element={<ProfileSetup />} />
                   <Route path="/post/:postId" element={<PostPage />} />
                   <Route path="/chat" element={<ChatPage />} />
-                  <Route path="/chat/:username" element={<ChatPage />} />
+                  <Route path="/chat/:username" element={<ChatPage />} />   
+                  {/* The /setup route has been MOVED from here */}
                 </Route>
                 
-                {/* The Search page is a protected, full-screen route without the main layout */}
+                {/* Standalone protected routes that DO NOT use the main layout */}
+                <Route path="/setup" element={<ProfileSetup />} />
                 <Route path="/search" element={<SearchPage />} />
 
               </Route>
               
-              <Route path="*" element={<NotFound />} />
+              <Route path="*" element={<NotFound />} /> 
             </Routes>
           </Router>
         </ChatProvider>
