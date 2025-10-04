@@ -1,4 +1,4 @@
-// src/pages/Login.tsx (Complete with new Logo)
+// src/pages/Login.tsx
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +6,7 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
 
+// ... (keep BITS_DOMAINS constant)
 const BITS_DOMAINS = [
   'hyderabad.bits-pilani.ac.in',
   'goa.bits-pilani.ac.in',
@@ -14,6 +15,7 @@ const BITS_DOMAINS = [
 ];
 
 const Login: React.FC = () => {
+  // ... (keep all the useState hooks)
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -22,13 +24,14 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { session, loading: authLoading } = useAuth();
+  const { session, isLoading: authLoading } = useAuth();
   
   const idleImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.57.42%20PM.png';
   const activeImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.41.01%20PM.png';
   
   const [activeImage, setActiveImage] = useState<string>(idleImageUrl);
 
+  // ... (keep useEffect and validateEmail function)
   useEffect(() => {
     if (session) { navigate('/'); }
   }, [session, navigate]);
@@ -38,6 +41,8 @@ const Login: React.FC = () => {
     return BITS_DOMAINS.includes(domain);
   };
 
+
+  // --- MODIFICATIONS ARE IN THIS FUNCTION ---
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -46,16 +51,31 @@ const Login: React.FC = () => {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate('/');
+        // Successful login will be handled by the AuthProvider listener
       } else {
+        // --- NEW VALIDATION BLOCK ---
+        if (/\s/.test(username)) {
+          throw new Error("Username cannot contain spaces.");
+        }
+        // -----------------------------
         if (password !== confirmPassword) { throw new Error("Passwords do not match."); }
         if (!validateEmail(email)) { throw new Error("Please use a valid BITS Pilani email address."); }
+        
         const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
         if (signUpError) throw signUpError;
         if (!data.user) throw new Error("Sign up successful, but no user data returned.");
-        const { error: profileError } = await supabase.from('profiles').insert({ user_id: data.user.id, username: username, email: data.user.email });
+        
+        // Add the username to the new profile
+        const { error: profileError } = await supabase.from('profiles').insert({ 
+            user_id: data.user.id, 
+            username: username.trim(), // Also trim whitespace just in case
+            email: data.user.email 
+        });
         if (profileError) { throw profileError; }
-        navigate('/setup');
+
+        // After sign up, the onAuthStateChange listener will fire, and our App.tsx
+        // routing logic will automatically navigate the user to /setup.
+        // We don't need to explicitly navigate here.
       }
     } catch (error: any) {
       setError(error.message);
@@ -64,10 +84,10 @@ const Login: React.FC = () => {
     }
   };
 
+  // ... (keep the return statement and JSX the same)
   if (authLoading || session) {
     return <div className="flex items-center justify-center h-screen bg-dark-primary"><Spinner /></div>;
   }
-
   return (
     <div className="flex flex-col lg:flex-row items-center justify-center min-h-screen bg-dark-primary p-4">
       <div className="w-full max-w-md lg:w-1/2 flex flex-col items-center justify-center p-8">
@@ -97,7 +117,6 @@ const Login: React.FC = () => {
       </div>
       <div className="w-full max-w-md lg:w-1/2 flex items-center justify-center p-8 order-first lg:order-last">
         <div className="text-center lg:text-left">
-          {/* --- MODIFIED: Logo text and font classes updated --- */}
           <h1 className="text-5xl lg:text-6xl font-raleway font-black text-brand-green">litelelo.</h1>
           <p className="text-gray-400 mt-4 text-lg">The exclusive social network for BITSians.</p>
         </div>

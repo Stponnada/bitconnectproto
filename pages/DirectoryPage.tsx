@@ -1,87 +1,21 @@
 // src/pages/DirectoryPage.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // <-- Import useNavigate
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Profile } from '../types';
 import Spinner from '../components/Spinner';
-import { ChatIcon } from '../components/icons'; // <-- Import ChatIcon
+import { ChatIcon } from '../components/icons';
+import UserCard from '../components/UserCard'; // <-- Import the extracted component
 
 type DirectoryTab = 'all' | 'following' | 'followers';
 
-const UserCard: React.FC<{
-  profile: Profile;
-  isCurrentUser: boolean;
-  isToggling: boolean;
-  onFollowToggle: (profile: Profile) => void;
-  onMessage: (profile: Profile) => void; // <-- Add onMessage prop
-  activeTab: DirectoryTab;
-}> = ({ profile, isCurrentUser, isToggling, onFollowToggle, onMessage, activeTab }) => {
-  
-  const handleFollowClick = (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    onFollowToggle(profile);
-  };
-
-  const handleMessageClick = (e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    onMessage(profile);
-  };
-  
-  const getButtonText = () => {
-    if (isToggling) return <Spinner/>;
-    if (profile.is_following) return 'Following';
-    if (activeTab === 'followers' && profile.is_followed_by) return 'Follow Back';
-    return 'Follow';
-  }
-
-  return (
-    <Link 
-      to={`/profile/${profile.username}`} 
-      className="bg-dark-secondary p-4 rounded-lg flex items-center space-x-4 hover:bg-dark-tertiary transition-colors border border-dark-tertiary"
-    >
-      <img 
-        src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name || profile.username}`} 
-        alt={profile.username}
-        className="w-16 h-16 rounded-full object-cover border-2 border-gray-600"
-      />
-      <div className="text-left flex-grow">
-        <h3 className="font-bold text-white text-lg">{profile.full_name}</h3>
-        <p className="text-sm text-gray-400">@{profile.username}</p>
-        <p className="text-xs text-gray-500 mt-1">{profile.follower_count} Followers</p>
-      </div>
-      
-      {!isCurrentUser && (
-        <div className="flex items-center space-x-2 flex-shrink-0">
-            {/* -- NEW: Message Button -- */}
-            <button
-              onClick={handleMessageClick}
-              className="p-2 text-gray-300 rounded-full hover:bg-dark-primary transition-colors"
-              title={`Message ${profile.full_name}`}
-            >
-              <ChatIcon className="w-6 h-6" />
-            </button>
-            <button
-              onClick={handleFollowClick}
-              disabled={isToggling}
-              className={`font-semibold py-1.5 px-4 rounded-full text-sm transition-colors disabled:opacity-50 min-w-[100px] ${
-                profile.is_following
-                  ? 'bg-transparent border border-gray-500 text-white hover:border-red-500 hover:text-red-500'
-                  : 'bg-white text-black hover:bg-gray-200'
-              }`}
-            >
-              {getButtonText()}
-            </button>
-        </div>
-      )}
-    </Link>
-  );
-};
+// --- THE UserCard COMPONENT HAS BEEN REMOVED FROM THIS FILE ---
 
 const DirectoryPage: React.FC = () => {
   const { user: currentUser } = useAuth();
-  const navigate = useNavigate(); // <-- Add useNavigate hook
+  const navigate = useNavigate();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +27,7 @@ const DirectoryPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
+        // This RPC needs to be updated to match the new profile_with_follow_status type
         const { data, error: fetchError } = await supabase
           .rpc('get_directory_profiles');
 
@@ -112,6 +47,7 @@ const DirectoryPage: React.FC = () => {
     setTogglingFollowId(profileToToggle.user_id);
     const isCurrentlyFollowing = profileToToggle.is_following;
 
+    // Optimistic UI update
     setProfiles(currentProfiles => 
       currentProfiles.map(p => 
         p.user_id === profileToToggle.user_id
@@ -149,7 +85,6 @@ const DirectoryPage: React.FC = () => {
     }
   };
 
-  // <-- NEW: Handler to navigate to chat page with selected profile
   const handleMessageUser = (profile: Profile) => {
     navigate('/chat', { state: { recipient: profile } });
   };
@@ -199,7 +134,7 @@ const DirectoryPage: React.FC = () => {
               isCurrentUser={currentUser?.id === profile.user_id}
               isToggling={togglingFollowId === profile.user_id}
               onFollowToggle={handleFollowToggle}
-              onMessage={handleMessageUser} // <-- Pass handler
+              onMessage={handleMessageUser}
               activeTab={activeTab}
             />
           ))

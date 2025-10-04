@@ -39,7 +39,7 @@ const MentionsPage: React.FC = () => {
     }
 
     return (
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-[52rem] mx-auto">
             <h1 className="text-2xl font-bold mb-6">Mentions</h1>
             {posts.length > 0 ? (
                 <div className="space-y-4">

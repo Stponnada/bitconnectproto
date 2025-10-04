@@ -149,7 +149,7 @@ export const HomePage: React.FC = () => {
     }
 
     return (
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-[52rem] mx-auto">
             {profile && <CreatePost onPostCreated={addPostToContext} profile={profile} />}
             {posts.length > 0 ? (
                 <div className="space-y-4">

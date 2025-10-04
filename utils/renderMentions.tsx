@@ -4,11 +4,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 export const renderWithMentions = (text: string): React.ReactNode[] => {
-  const mentionRegex = /@(\w+)/g;
+  // THE FIX IS HERE: The regex now includes the dot character '.'
+  const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
   const parts = text.split(mentionRegex);
 
   return parts.map((part, index) => {
-    // Every odd-indexed part is a username
+    // Every odd-indexed part is a username captured by the parentheses in the regex
     if (index % 2 === 1) {
       return (
         <Link
@@ -21,7 +22,7 @@ export const renderWithMentions = (text: string): React.ReactNode[] => {
         </Link>
       );
     }
-    // Even-indexed parts are regular text
+    // Even-indexed parts are the regular text surrounding the mentions
     return part;
   });
 };

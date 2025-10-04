@@ -4,15 +4,15 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { usePosts } from '../hooks/usePosts.ts';
+import { usePosts } from '../hooks/usePosts';
 import PostComponent from '../components/Post';
 import { Post as PostType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
 import { isMscBranch, BITS_BRANCHES } from '../data/bitsBranches.ts';
 import ImageCropper from '../components/ImageCropper';
+import FollowListModal from '../components/FollowListModal';
 
-// Main Page Component (No changes here)
 const ProfilePage: React.FC = () => {
     const { username } = useParams<{ username: string }>();
     const { user: currentUser } = useAuth();
@@ -22,6 +22,11 @@ const ProfilePage: React.FC = () => {
     const [profileLoading, setProfileLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isTogglingFollow, setIsTogglingFollow] = useState(false);
+
+    const [followModalState, setFollowModalState] = useState<{
+        isOpen: boolean;
+        listType: 'followers' | 'following' | null;
+    }>({ isOpen: false, listType: null });
 
     const fetchProfileData = useCallback(async () => {
         if (!username) return;
@@ -58,15 +63,9 @@ const ProfilePage: React.FC = () => {
       });
       try {
         if (isCurrentlyFollowing) {
-          await supabase.from('followers').delete().match({
-            follower_id: currentUser.id,
-            following_id: profile.user_id,
-          });
+          await supabase.from('followers').delete().match({ follower_id: currentUser.id, following_id: profile.user_id });
         } else {
-          await supabase.from('followers').insert({
-            follower_id: currentUser.id,
-            following_id: profile.user_id,
-          });
+          await supabase.from('followers').insert({ follower_id: currentUser.id, following_id: profile.user_id });
         }
       } catch (error) {
         console.error('Failed to toggle follow:', error);
@@ -101,36 +100,67 @@ const ProfilePage: React.FC = () => {
                 <EditProfileModal userProfile={profile} onClose={() => setIsEditModalOpen(false)} onSave={fetchProfileData} />
             )}
             
+            {followModalState.isOpen && profile && followModalState.listType && (
+                <FollowListModal
+                    profile={profile}
+                    listType={followModalState.listType}
+                    onClose={() => setFollowModalState({ isOpen: false, listType: null })}
+                />
+            )}
+            
             <div className="w-full max-w-4xl mx-auto">
-                <div className="h-48 sm:h-64 bg-dark-tertiary border-b-4 border-dark-primary">{profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}</div>
-                <div className="px-4 sm:px-6 relative bg-dark-secondary pb-10">
-                    <div className="flex items-end -mt-16 sm:-mt-20">
-                        <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-dark-secondary bg-gray-700 flex-shrink-0">
-                            {profile.avatar_url ? <img src={profile.avatar_url} alt={profile.full_name || ''} className="w-full h-full rounded-full object-cover" /> : <div className="w-full h-full rounded-full bg-gray-600 flex items-center justify-center text-4xl font-bold">{(profile.full_name || '?').charAt(0).toUpperCase()}</div>}
-                        </div>
-                        <div className="ml-auto pb-4 flex items-center space-x-4">
-                            {isOwnProfile ? (
-                                <button onClick={() => setIsEditModalOpen(true)} className="bg-dark-tertiary text-white font-bold py-2 px-4 rounded-full hover:bg-gray-600">Edit Profile</button>
+                <div className="relative bg-dark-secondary">
+                    <div className="h-64 sm:h-80 bg-dark-tertiary">
+                        {profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}
+                    </div>
+                    
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent z-10"></div>
+
+                    <div className="absolute left-4 sm:left-6 bottom-4 z-20">
+                        <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-dark-secondary bg-gray-700">
+                            {profile.avatar_url ? (
+                                <img src={profile.avatar_url} alt={profile.full_name || ''} className="w-full h-full rounded-full object-cover" />
                             ) : (
-                                <button onClick={handleFollowToggle} disabled={isTogglingFollow} className={`font-bold py-2 px-6 rounded-full transition-colors disabled:opacity-50 ${profile.is_following ? 'bg-transparent border border-gray-500 text-white hover:border-red-500 hover:text-red-500' : 'bg-white text-black hover:bg-gray-200'}`}>
-                                  {isTogglingFollow ? <Spinner /> : (profile.is_following ? 'Following' : 'Follow')}
-                                </button>
+                                <div className="w-full h-full rounded-full bg-gray-600 flex items-center justify-center text-4xl font-bold">
+                                    {(profile.full_name || '?').charAt(0).toUpperCase()}
+                                </div>
                             )}
                         </div>
                     </div>
-                    <div className="mt-4">
+
+                    <div className="absolute bottom-4 left-40 sm:left-48 text-white z-20" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
                         <h1 className="text-3xl font-bold">{profile.full_name}</h1>
-                        <p className="text-gray-400">@{profile.username}</p>
-                        <div className="mt-3 flex items-center space-x-4 text-sm">
-                            <p><span className="font-bold text-white">{profile.following_count}</span> <span className="text-gray-400">Following</span></p>
-                            <p><span className="font-bold text-white">{profile.follower_count}</span> <span className="text-gray-400">Followers</span></p>
-                        </div>
-                        <div className="mt-2 flex items-center space-x-2 text-sm text-gray-400">
-                            {profile.campus && <span>{profile.campus} Campus</span>}
-                            {graduationYear && <span className="text-gray-500">&middot;</span>}
-                            {graduationYear && <span>Class of {graduationYear}</span>}
-                        </div>
+                        <p className="text-gray-300">@{profile.username}</p>
                     </div>
+
+                    <div className="absolute bottom-4 right-4 sm:right-6 z-20">
+                        {isOwnProfile ? (
+                            <button onClick={() => setIsEditModalOpen(true)} className="bg-dark-tertiary/80 text-white font-bold py-2 px-4 rounded-full hover:bg-gray-600/80">Edit Profile</button>
+                        ) : (
+                            <button onClick={handleFollowToggle} disabled={isTogglingFollow} className={`font-bold py-2 px-6 rounded-full transition-colors disabled:opacity-50 ${profile.is_following ? 'bg-transparent border border-gray-400 text-white hover:border-red-500 hover:text-red-500' : 'bg-white text-black hover:bg-gray-200'}`}>
+                                {isTogglingFollow ? <Spinner /> : (profile.is_following ? 'Following' : 'Follow')}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="bg-dark-secondary px-4 sm:px-6 pb-10 pt-4">
+                    <div className="flex items-center space-x-4 text-sm">
+                        <button onClick={() => setFollowModalState({ isOpen: true, listType: 'following' })} className="hover:underline">
+                            <span className="font-bold text-white">{profile.following_count}</span>
+                            <span className="text-gray-400"> Following</span>
+                        </button>
+                        <button onClick={() => setFollowModalState({ isOpen: true, listType: 'followers' })} className="hover:underline">
+                            <span className="font-bold text-white">{profile.follower_count}</span>
+                            <span className="text-gray-400"> Followers</span>
+                        </button>
+                    </div>
+                    <div className="mt-2 flex items-center space-x-2 text-sm text-gray-400">
+                        {profile.campus && <span>{profile.campus} Campus</span>}
+                        {graduationYear && <span className="text-gray-500">&middot;</span>}
+                        {graduationYear && <span>Class of {graduationYear}</span>}
+                    </div>
+
                     {profile.bio && <p className="mt-4 text-gray-300 whitespace-pre-wrap">{profile.bio}</p>}
                     <hr className="border-gray-700 my-6" />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
@@ -150,8 +180,7 @@ const ProfilePage: React.FC = () => {
     );
 };
 
-
-// --- MODIFIED Edit Profile Modal ---
+// --- THIS IS THE FULLY EXPANDED, CORRECT COMPONENT ---
 const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, onSave: () => void }> = ({ userProfile, onClose, onSave }) => {
     const { user } = useAuth();
     const [profileData, setProfileData] = useState(userProfile);
@@ -252,13 +281,11 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
         } catch (err: any) { setError(err.message); } finally { setIsSaving(false); }
     };
     
-    // --- THIS IS THE FIX ---
-    // If the cropper is open, render ONLY the cropper.
     if (cropperState.isOpen && cropperState.src) {
         return (
             <ImageCropper
                 imageSrc={cropperState.src}
-                aspect={cropperState.type === 'avatar' ? 1 : 16 / 6}
+                aspect={cropperState.type === 'avatar' ? 1 : 16 / 9} // A common banner aspect ratio
                 cropShape={cropperState.type === 'avatar' ? 'round' : 'rect'}
                 onSave={handleCropSave}
                 onClose={() => setCropperState({ isOpen: false, type: null, src: null })}
@@ -266,7 +293,6 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
         );
     }
     
-    // Otherwise, render the main edit profile modal.
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-dark-secondary rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -316,7 +342,6 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
     );
 };
 
-// Helper Component
 const ProfileDetail: React.FC<{ label: string; value?: string | number | null }> = ({ label, value }) => {
     if (!value) return null;
     return (<div><span className="font-semibold text-gray-200">{label}: </span><span className="text-gray-400">{value}</span></div>);
