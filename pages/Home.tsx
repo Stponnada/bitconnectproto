@@ -2,8 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
-import { usePosts } from '../contexts/PostsContext';
+import { useAuth } from '../hooks/useAuth';
+import { usePosts } from '../hooks/usePosts';
 import PostComponent from '../components/Post';
 import { Post as PostType, Profile } from '../types';
 import { ImageIcon, XCircleIcon } from '../components/icons';
@@ -18,7 +18,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     const [error, setError] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+   const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user || (!content.trim() && !imageFile)) return;
         setIsSubmitting(true);
@@ -26,6 +26,7 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
         let imageUrl: string | null = null;
         try {
             if (imageFile) {
+                // ... (image upload logic remains the same)
                 const fileExt = imageFile.name.split('.').pop();
                 const sanitizedFileName = `${Date.now()}.${fileExt}`;
                 const filePath = `${user.id}/${sanitizedFileName}`;
@@ -34,23 +35,21 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                 const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(filePath);
                 imageUrl = publicUrl;
             }
-            const { data: newPostData, error: insertError } = await supabase
-                .from('posts')
-                .insert({ user_id: user.id, content: content.trim(), image_url: imageUrl })
+            
+            // --- THIS IS THE CHANGE ---
+            // Call the RPC function instead of a simple insert
+            const { data: newPostData, error: rpcError } = await supabase
+                .rpc('create_post_with_mentions', {
+                    post_content: content.trim(),
+                    post_image_url: imageUrl,
+                })
                 .select()
                 .single();
 
-            if (insertError) throw insertError;
+            if (rpcError) throw rpcError;
             
-            const postForUI: PostType = {
-                ...newPostData,
-                profiles: profile,
-                like_count: 0,
-                dislike_count: 0,
-                comment_count: 0,
-                user_has_liked: false,
-            };
-            onPostCreated(postForUI);
+            // The RPC returns the full post object, so this part remains the same!
+            onPostCreated(newPostData as PostType);
             setContent('');
             setImageFile(null);
         } catch (error: any) {

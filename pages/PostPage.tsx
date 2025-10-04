@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
-import { usePosts } from '../contexts/PostsContext';
+import { useAuth } from '../hooks/useAuth';
+import { usePosts } from '../hooks/usePosts';
 import PostComponent from '../components/Post';
 import { Post as PostType, Comment as CommentType, Profile } from '../types';
 import Spinner from '../components/Spinner';

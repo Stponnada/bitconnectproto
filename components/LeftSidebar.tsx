@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useChat } from '../contexts/ChatContext'; // <-- Import useChat
+import { useChat } from '../hooks/useChat'; // <-- Import useChat
 import { supabase } from '../services/supabase';
 import {
   HomeIcon,
@@ -8,6 +8,7 @@ import {
   ChatIcon,
   UserIcon,
   LogoutIcon,
+  AtSymbolIcon,
 } from './icons';
 
 const MenuIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
@@ -60,6 +61,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, us
         <nav className="flex-grow mt-4">
           <NavLink to="/" icon={<HomeIcon className="w-7 h-7 flex-shrink-0" />} text="Home" />
           <NavLink to="/directory" icon={<BookOpenIcon className="w-7 h-7 flex-shrink-0" />} text="Directory" />
+          <NavLink to="/mentions" icon={<AtSymbolIcon className="w-7 h-7 flex-shrink-0" />} text="Mentions" />
           <NavLink
             to="/chat"
             icon={

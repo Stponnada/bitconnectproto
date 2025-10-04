@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
-import { usePosts } from '../contexts/PostsContext';
+import { useAuth } from '../hooks/useAuth'; // Ensure this uses the correct path
+import { usePosts } from '../hooks/usePosts'; // Ensure this uses the correct path
 import { Post as PostType } from '../types';
 import { ThumbsUpIcon, ThumbsDownIcon, CommentIcon } from './icons';
 import { formatTimestamp } from '../utils/timeUtils';
-import LightBox from './lightbox.tsx'; // <-- MODIFIED: Import the new component
+import LightBox from './lightbox';
+import { renderWithMentions } from '../utils/renderMentions'; // <-- NEW: Import the mention rendering utility
 
 const Post = ({ post }: { post: PostType }) => {
   const { user } = useAuth();
@@ -16,7 +17,7 @@ const Post = ({ post }: { post: PostType }) => {
 
   const [userVote, setUserVote] = useState(post.user_vote);
   const [isVoting, setIsVoting] = useState(false);
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false); // <-- MODIFIED: Add state for lightbox
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   const handleVote = async (newVoteType: 'like' | 'dislike') => {
     if (!user || isVoting) return;
@@ -105,12 +106,15 @@ const Post = ({ post }: { post: PostType }) => {
               </div>
               
                <Link to={`/post/${post.id}`} className="block mt-1">
-                  <p className="text-gray-300 whitespace-pre-wrap">{post.content}</p>
+                  {/* --- MODIFIED BLOCK TO RENDER MENTIONS --- */}
+                  <p className="text-gray-300 whitespace-pre-wrap">
+                    {renderWithMentions(post.content)}
+                  </p>
+                  {/* ------------------------------------------- */}
                </Link>
           </div>
         </div>
         
-        {/* -- MODIFIED: This block now handles opening the lightbox -- */}
         {post.image_url && 
           <div className="block ml-13 mt-3">
             <button onClick={() => setIsLightboxOpen(true)} className="w-full h-full focus:outline-none">
@@ -139,7 +143,6 @@ const Post = ({ post }: { post: PostType }) => {
         </div>
       </article>
 
-      {/* -- MODIFIED: Conditionally render the lightbox component -- */}
       {isLightboxOpen && post.image_url && (
           <LightBox imageUrl={post.image_url} onClose={() => setIsLightboxOpen(false)} />
       )}

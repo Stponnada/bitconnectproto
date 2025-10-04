@@ -47,11 +47,13 @@ export interface Post {
   content: string;
   image_url: string | null;
   created_at: string;
-  profiles: Profile | null; // This is the joined profile data
+  profiles: Profile | null;
   like_count: number;
-  dislike_count: number; // Correctly added
+  dislike_count: number;
   comment_count: number;
-  user_has_liked: boolean;
+  // --- THIS IS THE FIX ---
+  // Replace `user_has_liked` with `user_vote` to match the component's usage.
+  user_vote: 'like' | 'dislike' | null;
 }
 
 export interface Comment {

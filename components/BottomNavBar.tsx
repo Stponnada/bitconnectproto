@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useChat } from '../contexts/ChatContext'; // <-- Import useChat
+import { useAuth } from '../hooks/useAuth';
+import { useChat } from '../hooks/useChat.ts'; // <-- Import useChat
 import { supabase } from '../services/supabase';
 import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon } from './icons'; // <-- MODIFIED: Swapped SearchIcon for UserIcon
 

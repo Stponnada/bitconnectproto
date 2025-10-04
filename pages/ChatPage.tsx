@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useLocation } from 'react-router-dom'; // <-- Import useLocation
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { Profile } from '../types';
 import Spinner from '../components/Spinner';
 import Conversation from '../components/Conversation';
-import { useChat } from '../contexts/ChatContext';
+import { useChat } from '../hooks/useChat';
 import { formatTimestamp } from '../utils/timeUtils';
 import { ChatIcon } from '../components/icons';
 
@@ -115,6 +115,9 @@ const ChatPage: React.FC = () => {
                 <ChatIcon className="w-16 h-16 mb-4"/>
                 <h3 className="text-xl font-semibold text-white">Select a conversation</h3>
                 <p>Choose from your contacts to start chatting.</p>
+                <p> Your contacts include people you follow and people who follow you. </p>
+                <p> To chat with others, find them in the User Directory. </p>
+
             </div>
           )}
         </div>

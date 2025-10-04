@@ -1,8 +1,8 @@
 // src/contexts/ChatContext.tsx
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react'; // REMOVED useContext
 import { supabase } from '../services/supabase';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../hooks/useAuth'; // <-- UPDATE THIS IMPORT
 import { ConversationSummary } from '../types';
 
 interface ChatContextType {
@@ -12,9 +12,12 @@ interface ChatContextType {
   markConversationAsRead: (participantId: string) => Promise<void>;
 }
 
-const ChatContext = createContext<ChatContextType | undefined>(undefined);
+// EXPORT this so the hook can import it
+export const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // ... the inside of the ChatProvider component remains exactly the same ...
+  // ... from `const { user } = useAuth();` to `</ChatContext.Provider>;`
   const { user } = useAuth();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,8 +29,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     setLoading(true);
-    // This RPC function needs to be created in Supabase.
-    // It should query and return a summary for each of the user's conversations.
     const { data, error } = await supabase.rpc('get_user_conversations_with_unread');
     
     if (error) {
@@ -48,9 +49,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (!user) return;
-
-    // Listen for new messages to the current user and refetch everything.
-    // This keeps the unread counts and conversation order up-to-date.
     const channel = supabase
       .channel('public:messages')
       .on('postgres_changes', {
@@ -71,23 +69,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const markConversationAsRead = useCallback(async (participantId: string) => {
     if (!user) return;
-    
     const convo = conversations.find(c => c.participant.user_id === participantId);
     if (!convo || convo.unread_count === 0) return;
-
-    // Optimistically update the UI for a faster user experience.
     setTotalUnreadCount(prev => prev - convo.unread_count);
     setConversations(prev => prev.map(c => 
       c.participant.user_id === participantId ? { ...c, unread_count: 0 } : c
     ));
-
-    // This RPC function needs to be created in Supabase.
-    // It should set `is_read = true` for the relevant messages.
     const { error } = await supabase.rpc('mark_messages_as_read', { p_sender_id: participantId });
-    
     if (error) {
       console.error('Failed to mark messages as read:', error);
-      // Revert the change if the DB update fails.
       fetchConversations();
     }
   }, [user, fetchConversations, conversations]);
@@ -97,10 +87,4 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
 
-export const useChat = () => {
-  const context = useContext(ChatContext);
-  if (context === undefined) {
-    throw new Error('useChat must be used within a ChatProvider');
-  }
-  return context;
-};
+// --- THE useChat HOOK HAS BEEN REMOVED FROM THIS FILE ---

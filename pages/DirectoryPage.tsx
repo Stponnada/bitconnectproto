@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // <-- Import useNavigate
 import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { ChatIcon } from '../components/icons'; // <-- Import ChatIcon

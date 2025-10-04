@@ -3,39 +3,38 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth'; // <-- Make sure this import is correct
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
 import { BITS_BRANCHES, isMscBranch } from '../data/bitsBranches.ts';
 import { getKeyPair } from '../services/encryption';
 import ImageCropper from '../components/ImageCropper';
 
+// ... (keep the RELATIONSHIP_STATUSES and DINING_HALLS constants)
 const RELATIONSHIP_STATUSES = ['Single', 'In a Relationship', 'Married', "It's Complicated"];
 const DINING_HALLS = ['Mess 1', 'Mess 2'];
 
 const ProfileSetup: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateProfileContext } = useAuth(); // <-- Get the new function from useAuth
   const navigate = useNavigate();
   
+  // ... (keep all the existing useState and useEffect hooks, no changes there)
   const [formData, setFormData] = useState({
     full_name: '', campus: '', admission_year: '', branch: '',
     dual_degree_branch: '', relationship_status: '', dorm_building: '',
     dorm_room: '', dining_hall: '', bio: '',
   });
-
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
-  
   const [cropperState, setCropperState] = useState<{
     isOpen: boolean;
     type: 'avatar' | 'banner' | null;
     src: string | null;
   }>({ isOpen: false, type: null, src: null });
-
   const [availableBranches, setAvailableBranches] = useState<string[]>([]);
   const [isDualDegreeStudent, setIsDualDegreeStudent] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -50,7 +49,6 @@ const ProfileSetup: React.FC = () => {
       if (detectedCampus) setFormData(prev => ({ ...prev, campus: detectedCampus }));
     }
   }, [user]);
-  
   useEffect(() => {
     if (formData.campus && BITS_BRANCHES[formData.campus]) {
         const campusData = BITS_BRANCHES[formData.campus];
@@ -58,7 +56,6 @@ const ProfileSetup: React.FC = () => {
     } else { setAvailableBranches([]); }
     setFormData(prev => ({ ...prev, branch: '', dual_degree_branch: '' }));
   }, [formData.campus]);
-
   useEffect(() => {
     const isMsc = isMscBranch(formData.branch, formData.campus);
     setIsDualDegreeStudent(isMsc);
@@ -68,7 +65,6 @@ const ProfileSetup: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-  
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => {
       if (e.target.files && e.target.files[0]) {
           const file = e.target.files[0];
@@ -80,7 +76,6 @@ const ProfileSetup: React.FC = () => {
       }
       e.target.value = '';
   };
-  
   const handleCropSave = (croppedImageFile: File) => {
     const previewUrl = URL.createObjectURL(croppedImageFile);
     if (cropperState.type === 'avatar') {
@@ -93,10 +88,13 @@ const ProfileSetup: React.FC = () => {
     setCropperState({ isOpen: false, type: null, src: null });
   };
 
+
+  // --- MODIFICATIONS ARE IN THIS FUNCTION ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    setIsSaving(true); setError(null);
+    setIsSaving(true); 
+    setError(null);
     try {
         let avatar_url = null;
         let banner_url = null;
@@ -114,25 +112,36 @@ const ProfileSetup: React.FC = () => {
             banner_url = `${publicUrl}?t=${new Date().getTime()}`;
         }
 
-      const { error: updateError } = await supabase.from('profiles').update({
+      // Chain `.select().single()` to get the updated data back
+      const { data: updatedProfile, error: updateError } = await supabase.from('profiles').update({
           full_name: formData.full_name, campus: formData.campus, admission_year: parseInt(formData.admission_year),
           branch: formData.branch, dual_degree_branch: formData.dual_degree_branch || null,
           relationship_status: formData.relationship_status, dorm_building: formData.dorm_building,
           dorm_room: formData.dorm_room, dining_hall: formData.dining_hall, bio: formData.bio,
           avatar_url, banner_url, profile_complete: true, updated_at: new Date().toISOString(),
-        }).eq('user_id', user.id); 
+        }).eq('user_id', user.id)
+        .select() // <-- ADD THIS
+        .single(); // <-- AND THIS
 
       if (updateError) throw updateError;
       
       await getKeyPair();
+
+      // ** THE FIX **
+      // Update the global context with the new profile *before* navigating.
+      updateProfileContext(updatedProfile); 
+      
+      // Now the navigate will work because AppRoutes will see the completed profile.
       navigate('/'); 
-    } catch (err: any) { setError(err.message); } finally { setIsSaving(false); }
+    } catch (err: any) { 
+      setError(err.message); 
+    } finally { 
+      setIsSaving(false); 
+    }
   };
   
+  // ... (keep the rest of the file, the return statement and JSX, the same)
   const showDualDegreeField = isDualDegreeStudent && formData.admission_year && new Date().getFullYear() >= parseInt(formData.admission_year) + 1;
-
-  // --- THIS IS THE FIX ---
-  // If the cropper is open, render ONLY the cropper.
   if (cropperState.isOpen && cropperState.src) {
     return (
         <ImageCropper
@@ -144,8 +153,6 @@ const ProfileSetup: React.FC = () => {
         />
     );
   }
-
-  // Otherwise, render the main setup page.
   return (
     <div className="flex items-center justify-center min-h-screen bg-dark p-4">
       <div className="bg-dark-secondary p-8 rounded-lg shadow-lg w-full max-w-2xl">
@@ -163,9 +170,7 @@ const ProfileSetup: React.FC = () => {
                     <input type="file" ref={avatarInputRef} onChange={(e) => handleFileChange(e, 'avatar')} accept="image/*" hidden />
                 </div>
             </div>
-
             <div className="col-span-full"><label htmlFor="full_name" className="block text-gray-300 text-sm font-bold mb-2">Full Name <span className="text-red-500">*</span></label><input type="text" name="full_name" id="full_name" value={formData.full_name} onChange={handleChange} required className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm" /></div>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-300 text-sm font-bold mb-2">Campus</label>
@@ -173,7 +178,6 @@ const ProfileSetup: React.FC = () => {
                     {formData.campus ? (<>{formData.campus} <span className="text-xs text-gray-500">(Auto-Detected)</span></>) : ('Detecting from email...')}
                   </div>
                 </div>
-
                 <div><label htmlFor="admission_year" className="block text-gray-300 text-sm font-bold mb-2">Admission Year <span className="text-red-500">*</span></label><select name="admission_year" id="admission_year" value={formData.admission_year} onChange={handleChange} required className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Year</option>{Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
                 <div className={showDualDegreeField ? 'col-span-1' : 'md:col-span-2'}><label htmlFor="branch" className="block text-gray-300 text-sm font-bold mb-2">Primary Degree <span className="text-red-500">*</span></label><select name="branch" id="branch" value={formData.branch} onChange={handleChange} required disabled={!formData.campus} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm disabled:opacity-50"><option value="">Select Branch</option>{availableBranches.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
                 {showDualDegreeField && (
@@ -181,12 +185,9 @@ const ProfileSetup: React.FC = () => {
                 )}
                 <div><label htmlFor="relationship_status" className="block text-gray-300 text-sm font-bold mb-2">Relationship Status</label><select name="relationship_status" id="relationship_status" value={formData.relationship_status} onChange={handleChange} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Status</option>{RELATIONSHIP_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
                 <div><label htmlFor="dorm_building" className="block text-gray-300 text-sm font-bold mb-2">Dorm Building</label><input type="text" name="dorm_building" id="dorm_building" value={formData.dorm_building} onChange={handleChange} placeholder="e.g. Ram Bhawan" className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm" /></div>
-                
                 <div><label htmlFor="dorm_room" className="block text-gray-300 text-sm font-bold mb-2">Dorm Room</label><input type="text" name="dorm_room" id="dorm_room" value={formData.dorm_room} onChange={handleChange} placeholder="e.g. 101" className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm" /></div>
-
                 <div><label htmlFor="dining_hall" className="block text-gray-300 text-sm font-bold mb-2">Dining Hall</label><select name="dining_hall" id="dining_hall" value={formData.dining_hall} onChange={handleChange} className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm"><option value="">Select Mess</option>{DINING_HALLS.map(hall => <option key={hall} value={hall}>{hall}</option>)}</select></div>
             </div>
-
             <div className="col-span-full"><label htmlFor="bio" className="block text-gray-300 text-sm font-bold mb-2">Bio</label><textarea name="bio" id="bio" value={formData.bio} onChange={handleChange} rows={3} placeholder="Intro de ..." className="w-full p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm resize-y" /></div>
             {error && <p className="col-span-full text-red-400 text-center text-sm">{error}</p>}
             <div className="col-span-full mt-4"><button type="submit" disabled={isSaving || !formData.campus} className="w-full bg-brand-green text-black font-bold rounded-md py-3 transition duration-300 ease-in-out hover:bg-brand-green-darker disabled:opacity-50 disabled:cursor-not-allowed">{isSaving ? <Spinner /> : 'Save Profile & Continue'}</button></div>

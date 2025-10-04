@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { Profile } from '../types';
 import Spinner from './Spinner';
 import { encryptMessage, decryptMessage } from '../services/encryption';

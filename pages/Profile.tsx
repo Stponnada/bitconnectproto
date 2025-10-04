@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
-import { usePosts } from '../contexts/PostsContext';
+import { useAuth } from '../hooks/useAuth';
+import { usePosts } from '../hooks/usePosts.ts';
 import PostComponent from '../components/Post';
 import { Post as PostType, Profile } from '../types';
 import Spinner from '../components/Spinner';
