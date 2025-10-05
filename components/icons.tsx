@@ -8,10 +8,22 @@ export const HomeIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-
 );
 
 export const ChatIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.76 9.76 0 01-2.53-.401m-1.44-4.925c.426 1.756 2.924 3.375 5.97 3.375s5.544-1.619 5.97-3.375m-11.94 0c-.426-1.756-2.924-3.375-5.97-3.375s-5.544 1.619-5.97 3.375m11.94 0c.426 1.756 2.924 3.375 5.97 3.375s5.544-1.619 5.97-3.375M3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M2.25 12a8.25 8.25 0 018.25-8.25h3.5a8.25 8.25 0 010 16.5H9l-4.5 3v-3.75A8.25 8.25 0 012.25 12z"
+    />
   </svg>
 );
+
 
 export const UserIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>

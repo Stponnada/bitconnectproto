@@ -6,7 +6,8 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { usePosts } from '../hooks/usePosts';
 import PostComponent from '../components/Post';
-import { Post as PostType, Profile } from '../types';
+import CreatePost from '../components/CreatePost';
+import { Post as PostType, Profile, Friend } from '../types';
 import Spinner from '../components/Spinner';
 import { CameraIcon } from '../components/icons';
 import { isMscBranch, BITS_BRANCHES } from '../data/bitsBranches.ts';
@@ -15,13 +16,16 @@ import FollowListModal from '../components/FollowListModal';
 
 const ProfilePage: React.FC = () => {
     const { username } = useParams<{ username: string }>();
-    const { user: currentUser } = useAuth();
-    const { posts, loading: postsLoading } = usePosts();
+    const { user: currentUser, profile: currentUserProfile } = useAuth(); 
+    const { posts, loading: postsLoading, addPostToContext } = usePosts(); 
 
     const [profile, setProfile] = useState<Profile | null>(null);
     const [profileLoading, setProfileLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isTogglingFollow, setIsTogglingFollow] = useState(false);
+    
+    const [friends, setFriends] = useState<Friend[]>([]);
+    const [friendsLoading, setFriendsLoading] = useState(true);
 
     const [followModalState, setFollowModalState] = useState<{
         isOpen: boolean;
@@ -49,6 +53,28 @@ const ProfilePage: React.FC = () => {
     useEffect(() => {
         fetchProfileData();
     }, [fetchProfileData]);
+
+    useEffect(() => {
+        const fetchFriends = async () => {
+            if (!profile) return;
+            setFriendsLoading(true);
+            try {
+                const { data, error } = await supabase.rpc('get_mutual_followers', {
+                    p_user_id: profile.user_id,
+                });
+                if (error) throw error;
+                setFriends(data || []);
+            } catch (error) {
+                console.error("Error fetching friends:", error);
+            } finally {
+                setFriendsLoading(false);
+            }
+        };
+
+        if (profile) {
+            fetchFriends();
+        }
+    }, [profile]);
     
     const handleFollowToggle = async () => {
       if (!currentUser || !profile || isTogglingFollow) return;
@@ -109,9 +135,7 @@ const ProfilePage: React.FC = () => {
             )}
             
             <div className="w-full max-w-7xl mx-auto">
-                {/* Banner Section */}
                 <div className="relative bg-secondary-light dark:bg-secondary">
-                    {/* ... (Banner content, avatar, name, buttons remain the same) ... */}
                     <div className="h-64 sm:h-80 bg-tertiary-light dark:bg-tertiary">
                         {profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}
                     </div>
@@ -142,11 +166,9 @@ const ProfilePage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-8 px-4 sm:px-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-8 px-4 sm:px-6 mt-24">
                     
-                    {/* Left Column: Profile Info */}
-                    <div className="lg:col-span-1 space-y-4 mt-24"> 
-                        {/* ... (About, Following/Followers, Roomies, etc. content remains the same) ... */}
+                    <div className="lg:col-span-1 space-y-4"> 
                         <h2 className="text-xl font-bold">About {profile.full_name?.split(' ')[0] || profile.username}</h2>
                         <div className="flex items-center space-x-4 text-sm">
                             <button onClick={() => setFollowModalState({ isOpen: true, listType: 'following' })} className="hover:underline">
@@ -178,7 +200,9 @@ const ProfilePage: React.FC = () => {
                             {graduationYear && <span>Class of {graduationYear}</span>}
                         </div>
                         {profile.bio && <p className="text-text-secondary-light dark:text-text-secondary whitespace-pre-wrap">{profile.bio}</p>}
+                        
                         <hr className="border-tertiary-light dark:border-tertiary !my-6" />
+                        
                         <div className="space-y-4 text-sm">
                             <ProfileDetail label="Primary Degree" value={profile.branch} />
                             <ProfileDetail label="B.E. Degree" value={profile.dual_degree_branch} />
@@ -186,11 +210,45 @@ const ProfilePage: React.FC = () => {
                             <ProfileDetail label="Dorm" value={dormInfo} />
                             <ProfileDetail label="Dining Hall" value={profile.dining_hall} />
                         </div>
+                        
+                        {!friendsLoading && friends.length > 0 && (
+                            <>
+                                <hr className="border-tertiary-light dark:border-tertiary !my-6" />
+                                <div>
+                                    <h3 className="text-lg font-bold mb-3">Friends</h3>
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-3">
+                                        {friends.slice(0, 9).map(friend => (
+                                            <Link 
+                                                to={`/profile/${friend.username}`} 
+                                                key={friend.user_id}
+                                                className="flex flex-col items-center space-y-1 group"
+                                                title={friend.full_name || friend.username}
+                                            >
+                                                <img 
+                                                    src={friend.avatar_url || `https://ui-avatars.com/api/?name=${friend.full_name || friend.username}`} 
+                                                    alt={friend.username}
+                                                    className="w-16 h-16 rounded-full object-cover"
+                                                />
+                                                <p className="text-xs text-center text-text-tertiary-light dark:text-text-tertiary group-hover:underline truncate w-full">
+                                                    {friend.full_name || friend.username}
+                                                </p>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
 
-                    {/* Right Column: Posts */}
-                    {/* --- THIS IS THE FIX --- */}
-                    <div className="lg:col-span-2 mt-8 lg:mt-24"> 
+                    <div className="lg:col-span-2 mt-8 lg:mt-0"> 
+                        {isOwnProfile && currentUserProfile && (
+                            <div className="mb-6">
+                                <CreatePost 
+                                    onPostCreated={addPostToContext} 
+                                    profile={currentUserProfile} 
+                                />
+                            </div>
+                        )}
                         <h2 className="text-xl font-bold">Posts</h2>
                         <div className="mt-4 space-y-4">
                             {userPosts.length > 0 
@@ -205,7 +263,6 @@ const ProfilePage: React.FC = () => {
     );
 };
 
-// --- THIS COMPONENT IS NOW INCLUDED AND FULLY THEME-AWARE ---
 const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, onSave: () => void }> = ({ userProfile, onClose, onSave }) => {
     const { user } = useAuth();
     const [profileData, setProfileData] = useState(userProfile);
@@ -366,7 +423,6 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
         </div>
     );
 };
-
 
 const ProfileDetail: React.FC<{ label: string; value?: string | number | null }> = ({ label, value }) => {
     if (!value) return null;

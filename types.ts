@@ -7,6 +7,13 @@ export interface Roommate {
   username: string;
 }
 
+export interface Friend {
+  user_id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
 export interface Profile {
   user_id: string;
   username: string;
