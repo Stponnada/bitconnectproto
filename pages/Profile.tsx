@@ -1,7 +1,7 @@
 // src/pages/Profile.tsx
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { usePosts } from '../hooks/usePosts';
@@ -108,7 +108,8 @@ const ProfilePage: React.FC = () => {
                 />
             )}
             
-            <div className="w-full max-w-4xl mx-auto">
+            <div className="w-full max-w-7xl mx-auto">
+                {/* Banner Section */}
                 <div className="relative bg-dark-secondary">
                     <div className="h-64 sm:h-80 bg-dark-tertiary">
                         {profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}
@@ -116,8 +117,8 @@ const ProfilePage: React.FC = () => {
                     
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent z-10"></div>
 
-                    <div className="absolute left-4 sm:left-6 bottom-4 z-20">
-                        <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-dark-secondary bg-gray-700">
+                    <div className="absolute left-4 sm:left-6 -bottom-16 z-20">
+                        <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-dark-primary bg-gray-700">
                             {profile.avatar_url ? (
                                 <img src={profile.avatar_url} alt={profile.full_name || ''} className="w-full h-full rounded-full object-cover" />
                             ) : (
@@ -127,7 +128,7 @@ const ProfilePage: React.FC = () => {
                             )}
                         </div>
                     </div>
-
+                    
                     <div className="absolute bottom-4 left-40 sm:left-48 text-white z-20" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
                         <h1 className="text-3xl font-bold">{profile.full_name}</h1>
                         <p className="text-gray-300">@{profile.username}</p>
@@ -144,35 +145,61 @@ const ProfilePage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="bg-dark-secondary px-4 sm:px-6 pb-10 pt-4">
-                    <div className="flex items-center space-x-4 text-sm">
-                        <button onClick={() => setFollowModalState({ isOpen: true, listType: 'following' })} className="hover:underline">
-                            <span className="font-bold text-white">{profile.following_count}</span>
-                            <span className="text-gray-400"> Following</span>
-                        </button>
-                        <button onClick={() => setFollowModalState({ isOpen: true, listType: 'followers' })} className="hover:underline">
-                            <span className="font-bold text-white">{profile.follower_count}</span>
-                            <span className="text-gray-400"> Followers</span>
-                        </button>
-                    </div>
-                    <div className="mt-2 flex items-center space-x-2 text-sm text-gray-400">
-                        {profile.campus && <span>{profile.campus} Campus</span>}
-                        {graduationYear && <span className="text-gray-500">&middot;</span>}
-                        {graduationYear && <span>Class of {graduationYear}</span>}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-8 px-4 sm:px-6">
+                    
+                    {/* Left Column: Profile Info */}
+                    <div className="lg:col-span-1 space-y-4 mt-24"> 
+                        <h2 className="text-xl font-bold">About {profile.full_name?.split(' ')[0] || profile.username}</h2>
+                        <div className="flex items-center space-x-4 text-sm">
+                            <button onClick={() => setFollowModalState({ isOpen: true, listType: 'following' })} className="hover:underline">
+                                <span className="font-bold text-white">{profile.following_count}</span>
+                                <span className="text-gray-400"> Following</span>
+                            </button>
+                            <button onClick={() => setFollowModalState({ isOpen: true, listType: 'followers' })} className="hover:underline">
+                                <span className="font-bold text-white">{profile.follower_count}</span>
+                                <span className="text-gray-400"> Followers</span>
+                            </button>
+                        </div>
+                        {profile.roommates && profile.roommates.length > 0 && (
+                            <div className="text-sm text-gray-400 flex items-center flex-wrap">
+                                <span>🏠 Roomies with </span>
+                                {profile.roommates.map((roommate, index) => (
+                                <React.Fragment key={roommate.user_id}>
+                                    <Link to={`/profile/${roommate.username}`} className="text-brand-green hover:underline ml-1">
+                                    @{roommate.username}
+                                    </Link>
+                                    {index < profile.roommates.length - 1 && ', '}
+                                </React.Fragment>
+                                ))}
+                                ?
+                            </div>
+                        )}
+                        <div className="flex items-center space-x-2 text-sm text-gray-400">
+                            {profile.campus && <span>{profile.campus} Campus</span>}
+                            {graduationYear && <span className="text-gray-500">&middot;</span>}
+                            {graduationYear && <span>Class of {graduationYear}</span>}
+                        </div>
+                        {profile.bio && <p className="text-gray-300 whitespace-pre-wrap">{profile.bio}</p>}
+                        <hr className="border-gray-700 !my-6" />
+                        <div className="space-y-4 text-sm">
+                            <ProfileDetail label="Primary Degree" value={profile.branch} />
+                            <ProfileDetail label="B.E. Degree" value={profile.dual_degree_branch} />
+                            <ProfileDetail label="Relationship Status" value={profile.relationship_status} />
+                            <ProfileDetail label="Dorm" value={dormInfo} />
+                            <ProfileDetail label="Dining Hall" value={profile.dining_hall} />
+                        </div>
                     </div>
 
-                    {profile.bio && <p className="mt-4 text-gray-300 whitespace-pre-wrap">{profile.bio}</p>}
-                    <hr className="border-gray-700 my-6" />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-                        <ProfileDetail label="Primary Degree" value={profile.branch} />
-                        <ProfileDetail label="B.E. Degree" value={profile.dual_degree_branch} />
-                        <ProfileDetail label="Relationship Status" value={profile.relationship_status} />
-                        <ProfileDetail label="Dorm" value={dormInfo} />
-                        <ProfileDetail label="Dining Hall" value={profile.dining_hall} />
-                    </div>
-                    <div className="mt-8">
-                        <h2 className="text-xl font-bold border-b border-gray-700 pb-2">Posts</h2>
-                        <div className="mt-4 space-y-4">{userPosts.length > 0 ? (userPosts.map(post => <PostComponent key={post.id} post={post} />)) : (<p className="text-center text-gray-500 py-8">No posts yet.</p>)}</div>
+                    {/* Right Column: Posts */}
+                    {/* --- MODIFIED: Changed lg:mt-0 to lg:mt-8 --- */}
+                    <div className="lg:col-span-2 mt-8 lg:mt-8"> 
+                        <h2 className="text-xl font-bold">Posts</h2>
+                        <div className="mt-4 space-y-4">
+                            {userPosts.length > 0 
+                                ? userPosts.map(post => <PostComponent key={post.id} post={post} />) 
+                                : <p className="text-center text-gray-500 py-8 bg-dark-secondary rounded-lg">No posts yet.</p>
+                            }
+                        </div>
                     </div>
                 </div>
             </div>
@@ -180,7 +207,8 @@ const ProfilePage: React.FC = () => {
     );
 };
 
-// --- THIS IS THE FULLY EXPANDED, CORRECT COMPONENT ---
+// ... EditProfileModal and ProfileDetail components remain exactly the same ...
+// ... (omitted for brevity, but they should be kept in the file)
 const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, onSave: () => void }> = ({ userProfile, onClose, onSave }) => {
     const { user } = useAuth();
     const [profileData, setProfileData] = useState(userProfile);

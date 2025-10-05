@@ -2,6 +2,11 @@
 
 // src/types.ts (Updated)
 
+export interface Roommate {
+  user_id: string;
+  username: string;
+}
+
 export interface Profile {
   user_id: string;
   username: string;
@@ -27,6 +32,7 @@ export interface Profile {
   follower_count: number;
   is_following: boolean; // Is the current user following this profile?
   is_followed_by?: boolean; // Is this profile following the current user?
+  roommates: Roommate[] | null;
 }
 
 // --- NEW TYPE for the chat list ---

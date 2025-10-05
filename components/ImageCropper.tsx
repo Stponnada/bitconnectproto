@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
-import { Point, Area } from 'react-easy-crop/types';
+import type { Point, Area } from 'react-easy-crop';
 import getCroppedImg from '../utils/cropImage';
 import Spinner from './Spinner';
 
