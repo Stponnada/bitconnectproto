@@ -111,10 +111,10 @@ const DirectoryPage: React.FC = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-text-main-light dark:text-text-main">User Directory</h1>
+      <h1 className="text-3xl font-bold text-text-main-light dark:text-text-main">Find Your Friends </h1>
       
       <div className="flex space-x-2 border-b border-tertiary-light dark:border-tertiary mt-6 mb-6">
-        <TabButton tab="all" label="All Users" />
+        <TabButton tab="all" label="Everyone" />
         <TabButton tab="following" label="Following" />
         <TabButton tab="followers" label="Followers" />
       </div>

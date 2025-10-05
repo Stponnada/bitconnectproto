@@ -52,7 +52,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, us
 
   return (
     <aside
-      className={`fixed top-0 left-0 h-full bg-secondary-light dark:bg-secondary border-r border-tertiary-light dark:border-tertiary z-30 transition-all duration-300 ease-in-out ${
+      className={`fixed top-0 left-0 h-full bg-gray-100 dark:bg-secondary border-r border-tertiary-light dark:border-tertiary z-30 transition-all duration-300 ease-in-out ${
         isExpanded ? 'w-60' : 'w-20'
       }`}
     >

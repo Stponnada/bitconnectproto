@@ -75,12 +75,12 @@ const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
 
     return (
         <header 
-            className={`fixed top-0 right-0 bg-secondary-light dark:bg-secondary border-b border-tertiary-light dark:border-tertiary h-20 flex items-center justify-between px-4 md:px-6 z-20 transition-all duration-300 ease-in-out left-0 md:left-20 ${
-                isSidebarExpanded ? 'md:left-60' : 'md:left-20'
-            }`}
+        className={`fixed top-0 right-0 bg-gray-100 dark:bg-secondary border-b border-tertiary-light dark:border-tertiary h-20 flex items-center justify-between px-4 md:px-6 z-20 transition-all duration-300 ease-in-out left-0 md:left-20 ${
+            isSidebarExpanded ? 'md:left-60' : 'md:left-20'
+        }`}
         >
             <div className="flex-shrink-0 hidden md:block">
-                <Link to="/" className="text-5xl font-raleway font-black text-brand-green [text-shadow:-1px_-1px_0_rgba(0,0,0,0.7),_1px_1px_0_rgba(255,255,255,0.05)]">
+                <Link to="/" className="text-4xl font-raleway font-black text-brand-green [text-shadow:-1px_-1px_0_rgba(0,0,0,0.7),_1px_1px_0_rgba(255,255,255,0.05)]">
                   litelelo.
                 </Link>
             </div>
