@@ -80,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
             }`}
         >
             <div className="flex-shrink-0 hidden md:block">
-                <Link to="/" className="text-4xl font-raleway font-black text-brand-green [text-shadow:-1px_-1px_0_rgba(0,0,0,0.7),_1px_1px_0_rgba(255,255,255,0.05)]">
+                <Link to="/" className="text-5xl font-raleway font-black text-brand-green [text-shadow:-1px_-1px_0_rgba(0,0,0,0.7),_1px_1px_0_rgba(255,255,255,0.05)]">
                   litelelo.
                 </Link>
             </div>
