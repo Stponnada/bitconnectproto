@@ -9,13 +9,14 @@ import PostComponent from '../components/Post';
 import { Post as PostType, Comment as CommentType, Profile } from '../types';
 import Spinner from '../components/Spinner';
 import { formatTimestamp, formatExactTimestamp } from '../utils/timeUtils';
+import { renderContentWithEmbeds } from '../utils/renderEmbeds'; // <-- Import the embed renderer
 
 const getAvatarUrl = (profile: Profile | null) => {
   if (!profile) return '';
   return profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name || profile.username}&background=E53E3E&color=fff`;
 };
 
-// Comment Component
+// Comment Component with the correct renderer
 const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
   const author = comment.profiles;
   return (
@@ -34,17 +35,15 @@ const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
                 </p>
             </div>
         </div>
-        {/* --- THIS IS THE MAIN CHANGE --- */}
         <div className="mt-1 text-text-secondary-light dark:text-text-secondary">
           {renderContentWithEmbeds(comment.content)}
         </div>
-        {/* -------------------------------- */}
       </div>
     </div>
   );
 };
 
-
+// The full, restored PostPage component
 const PostPage: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
   const { user } = useAuth();
