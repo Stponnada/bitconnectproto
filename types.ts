@@ -33,6 +33,8 @@ export interface Profile {
   is_following: boolean; // Is the current user following this profile?
   is_followed_by?: boolean; // Is this profile following the current user?
   roommates: Roommate[] | null;
+  gender: string | null;
+  birthday: string | null;
 }
 
 // --- NEW TYPE for the chat list ---

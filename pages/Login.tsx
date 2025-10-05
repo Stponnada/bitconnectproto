@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../contexts/ThemeContext'; // <-- 1. Import useTheme
+import { SunIcon, MoonIcon } from '../components/icons'; // <-- 2. Import icons
 import Spinner from '../components/Spinner';
 
-// ... (keep BITS_DOMAINS constant)
 const BITS_DOMAINS = [
   'hyderabad.bits-pilani.ac.in',
   'goa.bits-pilani.ac.in',
@@ -15,7 +16,6 @@ const BITS_DOMAINS = [
 ];
 
 const Login: React.FC = () => {
-  // ... (keep all the useState hooks)
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -25,13 +25,13 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { session, isLoading: authLoading } = useAuth();
+  const { theme, toggleTheme } = useTheme(); // <-- 3. Get theme state and function
   
   const idleImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.57.42%20PM.png';
   const activeImageUrl = 'https://phnrjmvfowtptnonftcs.supabase.co/storage/v1/object/public/assets/Screenshot%202025-09-27%20at%2010.41.01%20PM.png';
   
   const [activeImage, setActiveImage] = useState<string>(idleImageUrl);
 
-  // ... (keep useEffect and validateEmail function)
   useEffect(() => {
     if (session) { navigate('/'); }
   }, [session, navigate]);
@@ -41,8 +41,6 @@ const Login: React.FC = () => {
     return BITS_DOMAINS.includes(domain);
   };
 
-
-  // --- MODIFICATIONS ARE IN THIS FUNCTION ---
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -51,13 +49,10 @@ const Login: React.FC = () => {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // Successful login will be handled by the AuthProvider listener
       } else {
-        // --- NEW VALIDATION BLOCK ---
         if (/\s/.test(username)) {
           throw new Error("Username cannot contain spaces.");
         }
-        // -----------------------------
         if (password !== confirmPassword) { throw new Error("Passwords do not match."); }
         if (!validateEmail(email)) { throw new Error("Please use a valid BITS Pilani email address."); }
         
@@ -65,17 +60,12 @@ const Login: React.FC = () => {
         if (signUpError) throw signUpError;
         if (!data.user) throw new Error("Sign up successful, but no user data returned.");
         
-        // Add the username to the new profile
         const { error: profileError } = await supabase.from('profiles').insert({ 
             user_id: data.user.id, 
-            username: username.trim(), // Also trim whitespace just in case
+            username: username.trim(),
             email: data.user.email 
         });
         if (profileError) { throw profileError; }
-
-        // After sign up, the onAuthStateChange listener will fire, and our App.tsx
-        // routing logic will automatically navigate the user to /setup.
-        // We don't need to explicitly navigate here.
       }
     } catch (error: any) {
       setError(error.message);
@@ -84,24 +74,23 @@ const Login: React.FC = () => {
     }
   };
 
-  // ... (keep the return statement and JSX the same)
   if (authLoading || session) {
-    return <div className="flex items-center justify-center h-screen bg-dark-primary"><Spinner /></div>;
+    return <div className="flex items-center justify-center h-screen bg-primary-light dark:bg-primary"><Spinner /></div>;
   }
   return (
-    <div className="flex flex-col lg:flex-row items-center justify-center min-h-screen bg-dark-primary p-4">
+    <div className="flex flex-col lg:flex-row items-center justify-center min-h-screen bg-primary-light dark:bg-primary p-4">
       <div className="w-full max-w-md lg:w-1/2 flex flex-col items-center justify-center p-8">
         <img src={activeImage} alt="Mascot" className="w-48 h-48 mb-8 object-contain transition-transform duration-300 ease-in-out transform hover:scale-105" />
-        <div className="w-full bg-dark-secondary p-8 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-bold text-center text-gray-100 mb-6">{isLogin ? 'Welcome Back!' : 'Create Account'}</h2>
+        <div className="w-full bg-secondary-light dark:bg-secondary p-8 rounded-lg shadow-lg">
+          <h2 className="text-2xl font-bold text-center text-text-main-light dark:text-text-main mb-6">{isLogin ? 'Welcome Back!' : 'Create Account'}</h2>
           <form onSubmit={handleAuth} className="flex flex-col gap-4">
-            <input type="email" placeholder={isLogin ? "Email" : "BITS Email"} value={email} onChange={(e) => setEmail(e.target.value)} required className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green" />
+            <input type="email" placeholder={isLogin ? "Email" : "BITS Email"} value={email} onChange={(e) => setEmail(e.target.value)} required className="p-3 bg-tertiary-light dark:bg-tertiary border border-tertiary-light dark:border-gray-700 rounded-md text-sm text-text-main-light dark:text-text-main focus:outline-none focus:ring-2 focus:ring-brand-green" />
             {!isLogin && (
-              <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green" />
+              <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required className="p-3 bg-tertiary-light dark:bg-tertiary border border-tertiary-light dark:border-gray-700 rounded-md text-sm text-text-main-light dark:text-text-main focus:outline-none focus:ring-2 focus:ring-brand-green" />
             )}
-            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green" onFocus={() => setActiveImage(activeImageUrl)} onBlur={() => setActiveImage(idleImageUrl)} />
+            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="p-3 bg-tertiary-light dark:bg-tertiary border border-tertiary-light dark:border-gray-700 rounded-md text-sm text-text-main-light dark:text-text-main focus:outline-none focus:ring-2 focus:ring-brand-green" onFocus={() => setActiveImage(activeImageUrl)} onBlur={() => setActiveImage(idleImageUrl)} />
             {!isLogin && (
-              <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="p-3 bg-dark-tertiary border border-gray-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-green" onFocus={() => setActiveImage(activeImageUrl)} onBlur={() => setActiveImage(idleImageUrl)} />
+              <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="p-3 bg-tertiary-light dark:bg-tertiary border border-tertiary-light dark:border-gray-700 rounded-md text-sm text-text-main-light dark:text-text-main focus:outline-none focus:ring-2 focus:ring-brand-green" onFocus={() => setActiveImage(activeImageUrl)} onBlur={() => setActiveImage(idleImageUrl)} />
             )}
             <button type="submit" disabled={loading} className="bg-brand-green text-black font-semibold rounded-md py-3 transition duration-300 ease-in-out hover:bg-brand-green-darker disabled:opacity-50">
               {loading ? <Spinner /> : (isLogin ? 'Log In' : 'Sign Up')}
@@ -109,7 +98,7 @@ const Login: React.FC = () => {
           </form>
           {error && <p className="mt-4 text-red-400 text-center text-sm">{error}</p>}
           <div className="mt-6 text-center">
-            <button onClick={() => { setIsLogin(!isLogin); setError(null); }} className="text-sm text-gray-400 hover:text-white">
+            <button onClick={() => { setIsLogin(!isLogin); setError(null); }} className="text-sm text-text-tertiary-light dark:text-text-tertiary hover:text-text-main-light dark:hover:text-text-main">
               {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Log In"}
             </button>
           </div>
@@ -118,9 +107,23 @@ const Login: React.FC = () => {
       <div className="w-full max-w-md lg:w-1/2 flex items-center justify-center p-8 order-first lg:order-last">
         <div className="text-center lg:text-left">
           <h1 className="text-5xl lg:text-6xl font-raleway font-black text-brand-green">litelelo.</h1>
-          <p className="text-gray-400 mt-4 text-lg">The exclusive social network for BITSians.</p>
+          <p className="text-text-tertiary-light dark:text-text-tertiary mt-4 text-lg">The exclusive social network for BITSians.</p>
         </div>
       </div>
+
+      {/* --- 4. ADD THE THEME TOGGLE BUTTON HERE --- */}
+      <button
+        onClick={toggleTheme}
+        title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+        aria-label="Toggle theme"
+        className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-secondary-light dark:bg-secondary border border-tertiary-light dark:border-tertiary shadow-lg flex items-center justify-center text-text-secondary-light dark:text-text-secondary hover:bg-tertiary-light dark:hover:bg-tertiary transition-colors"
+      >
+        {theme === 'light' ? (
+          <MoonIcon className="w-6 h-6" />
+        ) : (
+          <SunIcon className="w-6 h-6" />
+        )}
+      </button>
     </div>
   );
 };
