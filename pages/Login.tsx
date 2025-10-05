@@ -106,7 +106,7 @@ const Login: React.FC = () => {
       </div>
       <div className="w-full max-w-md lg:w-1/2 flex items-center justify-center p-8 order-first lg:order-last">
         <div className="text-center lg:text-left">
-          <h1 className="text-5xl lg:text-6xl font-raleway font-black text-brand-green">litelelo.</h1>
+          <h1 className="text-7xl lg:text-8xl font-raleway font-black text-brand-green">litelelo.</h1>
           <p className="text-text-tertiary-light dark:text-text-tertiary mt-4 text-lg">The exclusive social network for BITSians.</p>
         </div>
       </div>
