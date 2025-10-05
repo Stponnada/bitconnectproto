@@ -1,3 +1,5 @@
+// src/pages/PostPage.tsx
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
@@ -17,15 +19,14 @@ const getAvatarUrl = (profile: Profile | null) => {
 const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
   const author = comment.profiles;
   return (
-    <div className="flex items-start space-x-3 p-4 border-b border-dark-tertiary">
+    <div className="flex items-start space-x-3 p-4 border-b border-tertiary-light dark:border-tertiary">
       <Link to={`/profile/${author?.username}`} className="flex-shrink-0">
-        <img src={getAvatarUrl(author)} alt={author?.username || 'avatar'} className="w-10 h-10 rounded-full bg-gray-700 object-cover" />
+        <img src={getAvatarUrl(author)} alt={author?.username || 'avatar'} className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 object-cover" />
       </Link>
       <div>
-        {/* THIS IS THE CHANGE: Added responsive flex layout and smaller font */}
         <div className="flex flex-col md:flex-row md:items-baseline md:space-x-2">
-            <Link to={`/profile/${author?.username}`} className="font-semibold text-white hover:underline leading-tight">{author?.full_name || author?.username}</Link>
-            <div className="flex items-center space-x-2 text-sm text-gray-400">
+            <Link to={`/profile/${author?.username}`} className="font-semibold text-text-main-light dark:text-text-main hover:underline leading-tight">{author?.full_name || author?.username}</Link>
+            <div className="flex items-center space-x-2 text-sm text-text-tertiary-light dark:text-text-tertiary">
                 <p>@{author?.username}</p>
                 <span className="text-gray-500">&middot;</span>
                 <p title={new Date(comment.created_at).toLocaleString()}>
@@ -33,7 +34,7 @@ const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
                 </p>
             </div>
         </div>
-        <p className="text-gray-300 mt-1 whitespace-pre-wrap">{comment.content}</p>
+        <p className="text-text-secondary-light dark:text-text-secondary mt-1 whitespace-pre-wrap">{comment.content}</p>
       </div>
     </div>
   );
@@ -76,7 +77,7 @@ const PostPage: React.FC = () => {
         if (error) throw error;
         const newCommentForUI: CommentType = { ...commentData, profiles: currentUserProfile };
         setComments(prev => [...prev, newCommentForUI]);
-        const newCommentCount = post.comment_count + 1;
+        const newCommentCount = (post.comment_count || 0) + 1;
         updatePostInContext({ id: post.id, comment_count: newCommentCount });
         setNewComment('');
     } catch (error) {
@@ -98,16 +99,16 @@ const PostPage: React.FC = () => {
     <div className="w-full max-w-4xl mx-auto">
       <PostComponent post={post} />
 
-      <div className="px-4 py-3 text-sm text-gray-500 border-b border-dark-tertiary">
+      <div className="px-4 py-3 text-sm text-text-tertiary-light dark:text-text-tertiary border-y border-tertiary-light dark:border-tertiary bg-secondary-light dark:bg-secondary">
         <span>{formatExactTimestamp(post.created_at)}</span>
       </div>
 
       {currentUserProfile && (
-        <div className="p-4 border-t border-b border-dark-tertiary">
+        <div className="p-4 border-b border-tertiary-light dark:border-tertiary bg-secondary-light dark:bg-secondary">
           <form onSubmit={handleCommentSubmit} className="flex items-start space-x-3">
-            <img src={getAvatarUrl(currentUserProfile)} alt="Your avatar" className="w-10 h-10 rounded-full bg-gray-700 object-cover" />
+            <img src={getAvatarUrl(currentUserProfile)} alt="Your avatar" className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 object-cover" />
             <div className="flex-1">
-              <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Post your reply" className="w-full bg-dark-tertiary rounded-lg p-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green" rows={2} />
+              <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Post your reply" className="w-full bg-tertiary-light dark:bg-tertiary rounded-lg p-2 text-text-main-light dark:text-text-main placeholder-text-tertiary-light dark:placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-brand-green" rows={2} />
               <div className="flex justify-end mt-2">
                 <button type="submit" disabled={isSubmitting || !newComment.trim()} className="bg-brand-green text-black font-bold py-2 px-4 rounded-full disabled:opacity-50 hover:bg-brand-green-darker">
                   {isSubmitting ? <Spinner /> : 'Reply'}
@@ -118,12 +119,12 @@ const PostPage: React.FC = () => {
         </div>
       )}
       
-      <div>
+      <div className='bg-secondary-light dark:bg-secondary rounded-b-lg'>
         {commentsLoading ? <div className="text-center py-8"><Spinner/></div> :
          comments.length > 0 ? (
           comments.map(comment => <Comment key={comment.id} comment={comment} />)
         ) : (
-          <div className="text-center text-gray-500 py-8">
+          <div className="text-center text-text-tertiary-light dark:text-text-tertiary py-8">
             <p>No Comments Yet.</p>
             <p>Be the first one to comment!</p>
           </div>

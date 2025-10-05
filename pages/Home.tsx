@@ -26,7 +26,6 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
         let imageUrl: string | null = null;
         try {
             if (imageFile) {
-                // ... (image upload logic remains the same)
                 const fileExt = imageFile.name.split('.').pop();
                 const sanitizedFileName = `${Date.now()}.${fileExt}`;
                 const filePath = `${user.id}/${sanitizedFileName}`;
@@ -36,8 +35,6 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
                 imageUrl = publicUrl;
             }
             
-            // --- THIS IS THE CHANGE ---
-            // Call the RPC function instead of a simple insert
             const { data: newPostData, error: rpcError } = await supabase
                 .rpc('create_post_with_mentions', {
                     post_content: content.trim(),
@@ -48,7 +45,6 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
 
             if (rpcError) throw rpcError;
             
-            // The RPC returns the full post object, so this part remains the same!
             onPostCreated(newPostData as PostType);
             setContent('');
             setImageFile(null);
@@ -77,23 +73,23 @@ const CreatePost: React.FC<{ onPostCreated: (post: PostType) => void, profile: P
     const avatarInitial = displayName.charAt(0).toUpperCase();
 
     return (
-        <div className="bg-dark-secondary rounded-lg shadow p-5 mb-6 border border-dark-tertiary">
+        <div className="bg-secondary-light dark:bg-secondary rounded-lg shadow p-5 mb-6 border border-tertiary-light dark:border-tertiary">
             <div className="flex items-start">
-                <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center font-bold mr-4 flex-shrink-0">
+                <div className="w-12 h-12 rounded-full bg-tertiary-light dark:bg-tertiary flex items-center justify-center font-bold mr-4 flex-shrink-0">
                     {avatarUrl ? (
                         <img src={avatarUrl} alt={displayName} className="w-full h-full rounded-full object-cover" />
                     ) : (
-                        <span className="text-white text-xl">{avatarInitial}</span>
+                        <span className="text-text-main-light dark:text-text-main text-xl">{avatarInitial}</span>
                     )}
                 </div>
                 <form onSubmit={handleSubmit} className="w-full">
-                    <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full bg-dark-tertiary rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green resize-none border border-gray-600" rows={3} placeholder={`What's on your mind, ${displayName.split(' ')[0] || profile.username}?`} />
+                    <textarea value={content} onChange={e => setContent(e.target.value)} className="w-full bg-tertiary-light dark:bg-tertiary rounded-lg p-3 text-text-main-light dark:text-text-main placeholder-text-tertiary-light dark:placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-brand-green resize-none border border-tertiary-light dark:border-gray-600" rows={3} placeholder={`What's on your mind, ${displayName.split(' ')[0] || profile.username}?`} />
                     {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
                     {imageFile && <MediaPreview file={imageFile} onRemove={removeImageFile} />}
                     <div className="flex justify-between items-center mt-3">
                         <div className="flex space-x-2">
                             <input type="file" ref={imageInputRef} onChange={handleFileChange} accept="image/*" hidden />
-                            <button type="button" onClick={() => imageInputRef.current?.click()} className="text-gray-400 hover:text-blue-500 p-2 rounded-full transition-colors"><ImageIcon /></button>
+                            <button type="button" onClick={() => imageInputRef.current?.click()} className="text-text-tertiary-light dark:text-text-tertiary hover:text-blue-500 p-2 rounded-full transition-colors"><ImageIcon /></button>
                         </div>
                         <button type="submit" className="bg-brand-green text-black font-bold py-2 px-6 rounded-full hover:bg-brand-green-darker transition-colors duration-200 disabled:opacity-50" disabled={!canPost}>
                             {isSubmitting ? <Spinner /> : 'Post'}
@@ -156,8 +152,8 @@ export const HomePage: React.FC = () => {
                     {posts.map(post => <PostComponent key={post.id} post={post} />)}
                 </div>
             ) : (
-                <div className="bg-dark-secondary rounded-lg p-8 text-center text-gray-500">
-                    <h3 className="text-xl font-semibold text-white">Welcome to litelelo!</h3>
+                <div className="bg-secondary-light dark:bg-secondary rounded-lg p-8 text-center text-text-tertiary-light dark:text-text-tertiary">
+                    <h3 className="text-xl font-semibold text-text-main-light dark:text-text-main">Welcome to litelelo!</h3>
                     <p className="mt-2">It's quiet in here. Be the first to share something!</p>
                 </div>
             )}

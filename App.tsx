@@ -1,12 +1,11 @@
 // src/App.tsx
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-// --- THIS IS THE CORRECTED IMPORT BLOCK ---
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './hooks/useAuth';
-// ------------------------------------------
 import { PostsProvider } from './contexts/PostsContext';
 import { ChatProvider } from './contexts/ChatContext';
+import { ThemeProvider } from './contexts/ThemeContext'; // <-- Import ThemeProvider
 
 import { HomePage as Home } from './pages/Home';
 import Login from './pages/Login';
@@ -31,7 +30,7 @@ const AppRoutes = () => {
   // 1. Show a full-screen loader while the initial session and profile are being fetched.
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-dark-primary">
+      <div className="flex items-center justify-center h-screen bg-primary-light dark:bg-primary">
         <Spinner />
       </div>
     );
@@ -85,16 +84,19 @@ const AppRoutes = () => {
   );
 };
 
+// This is the single, top-level App component
 const App = () => {
   return (
     <Router>
-      <AuthProvider>
-        <PostsProvider>
-          <ChatProvider>
-            <AppRoutes />
-          </ChatProvider>
-        </PostsProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <PostsProvider>
+            <ChatProvider>
+              <AppRoutes />
+            </ChatProvider>
+          </PostsProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </Router>
   );
 };

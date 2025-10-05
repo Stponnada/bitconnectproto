@@ -3,13 +3,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../hooks/useAuth'; // Ensure this uses the correct path
-import { usePosts } from '../hooks/usePosts'; // Ensure this uses the correct path
+import { useAuth } from '../hooks/useAuth';
+import { usePosts } from '../hooks/usePosts';
 import { Post as PostType } from '../types';
 import { ThumbsUpIcon, ThumbsDownIcon, CommentIcon } from './icons';
 import { formatTimestamp } from '../utils/timeUtils';
 import LightBox from './lightbox';
-import { renderWithMentions } from '../utils/renderMentions'; // <-- NEW: Import the mention rendering utility
+import { renderWithMentions } from '../utils/renderMentions';
 
 const Post = ({ post }: { post: PostType }) => {
   const { user } = useAuth();
@@ -81,22 +81,20 @@ const Post = ({ post }: { post: PostType }) => {
 
   return (
     <>
-      <article className="bg-dark-secondary p-4 rounded-lg border border-dark-tertiary">
+      <article className="bg-secondary-light dark:bg-secondary p-4 rounded-lg border border-tertiary-light dark:border-tertiary">
         <div className="flex items-start space-x-3">
-          {/* Avatar Column */}
           <Link to={`/profile/${username}`} className="flex-shrink-0">
-            <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center font-bold text-text-main-light dark:text-text-main">
               {avatarUrl ? <img src={avatarUrl} alt={displayName} className="w-full h-full rounded-full object-cover" /> : <span>{avatarInitial}</span>}
             </div>
           </Link>
           
-          {/* Content Column */}
           <div className="flex-1">
               <div className="flex flex-col md:flex-row md:items-baseline md:space-x-2">
                   <Link to={`/profile/${username}`} className="hover:underline">
-                      <p className="font-semibold text-white leading-tight">{displayName}</p>
+                      <p className="font-semibold text-text-main-light dark:text-text-main leading-tight">{displayName}</p>
                   </Link>
-                  <div className="flex items-center space-x-2 text-sm text-gray-400">
+                  <div className="flex items-center space-x-2 text-sm text-text-tertiary-light dark:text-text-tertiary">
                       <span>@{username}</span>
                       <span className="text-gray-500">&middot;</span>
                       <Link to={`/post/${post.id}`} className="hover:underline" title={new Date(post.created_at).toLocaleString()}>
@@ -106,11 +104,9 @@ const Post = ({ post }: { post: PostType }) => {
               </div>
               
                <Link to={`/post/${post.id}`} className="block mt-1">
-                  {/* --- MODIFIED BLOCK TO RENDER MENTIONS --- */}
-                  <p className="text-gray-300 whitespace-pre-wrap">
+                  <p className="text-text-secondary-light dark:text-text-secondary whitespace-pre-wrap">
                     {renderWithMentions(post.content)}
                   </p>
-                  {/* ------------------------------------------- */}
                </Link>
           </div>
         </div>
@@ -127,7 +123,7 @@ const Post = ({ post }: { post: PostType }) => {
           </div>
         }
 
-        <div className="flex items-center text-gray-400 mt-4 text-sm ml-13">
+        <div className="flex items-center text-text-tertiary-light dark:text-text-tertiary mt-4 text-sm ml-13">
           <button disabled={isVoting} onClick={() => handleVote('like')} className="flex items-center space-x-2 hover:text-green-500 disabled:opacity-50">
             <ThumbsUpIcon className={`w-5 h-5 ${userVote === 'like' ? 'text-green-500' : ''}`} />
             <span>{post.like_count}</span>

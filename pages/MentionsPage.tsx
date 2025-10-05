@@ -40,14 +40,14 @@ const MentionsPage: React.FC = () => {
 
     return (
         <div className="max-w-[52rem] mx-auto">
-            <h1 className="text-2xl font-bold mb-6">Mentions</h1>
+            <h1 className="text-2xl font-bold mb-6 text-text-main-light dark:text-text-main">Mentions</h1>
             {posts.length > 0 ? (
                 <div className="space-y-4">
                     {posts.map(post => <PostComponent key={post.id} post={post} />)}
                 </div>
             ) : (
-                <div className="bg-dark-secondary rounded-lg p-8 text-center text-gray-500">
-                    <h3 className="text-xl font-semibold text-white">Nothing to see here yet</h3>
+                <div className="bg-secondary-light dark:bg-secondary rounded-lg p-8 text-center text-text-tertiary-light dark:text-text-tertiary">
+                    <h3 className="text-xl font-semibold text-text-main-light dark:text-text-main">Nothing to see here yet</h3>
                     <p className="mt-2">When someone mentions you in a post, you'll see it here.</p>
                 </div>
             )}

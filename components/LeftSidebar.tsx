@@ -1,6 +1,9 @@
+// src/components/LeftSidebar.tsx
+
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useChat } from '../hooks/useChat'; // <-- Import useChat
+import { useChat } from '../hooks/useChat';
+import { useTheme } from '../contexts/ThemeContext'; // <-- Import useTheme
 import { supabase } from '../services/supabase';
 import {
   HomeIcon,
@@ -9,6 +12,8 @@ import {
   UserIcon,
   LogoutIcon,
   AtSymbolIcon,
+  SunIcon,   // <-- Import SunIcon
+  MoonIcon,  // <-- Import MoonIcon
 } from './icons';
 
 const MenuIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
@@ -25,7 +30,8 @@ interface LeftSidebarProps {
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, username }) => {
   const navigate = useNavigate();
-  const { totalUnreadCount } = useChat(); // <-- Get unread count
+  const { totalUnreadCount } = useChat();
+  const { theme, toggleTheme } = useTheme(); // <-- Get theme state and function
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -35,7 +41,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, us
   const NavLink: React.FC<{ to: string; icon: React.ReactNode; text: string }> = ({ to, icon, text }) => (
     <Link
       to={to}
-      className="flex items-center p-3 my-1 space-x-4 rounded-lg text-gray-300 hover:bg-dark-tertiary hover:text-white transition-colors duration-200"
+      className="flex items-center p-3 my-1 space-x-4 rounded-lg text-text-secondary-light dark:text-text-secondary hover:bg-tertiary-light dark:hover:bg-tertiary hover:text-text-main-light dark:hover:text-text-main transition-colors duration-200"
     >
       {icon}
       <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
@@ -46,14 +52,14 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, us
 
   return (
     <aside
-      className={`fixed top-0 left-0 h-full bg-dark-secondary border-r border-dark-tertiary z-30 transition-all duration-300 ease-in-out ${
+      className={`fixed top-0 left-0 h-full bg-secondary-light dark:bg-secondary border-r border-tertiary-light dark:border-tertiary z-30 transition-all duration-300 ease-in-out ${
         isExpanded ? 'w-60' : 'w-20'
       }`}
     >
       <div className="flex flex-col h-full p-3 pt-6">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center p-3 mb-4 space-x-4 rounded-lg hover:bg-dark-tertiary"
+          className="flex items-center p-3 mb-4 space-x-4 rounded-lg text-text-main-light dark:text-text-main hover:bg-tertiary-light dark:hover:bg-tertiary"
         >
           <MenuIcon className="w-7 h-7 flex-shrink-0" />
         </button>
@@ -67,7 +73,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, us
             icon={
               <div className="relative">
                 <ChatIcon className="w-7 h-7 flex-shrink-0" />
-                {totalUnreadCount > 0 && <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-brand-green ring-2 ring-dark-secondary" />}
+                {totalUnreadCount > 0 && <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-brand-green ring-2 ring-secondary-light dark:ring-secondary" />}
               </div>
             }
             text="Messages"
@@ -79,8 +85,17 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, us
 
         <div className="mt-auto">
            <button
+            onClick={toggleTheme}
+            className="flex items-center w-full p-3 space-x-4 rounded-lg text-text-secondary-light dark:text-text-secondary hover:bg-tertiary-light dark:hover:bg-tertiary hover:text-text-main-light dark:hover:text-text-main transition-colors duration-200"
+          >
+            {theme === 'light' ? <MoonIcon className="w-7 h-7 flex-shrink-0" /> : <SunIcon className="w-7 h-7 flex-shrink-0" />}
+            <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
+              {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+            </span>
+          </button>
+           <button
               onClick={handleSignOut}
-              className="flex items-center w-full p-3 space-x-4 rounded-lg text-red-400 hover:bg-dark-tertiary hover:text-red-300 transition-colors duration-200"
+              className="flex items-center w-full p-3 space-x-4 rounded-lg text-red-500 hover:bg-tertiary-light dark:hover:bg-tertiary hover:text-red-600 dark:hover:text-red-400 transition-colors duration-200"
             >
               <LogoutIcon className="w-7 h-7 flex-shrink-0" />
               <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>

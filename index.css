@@ -1,13 +1,17 @@
-/* index.css */
+/* src/index.css */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+body {
+  /* Use theme() to access config values */
+  background-color: theme('colors.primary-light');
+  color: theme('colors.text-main-light');
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.2s ease-out;
+.dark body {
+  /* Apply dark mode styles when .dark is on the html/body */
+  background-color: theme('colors.primary');
+  color: theme('colors.text-main');
 }

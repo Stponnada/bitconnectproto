@@ -3,16 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useChat } from '../hooks/useChat.ts'; // <-- Import useChat
+import { useChat } from '../hooks/useChat.ts';
 import { supabase } from '../services/supabase';
-import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon } from './icons'; // <-- MODIFIED: Swapped SearchIcon for UserIcon
+import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon } from './icons';
 
 const BottomNavBar: React.FC = () => {
   const { user } = useAuth();
   const [username, setUsername] = useState<string | null>(null);
-  const { totalUnreadCount } = useChat(); // <-- Get unread count
+  const { totalUnreadCount } = useChat();
 
-  // <-- NEW: Fetch username to create the correct profile link
   useEffect(() => {
     const fetchUsername = async () => {
       if (user) {
@@ -28,10 +27,10 @@ const BottomNavBar: React.FC = () => {
   }, [user]);
 
   const activeLinkStyle = 'text-brand-green';
-  const inactiveLinkStyle = 'text-gray-400';
+  const inactiveLinkStyle = 'text-text-tertiary-light dark:text-text-tertiary';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-dark-secondary border-t border-dark-tertiary z-30 flex md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-secondary-light dark:bg-secondary border-t border-tertiary-light dark:border-tertiary z-30 flex md:hidden">
       <NavLink 
         to="/" 
         end
@@ -51,10 +50,9 @@ const BottomNavBar: React.FC = () => {
       >
         <div className="relative">
           <ChatIcon className="w-7 h-7" />
-          {totalUnreadCount > 0 && <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-brand-green ring-2 ring-dark-secondary" />}
+          {totalUnreadCount > 0 && <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-brand-green ring-2 ring-secondary-light dark:ring-secondary" />}
         </div>
       </NavLink>
-      {/* <-- MODIFIED: This now links to the user's profile page */}
       {username && (
         <NavLink 
           to={`/profile/${username}`} 

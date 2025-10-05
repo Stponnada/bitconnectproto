@@ -1,17 +1,14 @@
 // src/pages/DirectoryPage.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Profile } from '../types';
 import Spinner from '../components/Spinner';
-import { ChatIcon } from '../components/icons';
-import UserCard from '../components/UserCard'; // <-- Import the extracted component
+import UserCard from '../components/UserCard';
 
 type DirectoryTab = 'all' | 'following' | 'followers';
-
-// --- THE UserCard COMPONENT HAS BEEN REMOVED FROM THIS FILE ---
 
 const DirectoryPage: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -27,7 +24,6 @@ const DirectoryPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        // This RPC needs to be updated to match the new profile_with_follow_status type
         const { data, error: fetchError } = await supabase
           .rpc('get_directory_profiles');
 
@@ -47,7 +43,6 @@ const DirectoryPage: React.FC = () => {
     setTogglingFollowId(profileToToggle.user_id);
     const isCurrentlyFollowing = profileToToggle.is_following;
 
-    // Optimistic UI update
     setProfiles(currentProfiles => 
       currentProfiles.map(p => 
         p.user_id === profileToToggle.user_id
@@ -74,7 +69,6 @@ const DirectoryPage: React.FC = () => {
       }
     } catch (err) {
       console.error("Failed to toggle follow:", err);
-      // Revert on error
       setProfiles(currentProfiles => 
         currentProfiles.map(p => 
           p.user_id === profileToToggle.user_id ? profileToToggle : p
@@ -108,7 +102,7 @@ const DirectoryPage: React.FC = () => {
       className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
         activeTab === tab
           ? 'bg-brand-green text-black'
-          : 'text-gray-300 hover:bg-dark-tertiary'
+          : 'text-text-secondary-light dark:text-text-secondary hover:bg-tertiary-light dark:hover:bg-tertiary'
       }`}
     >
       {label}
@@ -117,9 +111,9 @@ const DirectoryPage: React.FC = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-white">User Directory</h1>
+      <h1 className="text-3xl font-bold text-text-main-light dark:text-text-main">User Directory</h1>
       
-      <div className="flex space-x-2 border-b border-dark-tertiary mt-6 mb-6">
+      <div className="flex space-x-2 border-b border-tertiary-light dark:border-tertiary mt-6 mb-6">
         <TabButton tab="all" label="All Users" />
         <TabButton tab="following" label="Following" />
         <TabButton tab="followers" label="Followers" />
@@ -139,7 +133,7 @@ const DirectoryPage: React.FC = () => {
             />
           ))
         ) : (
-          <div className="text-center text-gray-500 py-16 bg-dark-secondary rounded-lg">
+          <div className="text-center text-text-tertiary-light dark:text-text-tertiary py-16 bg-secondary-light dark:bg-secondary rounded-lg">
              <p className="font-semibold">No users to display.</p>
              <p className="text-sm mt-1">
                 {activeTab === 'following' && "You aren't following anyone yet."}

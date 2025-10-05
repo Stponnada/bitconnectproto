@@ -1,5 +1,7 @@
+// src/pages/ChatPage.tsx
+
 import React, { useState, useCallback, useEffect } from 'react';
-import { useLocation } from 'react-router-dom'; // <-- Import useLocation
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Profile } from '../types';
 import Spinner from '../components/Spinner';
@@ -10,22 +12,19 @@ import { ChatIcon } from '../components/icons';
 
 const ChatPage: React.FC = () => {
   const { user } = useAuth();
-  const location = useLocation(); // <-- Add useLocation hook
+  const location = useLocation();
   const { conversations, loading, markConversationAsRead } = useChat();
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // <-- NEW: Effect to handle incoming recipient from navigation state
   useEffect(() => {
     const recipient = location.state?.recipient as Profile | undefined;
     if (recipient) {
-      // Check if this conversation already exists to prevent duplicate state updates
       const existsInList = conversations.some(c => c.participant.user_id === recipient.user_id);
       setSelectedProfile(recipient);
       if(existsInList) {
           markConversationAsRead(recipient.user_id);
       }
-      // Clear the state after using it to prevent re-triggering on component re-renders
       window.history.replaceState({}, document.title);
     }
   }, [location.state, conversations, markConversationAsRead]);
@@ -49,19 +48,19 @@ const ChatPage: React.FC = () => {
   }
 
   return (
-    <div className="relative h-[calc(100vh-80px)] md:h-[calc(100vh-120px)] w-full overflow-hidden bg-dark-secondary md:rounded-xl md:border md:border-dark-tertiary md:shadow-2xl">
+    <div className="relative h-[calc(100vh-80px)] md:h-[calc(100vh-120px)] w-full overflow-hidden bg-secondary-light dark:bg-secondary md:rounded-xl md:border md:border-tertiary-light dark:md:border-tertiary md:shadow-2xl">
       
       <div className={`relative w-full h-full flex transition-transform duration-300 ease-in-out md:transform-none ${selectedProfile ? '-translate-x-full' : 'translate-x-0'}`}>
         
-        <div className="w-full h-full flex-shrink-0 md:w-96 md:border-r md:border-dark-tertiary flex flex-col">
-          <div className="p-4 border-b border-dark-tertiary">
-            <h2 className="text-xl font-bold">Messages</h2>
+        <div className="w-full h-full flex-shrink-0 md:w-96 md:border-r md:border-tertiary-light dark:md:border-tertiary flex flex-col">
+          <div className="p-4 border-b border-tertiary-light dark:border-tertiary">
+            <h2 className="text-xl font-bold text-text-main-light dark:text-text-main">Messages</h2>
             <input
               type="text" 
               placeholder="Search contacts..." 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full mt-3 p-2 bg-dark-primary border border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-green"
+              className="w-full mt-3 p-2 bg-primary-light dark:bg-primary border border-tertiary-light dark:border-gray-600 rounded-lg text-sm text-text-main-light dark:text-text-main focus:outline-none focus:ring-2 focus:ring-brand-green"
             />
           </div>
           <ul className="flex-1 overflow-y-auto">
@@ -69,7 +68,7 @@ const ChatPage: React.FC = () => {
               <li 
                 key={conv.participant.user_id} 
                 onClick={() => handleSelectConversation(conv.participant)}
-                className={`p-4 flex items-center space-x-4 cursor-pointer hover:bg-dark-tertiary transition-colors ${selectedProfile?.user_id === conv.participant.user_id ? 'bg-dark-tertiary' : ''}`}
+                className={`p-4 flex items-center space-x-4 cursor-pointer hover:bg-tertiary-light/60 dark:hover:bg-tertiary transition-colors ${selectedProfile?.user_id === conv.participant.user_id ? 'bg-tertiary-light dark:bg-tertiary' : ''}`}
               >
                 <img 
                   src={conv.participant.avatar_url || `https://ui-avatars.com/api/?name=${conv.participant.full_name || conv.participant.username}`} 
@@ -78,13 +77,13 @@ const ChatPage: React.FC = () => {
                 />
                 <div className="flex-1 overflow-hidden">
                   <div className="flex justify-between items-baseline">
-                    <p className="font-bold text-white truncate">{conv.participant.full_name}</p>
+                    <p className="font-bold text-text-main-light dark:text-text-main truncate">{conv.participant.full_name}</p>
                     {conv.last_message_at && (
-                      <p className="text-xs text-gray-500 flex-shrink-0">{formatTimestamp(conv.last_message_at)}</p>
+                      <p className="text-xs text-text-tertiary-light dark:text-text-tertiary flex-shrink-0">{formatTimestamp(conv.last_message_at)}</p>
                     )}
                   </div>
                   <div className="flex justify-between items-start mt-1">
-                     <p className={`text-sm truncate ${conv.unread_count > 0 ? 'text-white font-semibold' : 'text-gray-400'}`}>
+                     <p className={`text-sm truncate ${conv.unread_count > 0 ? 'text-text-main-light dark:text-text-main font-semibold' : 'text-text-secondary-light dark:text-text-secondary'}`}>
                         {conv.last_message_content ? (
                             <>
                                 {conv.last_message_sender_id === user?.id && 'You: '}
@@ -111,13 +110,12 @@ const ChatPage: React.FC = () => {
               onBack={() => setSelectedProfile(null)}
             />
           ) : (
-            <div className="hidden md:flex flex-col items-center justify-center h-full text-center text-gray-500">
+            <div className="hidden md:flex flex-col items-center justify-center h-full text-center text-text-tertiary-light dark:text-text-tertiary">
                 <ChatIcon className="w-16 h-16 mb-4"/>
-                <h3 className="text-xl font-semibold text-white">Select a conversation</h3>
+                <h3 className="text-xl font-semibold text-text-main-light dark:text-text-main">Select a conversation</h3>
                 <p>Choose from your contacts to start chatting.</p>
                 <p> Your contacts include people you follow and people who follow you. </p>
                 <p> To chat with others, find them in the User Directory. </p>
-
             </div>
           )}
         </div>

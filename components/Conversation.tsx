@@ -97,27 +97,28 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
 
   return (
     <>
-      <div className="p-2 md:p-4 border-b border-dark-tertiary flex items-center space-x-2 flex-shrink-0">
-        {onBack && <button onClick={onBack} className="p-2 text-gray-300 rounded-full hover:bg-dark-tertiary md:hidden"><BackIcon className="w-6 h-6" /></button>}
+      <div className="p-2 md:p-4 border-b border-tertiary-light dark:border-tertiary flex items-center space-x-2 flex-shrink-0">
+        {onBack && <button onClick={onBack} className="p-2 text-text-secondary-light dark:text-gray-300 rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary md:hidden"><BackIcon className="w-6 h-6" /></button>}
         <img src={recipient.avatar_url || `https://ui-avatars.com/api/?name=${recipient.full_name}`} alt={recipient.username} className="w-10 h-10 rounded-full object-cover" />
         <div>
-          <h3 className="font-bold text-lg">{recipient.full_name}</h3>
-          <p className="text-sm text-gray-500 hidden md:block">@{recipient.username}</p>
+          {/* --- THIS LINE IS CORRECTED --- */}
+          <h3 className="font-bold text-lg text-text-main-light dark:text-text-main">{recipient.full_name}</h3>
+          <p className="text-sm text-text-tertiary-light dark:text-text-tertiary hidden md:block">@{recipient.username}</p>
         </div>
       </div>
       <div className="flex-1 p-4 overflow-y-auto">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'} mb-2`}>
-            <div className={`p-3 rounded-lg max-w-md break-words ${msg.sender_id === user?.id ? 'bg-brand-green text-black' : 'bg-dark-tertiary text-white'}`}>
+            <div className={`p-3 rounded-lg max-w-md break-words ${msg.sender_id === user?.id ? 'bg-brand-green text-black' : 'bg-tertiary-light dark:bg-tertiary text-text-main-light dark:text-text-main'}`}>
               <p>{msg.decrypted_content}</p>
             </div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
-      <div className="p-4 border-t border-dark-tertiary">
+      <div className="p-4 border-t border-tertiary-light dark:border-tertiary">
         <form onSubmit={handleSendMessage} className="flex space-x-2">
-          <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1 p-2 bg-dark-tertiary border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green" />
+          <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1 p-2 bg-tertiary-light dark:bg-tertiary border border-tertiary-light dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green text-text-main-light dark:text-text-main" />
           <button type="submit" className="bg-brand-green text-black font-bold py-2 px-4 rounded-lg hover:bg-brand-green-darker transition-colors">Send</button>
         </form>
       </div>
