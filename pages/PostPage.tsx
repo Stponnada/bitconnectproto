@@ -34,7 +34,11 @@ const Comment: React.FC<{ comment: CommentType }> = ({ comment }) => {
                 </p>
             </div>
         </div>
-        <p className="text-text-secondary-light dark:text-text-secondary mt-1 whitespace-pre-wrap">{comment.content}</p>
+        {/* --- THIS IS THE MAIN CHANGE --- */}
+        <div className="mt-1 text-text-secondary-light dark:text-text-secondary">
+          {renderContentWithEmbeds(comment.content)}
+        </div>
+        {/* -------------------------------- */}
       </div>
     </div>
   );

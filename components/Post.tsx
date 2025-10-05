@@ -9,7 +9,7 @@ import { Post as PostType } from '../types';
 import { ThumbsUpIcon, ThumbsDownIcon, CommentIcon } from './icons';
 import { formatTimestamp } from '../utils/timeUtils';
 import LightBox from './lightbox';
-import { renderWithMentions } from '../utils/renderMentions';
+import { renderContentWithEmbeds } from '../utils/renderEmbeds'; // <-- Import new renderer
 
 const Post = ({ post }: { post: PostType }) => {
   const { user } = useAuth();
@@ -103,11 +103,9 @@ const Post = ({ post }: { post: PostType }) => {
                   </div>
               </div>
               
-               <Link to={`/post/${post.id}`} className="block mt-1">
-                  <p className="text-text-secondary-light dark:text-text-secondary whitespace-pre-wrap">
-                    {renderWithMentions(post.content)}
-                  </p>
-               </Link>
+               <div className="mt-1 text-text-secondary-light dark:text-text-secondary">
+                  {renderContentWithEmbeds(post.content)}
+               </div>
           </div>
         </div>
         
