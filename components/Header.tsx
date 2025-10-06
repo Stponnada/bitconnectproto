@@ -75,7 +75,7 @@ const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
 
     return (
         <header 
-        className={`fixed top-0 right-0 bg-gray-100 dark:bg-secondary border-b border-tertiary-light dark:border-tertiary h-20 flex items-center justify-between px-4 md:px-6 z-20 transition-all duration-300 ease-in-out left-0 md:left-20 ${
+        className={`fixed top-0 right-0 bg-secondary-light dark:bg-secondary border-b border-tertiary-light dark:border-tertiary h-20 flex items-center justify-between px-4 md:px-6 z-20 transition-all duration-300 ease-in-out left-0 md:left-20 ${
             isSidebarExpanded ? 'md:left-60' : 'md:left-20'
         }`}
         >
@@ -86,7 +86,7 @@ const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
             </div>
             
             <div ref={searchRef} className="relative w-full max-w-md mx-4 hidden md:block">
-              <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onFocus={() => setIsSearchFocused(true)} className="w-full p-2.5 bg-tertiary-light dark:bg-tertiary border border-tertiary-light dark:border-gray-600 rounded-lg text-sm text-text-main-light dark:text-white placeholder-text-tertiary-light dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-green" />
+              <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onFocus={() => setIsSearchFocused(true)} className="w-full p-2.5 bg-tertiary-light dark:bg-tertiary border border-tertiary-light dark:border-gray-600 rounded-lg text-sm text-text-main-light dark:text-text-main placeholder-text-tertiary-light dark:placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-brand-green" />
               {isSearchFocused && searchTerm.length > 1 && (
                 <SearchResults results={results} loading={loadingSearch} onNavigate={handleCloseSearch} />
               )}
