@@ -137,7 +137,8 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
       </div>
       <div className="p-4 border-t border-tertiary-light dark:border-tertiary">
         <form onSubmit={handleSendMessage} className="flex space-x-2">
-          <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1 p-2 bg-tertiary-light dark:bg-tertiary border border-tertiary-light dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green text-text-main-light dark:text-text-main" />
+          {/* --- THIS IS THE FIX --- */}
+          <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-1 min-w-0 p-2 bg-tertiary-light dark:bg-tertiary border border-tertiary-light dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-green text-text-main-light dark:text-text-main" />
           <button type="submit" className="bg-brand-green text-black font-bold py-2 px-4 rounded-lg hover:bg-brand-green-darker transition-colors">Send</button>
         </form>
       </div>
