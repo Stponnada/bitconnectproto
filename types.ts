@@ -97,3 +97,38 @@ export interface SearchResults {
   users: UserSearchResult[];
   posts: PostSearchResult[];
 }
+
+export interface CampusPlace {
+  id: string;
+  name: string;
+  category: string;
+  location: string | null;
+  image_url: string | null;
+  campus: string;
+  avg_rating: number;
+  review_count: number;
+}
+
+export interface Review {
+  id: string;
+  place_id: string;
+  user_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  profiles: Profile | null; // This will hold the author's profile
+}
+
+export interface LostAndFoundItem {
+  id: string;
+  user_id: string;
+  item_type: 'lost' | 'found';
+  title: string;
+  description: string | null;
+  location_found: string | null;
+  image_url: string | null;
+  status: 'active' | 'reclaimed';
+  campus: string;
+  created_at: string;
+  profiles: Profile | null; // For author info
+}

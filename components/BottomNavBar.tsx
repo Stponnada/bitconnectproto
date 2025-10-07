@@ -5,7 +5,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat.ts';
 import { supabase } from '../services/supabase';
-import { HomeIcon, BookOpenIcon, ChatIcon, UserIcon } from './icons';
+import { HomeIcon, BuildingLibraryIcon, ChatIcon, UserIcon } from './icons';
 
 const BottomNavBar: React.FC = () => {
   const { user } = useAuth();
@@ -39,10 +39,10 @@ const BottomNavBar: React.FC = () => {
         <HomeIcon className="w-7 h-7" />
       </NavLink>
       <NavLink 
-        to="/directory" 
+        to="/campus" 
         className={({ isActive }) => `flex-1 flex flex-col items-center justify-center ${isActive ? activeLinkStyle : inactiveLinkStyle}`}
       >
-        <BookOpenIcon className="w-7 h-7" />
+        <BuildingLibraryIcon className="w-7 h-7" />
       </NavLink>
       <NavLink 
         to="/chat" 

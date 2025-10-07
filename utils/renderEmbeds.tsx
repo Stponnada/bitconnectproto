@@ -7,10 +7,8 @@ import { renderWithMentions } from './renderMentions';
 const YOUTUBE_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9\-_]{11})/;
 const TWITTER_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:twitter\.com|x\.com)\/(?:[a-zA-Z0-9_]+)\/status\/(\d+)/;
 
-// --- THIS COMPONENT USES A ROBUST CSS TRICK FOR ASPECT RATIO ---
 const YouTubeEmbed: React.FC<{ videoId: string }> = ({ videoId }) => (
   <div className="my-4 rounded-lg overflow-hidden">
-    {/* This relative container will hold the iframe */}
     <div className="relative" style={{ paddingTop: '56.25%' /* 16:9 Aspect Ratio */ }}>
       <iframe
         className="absolute top-0 left-0 w-full h-full"
@@ -23,7 +21,6 @@ const YouTubeEmbed: React.FC<{ videoId: string }> = ({ videoId }) => (
     </div>
   </div>
 );
-// ----------------------------------------------------------------
 
 export const renderContentWithEmbeds = (text: string): React.ReactNode[] => {
   if (!text) return [];
@@ -39,7 +36,8 @@ export const renderContentWithEmbeds = (text: string): React.ReactNode[] => {
     const twitterMatch = line.match(TWITTER_REGEX);
     if (twitterMatch && twitterMatch[1]) {
       return (
-        <div key={`tweet-${index}`} className="my-4 [&>div]:mx-auto">
+        // --- THE DEFINITIVE FIX: Using 'grid' and 'place-items-center' ---
+        <div key={`tweet-${index}`} className="my-4 grid place-items-center">
           <Tweet id={twitterMatch[1]} />
         </div>
       );

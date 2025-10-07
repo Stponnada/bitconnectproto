@@ -1,9 +1,10 @@
 // src/contexts/ChatContext.tsx
 
-import React, { createContext, useState, useEffect, useCallback } from 'react'; // REMOVED useContext
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../hooks/useAuth'; // <-- UPDATE THIS IMPORT
+import { useAuth } from '../hooks/useAuth';
 import { ConversationSummary } from '../types';
+import { showNotification } from '../utils/notifications';
 
 interface ChatContextType {
   conversations: ConversationSummary[];
@@ -12,12 +13,9 @@ interface ChatContextType {
   markConversationAsRead: (participantId: string) => Promise<void>;
 }
 
-// EXPORT this so the hook can import it
 export const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // ... the inside of the ChatProvider component remains exactly the same ...
-  // ... from `const { user } = useAuth();` to `</ChatContext.Provider>;`
   const { user } = useAuth();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +47,32 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (!user) return;
+
+    const handleNewMessage = async (payload: any) => {
+        fetchConversations(); 
+
+        const newMessage = payload.new;
+
+        if (document.hidden && newMessage.receiver_id === user.id) {
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('full_name, avatar_url')
+                .eq('user_id', newMessage.sender_id)
+                .single();
+
+            if (error || !profile) {
+                console.error("Could not fetch sender's profile for notification");
+                return;
+            }
+
+            showNotification(profile.full_name || 'New Message', {
+                body: newMessage.content,
+                icon: profile.avatar_url || undefined,
+                tag: newMessage.sender_id,
+            });
+        }
+    };
+
     const channel = supabase
       .channel('public:messages')
       .on('postgres_changes', {
@@ -56,10 +80,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         schema: 'public',
         table: 'messages',
         filter: `receiver_id=eq.${user.id}`
-      },
-      () => {
-        fetchConversations();
-      })
+      }, handleNewMessage)
       .subscribe();
       
     return () => {
@@ -86,5 +107,3 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
-
-// --- THE useChat HOOK HAS BEEN REMOVED FROM THIS FILE ---

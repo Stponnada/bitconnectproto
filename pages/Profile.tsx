@@ -1,36 +1,50 @@
 // src/pages/Profile.tsx
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { usePosts } from '../hooks/usePosts';
 import PostComponent from '../components/Post';
 import CreatePost from '../components/CreatePost';
 import { Post as PostType, Profile, Friend } from '../types';
 import Spinner from '../components/Spinner';
-import { CameraIcon } from '../components/icons';
+import { CameraIcon, LogoutIcon } from '../components/icons';
 import { isMscBranch, BITS_BRANCHES } from '../data/bitsBranches.ts';
 import ImageCropper from '../components/ImageCropper';
 import FollowListModal from '../components/FollowListModal';
 
+const TabButton: React.FC<{ label: string, isActive: boolean, onClick: () => void }> = ({ label, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`flex-1 p-4 font-bold text-center transition-colors ${
+            isActive 
+            ? 'border-b-2 border-brand-green text-text-main-light dark:text-text-main' 
+            : 'text-text-tertiary-light dark:text-text-tertiary hover:bg-tertiary-light/60 dark:hover:bg-tertiary'
+        }`}
+    >
+        {label}
+    </button>
+);
+
 const ProfilePage: React.FC = () => {
     const { username } = useParams<{ username: string }>();
-    const { user: currentUser, profile: currentUserProfile } = useAuth(); 
-    const { posts, loading: postsLoading, addPostToContext } = usePosts(); 
+    const { user: currentUser, profile: currentUserProfile } = useAuth();
+    const navigate = useNavigate();
 
     const [profile, setProfile] = useState<Profile | null>(null);
     const [profileLoading, setProfileLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isTogglingFollow, setIsTogglingFollow] = useState(false);
     
+    const [activeTab, setActiveTab] = useState<'posts' | 'mentions'>('posts');
+    const [posts, setPosts] = useState<PostType[]>([]);
+    const [mentions, setMentions] = useState<PostType[]>([]);
+    const [postsLoading, setPostsLoading] = useState(true);
+    
     const [friends, setFriends] = useState<Friend[]>([]);
     const [friendsLoading, setFriendsLoading] = useState(true);
 
-    const [followModalState, setFollowModalState] = useState<{
-        isOpen: boolean;
-        listType: 'followers' | 'following' | null;
-    }>({ isOpen: false, listType: null });
+    const [followModalState, setFollowModalState] = useState<{ isOpen: boolean; listType: 'followers' | 'following' | null; }>({ isOpen: false, listType: null });
 
     const fetchProfileData = useCallback(async () => {
         if (!username) return;
@@ -50,31 +64,48 @@ const ProfilePage: React.FC = () => {
         }
     }, [username]);
 
+    const fetchPostsAndMentions = useCallback(async () => {
+        if (!profile) return;
+        setPostsLoading(true);
+    
+        const postsPromise = supabase.from('posts').select('*, profiles(*)').eq('user_id', profile.user_id).order('created_at', { ascending: false });
+        const mentionsPromise = supabase.rpc('get_mentions_for_user', { profile_user_id: profile.user_id }).select('*, profiles(*)');
+        
+        const [postsResult, mentionsResult] = await Promise.all([postsPromise, mentionsPromise]);
+    
+        if (postsResult.error) console.error("Error fetching posts:", postsResult.error);
+        else setPosts((postsResult.data as any) || []);
+    
+        if (mentionsResult.error) console.error("Error fetching mentions:", mentionsResult.error);
+        else setMentions((mentionsResult.data as any) || []);
+    
+        setPostsLoading(false);
+    }, [profile]);
+
+    const fetchFriends = useCallback(async () => {
+        if (!profile) return;
+        setFriendsLoading(true);
+        try {
+            const { data, error } = await supabase.rpc('get_mutual_followers', { p_user_id: profile.user_id });
+            if (error) throw error;
+            setFriends(data || []);
+        } catch (error) {
+            console.error("Error fetching friends:", error);
+        } finally {
+            setFriendsLoading(false);
+        }
+    }, [profile]);
+
     useEffect(() => {
         fetchProfileData();
     }, [fetchProfileData]);
-
+    
     useEffect(() => {
-        const fetchFriends = async () => {
-            if (!profile) return;
-            setFriendsLoading(true);
-            try {
-                const { data, error } = await supabase.rpc('get_mutual_followers', {
-                    p_user_id: profile.user_id,
-                });
-                if (error) throw error;
-                setFriends(data || []);
-            } catch (error) {
-                console.error("Error fetching friends:", error);
-            } finally {
-                setFriendsLoading(false);
-            }
-        };
-
         if (profile) {
+            fetchPostsAndMentions();
             fetchFriends();
         }
-    }, [profile]);
+    }, [profile, fetchPostsAndMentions, fetchFriends]);
     
     const handleFollowToggle = async () => {
       if (!currentUser || !profile || isTogglingFollow) return;
@@ -100,8 +131,13 @@ const ProfilePage: React.FC = () => {
         setIsTogglingFollow(false);
       }
     };
+    
+    const handleSignOut = async () => {
+        await supabase.auth.signOut();
+        navigate('/login');
+    };
 
-    if (profileLoading || postsLoading) {
+    if (profileLoading) {
         return <div className="flex items-center justify-center h-screen"><Spinner /></div>;
     }
     
@@ -109,7 +145,6 @@ const ProfilePage: React.FC = () => {
         return <div className="text-center py-10 text-xl text-red-400">User not found.</div>;
     }
     
-    const userPosts = posts.filter(post => post.user_id === profile.user_id);
     const isOwnProfile = currentUser?.id === profile.user_id;
 
     let graduationYear = null;
@@ -122,52 +157,42 @@ const ProfilePage: React.FC = () => {
 
     return (
         <>
-            {isEditModalOpen && profile && (
-                <EditProfileModal userProfile={profile} onClose={() => setIsEditModalOpen(false)} onSave={fetchProfileData} />
-            )}
-            
-            {followModalState.isOpen && profile && followModalState.listType && (
-                <FollowListModal
-                    profile={profile}
-                    listType={followModalState.listType}
-                    onClose={() => setFollowModalState({ isOpen: false, listType: null })}
-                />
-            )}
+            {isEditModalOpen && profile && <EditProfileModal userProfile={profile} onClose={() => setIsEditModalOpen(false)} onSave={fetchProfileData} />}
+            {followModalState.isOpen && profile && followModalState.listType && <FollowListModal profile={profile} listType={followModalState.listType} onClose={() => setFollowModalState({ isOpen: false, listType: null })} />}
             
             <div className="w-full max-w-7xl mx-auto">
                 <div className="relative bg-secondary-light dark:bg-secondary">
-                    <div className="h-64 sm:h-80 bg-tertiary-light dark:bg-tertiary">
+                    <div className="h-48 sm:h-80 bg-tertiary-light dark:bg-tertiary">
                         {profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}
                     </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent z-10"></div>
-                    <div className="absolute left-4 sm:left-6 -bottom-16 z-20">
+                    <div className="absolute -bottom-16 left-4 sm:left-6 z-10">
                         <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-primary-light dark:border-primary bg-gray-700">
-                            {profile.avatar_url ? (
-                                <img src={profile.avatar_url} alt={profile.full_name || ''} className="w-full h-full rounded-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full rounded-full bg-gray-600 flex items-center justify-center text-4xl font-bold">
-                                    {(profile.full_name || '?').charAt(0).toUpperCase()}
-                                </div>
-                            )}
+                           {profile.avatar_url && <img src={profile.avatar_url} alt={profile.full_name || ''} className="w-full h-full rounded-full object-cover" />}
                         </div>
-                    </div>
-                    <div className="absolute bottom-4 left-40 sm:left-48 text-white z-20" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-                        <h1 className="text-3xl font-bold">{profile.full_name}</h1>
-                        <p className="text-gray-200">@{profile.username}</p>
-                    </div>
-                    <div className="absolute bottom-4 right-4 sm:right-6 z-20">
-                        {isOwnProfile ? (
-                            <button onClick={() => setIsEditModalOpen(true)} className="bg-tertiary-light/80 dark:bg-tertiary/80 text-text-main-light dark:text-white font-bold py-2 px-4 rounded-full hover:bg-gray-300/80 dark:hover:bg-gray-600/80">Edit Profile</button>
-                        ) : (
-                            <button onClick={handleFollowToggle} disabled={isTogglingFollow} className={`font-bold py-2 px-6 rounded-full transition-colors disabled:opacity-50 ${profile.is_following ? 'bg-transparent border border-gray-400 text-text-main-light dark:text-white hover:border-red-500 hover:text-red-500' : 'bg-white text-black hover:bg-gray-200'}`}>
-                                {isTogglingFollow ? <Spinner /> : (profile.is_following ? 'Following' : 'Follow')}
-                            </button>
-                        )}
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-8 px-4 sm:px-6 mt-24">
-                    
+                <div className="flex justify-end items-center p-4">
+                    {isOwnProfile ? (
+                        <div className="flex items-center space-x-2">
+                             <button onClick={() => setIsEditModalOpen(true)} className="font-bold py-2 px-4 rounded-full border-2 border-tertiary-light dark:border-tertiary hover:bg-tertiary-light dark:hover:bg-tertiary transition-colors">Edit Profile</button>
+                             <button onClick={handleSignOut} className="p-2 text-red-500 rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary transition-colors md:hidden">
+                                 <LogoutIcon className="w-6 h-6" />
+                             </button>
+                        </div>
+                    ) : (
+                        <button onClick={handleFollowToggle} disabled={isTogglingFollow} className={`font-bold py-2 px-6 rounded-full transition-colors disabled:opacity-50 ${profile.is_following ? 'bg-transparent border border-gray-400 text-text-main-light dark:text-white hover:border-red-500 hover:text-red-500' : 'bg-text-main-light dark:bg-white dark:text-black hover:bg-gray-200'}`}>
+                            {isTogglingFollow ? <Spinner /> : (profile.is_following ? 'Following' : 'Follow')}
+                        </button>
+                    )}
+                </div>
+
+                <div className="px-4 pb-4 -mt-4">
+                    <h1 className="text-3xl font-bold">{profile.full_name}</h1>
+                    <p className="text-gray-400">@{profile.username}</p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-8 px-4 sm:px-6 mt-4">
                     <div className="lg:col-span-1 space-y-4"> 
                         <h2 className="text-xl font-bold">About {profile.full_name?.split(' ')[0] || profile.username}</h2>
                         <div className="flex items-center space-x-4 text-sm">
@@ -179,25 +204,6 @@ const ProfilePage: React.FC = () => {
                                 <span className="font-bold text-text-main-light dark:text-white">{profile.follower_count}</span>
                                 <span className="text-text-tertiary-light dark:text-text-tertiary"> Followers</span>
                             </button>
-                        </div>
-                        {profile.roommates && profile.roommates.length > 0 && (
-                            <div className="text-sm text-text-tertiary-light dark:text-text-tertiary flex items-center flex-wrap">
-                                <span>🏠 Roomies with </span>
-                                {profile.roommates.map((roommate, index) => (
-                                <React.Fragment key={roommate.user_id}>
-                                    <Link to={`/profile/${roommate.username}`} className="text-brand-green hover:underline ml-1">
-                                    @{roommate.username}
-                                    </Link>
-                                    {index < profile.roommates.length - 1 && ', '}
-                                </React.Fragment>
-                                ))}
-                                ?
-                            </div>
-                        )}
-                        <div className="flex items-center space-x-2 text-sm text-text-tertiary-light dark:text-text-tertiary">
-                            {profile.campus && <span>{profile.campus} Campus</span>}
-                            {graduationYear && <span className="text-gray-500">&middot;</span>}
-                            {graduationYear && <span>Class of {graduationYear}</span>}
                         </div>
                         {profile.bio && <p className="text-text-secondary-light dark:text-text-secondary whitespace-pre-wrap">{profile.bio}</p>}
                         
@@ -241,20 +247,34 @@ const ProfilePage: React.FC = () => {
                     </div>
 
                     <div className="lg:col-span-2 mt-8 lg:mt-0"> 
-                        {isOwnProfile && currentUserProfile && (
+                        {isOwnProfile && currentUserProfile && activeTab === 'posts' && (
                             <div className="mb-6">
-                                <CreatePost 
-                                    onPostCreated={addPostToContext} 
-                                    profile={currentUserProfile} 
-                                />
+                                <CreatePost onPostCreated={(newPost) => setPosts([newPost as PostType, ...posts])} profile={currentUserProfile} />
                             </div>
                         )}
-                        <h2 className="text-xl font-bold">Posts</h2>
+                        
+                        <div className="flex border-b border-tertiary-light dark:border-tertiary">
+                            <TabButton label="Posts" isActive={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
+                            <TabButton label="Mentions" isActive={activeTab === 'mentions'} onClick={() => setActiveTab('mentions')} />
+                        </div>
+
                         <div className="mt-4 space-y-4">
-                            {userPosts.length > 0 
-                                ? userPosts.map(post => <PostComponent key={post.id} post={post} />) 
-                                : <p className="text-center text-text-tertiary-light dark:text-text-tertiary py-8 bg-secondary-light dark:bg-secondary rounded-lg">No posts yet.</p>
-                            }
+                            {postsLoading ? (
+                                <div className="text-center py-8"><Spinner/></div>
+                            ) : (
+                                <>
+                                    {activeTab === 'posts' && (
+                                        posts.length > 0 
+                                            ? posts.map(post => <PostComponent key={post.id} post={post} />) 
+                                            : <p className="text-center text-text-tertiary-light dark:text-text-tertiary py-8">No posts yet.</p>
+                                    )}
+                                    {activeTab === 'mentions' && (
+                                        mentions.length > 0 
+                                            ? mentions.map(post => <PostComponent key={post.id} post={post} />) 
+                                            : <p className="text-center text-text-tertiary-light dark:text-text-tertiary py-8">No mentions yet.</p>
+                                    )}
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -264,7 +284,7 @@ const ProfilePage: React.FC = () => {
 };
 
 const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, onSave: () => void }> = ({ userProfile, onClose, onSave }) => {
-    const { user } = useAuth();
+    const { user, updateProfileContext } = useAuth();
     const [profileData, setProfileData] = useState(userProfile);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [bannerFile, setBannerFile] = useState<File | null>(null);
@@ -350,14 +370,16 @@ const EditProfileModal: React.FC<{ userProfile: Profile, onClose: () => void, on
                 banner_url = `${publicUrl}?t=${new Date().getTime()}`;
             }
 
-            const { error: updateError } = await supabase.from('profiles').update({
+            const { data: updatedProfile, error: updateError } = await supabase.from('profiles').update({
                 full_name: profileData.full_name, bio: profileData.bio, branch: profileData.branch,
                 dual_degree_branch: profileData.dual_degree_branch || null, relationship_status: profileData.relationship_status,
                 dorm_building: profileData.dorm_building, dorm_room: profileData.dorm_room, dining_hall: profileData.dining_hall,
                 avatar_url, banner_url, updated_at: new Date().toISOString(),
-            }).eq('user_id', user.id);
+            }).eq('user_id', user.id).select().single();
 
             if (updateError) throw updateError;
+            
+            updateProfileContext(updatedProfile);
             onSave();
             onClose();
         } catch (err: any) { setError(err.message); } finally { setIsSaving(false); }

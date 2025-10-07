@@ -3,11 +3,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useTheme } from '../contexts/ThemeContext'; // <-- Import useTheme
+import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../services/supabase';
 import { Profile, SearchResults as SearchResultsType } from '../types';
 import SearchResults from './SearchResults';
-import { SearchIcon, SunIcon, MoonIcon } from './icons'; // <-- Import new icons
+import { SearchIcon, SunIcon, MoonIcon } from './icons';
 
 interface HeaderProps {
     isSidebarExpanded: boolean;
@@ -24,7 +24,7 @@ const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
     const [loadingSearch, setLoadingSearch] = useState(false);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
-    const { theme, toggleTheme } = useTheme(); // <-- Get theme state and function
+    const { theme, toggleTheme } = useTheme();
 
     useEffect(() => {
         const fetchHeaderProfile = async () => {
@@ -100,6 +100,10 @@ const Header: React.FC<HeaderProps> = ({ isSidebarExpanded }) => {
                 <Link to="/search" className="p-2 text-text-secondary-light dark:text-gray-300 rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary md:hidden">
                     <SearchIcon className="w-7 h-7" />
                 </Link>
+
+                <button onClick={toggleTheme} className="p-2 text-text-secondary-light dark:text-gray-300 rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary md:hidden">
+                    {theme === 'light' ? <MoonIcon className="w-7 h-7" /> : <SunIcon className="w-7 h-7" />}
+                </button>
 
                 <div ref={dropdownRef} className="relative hidden md:block">
                     <button onClick={() => setDropdownOpen(!dropdownOpen)} className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">

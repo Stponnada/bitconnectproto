@@ -3,7 +3,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useChat } from '../hooks/useChat';
-import { useTheme } from '../contexts/ThemeContext'; // <-- Import useTheme
+import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../services/supabase';
 import {
   HomeIcon,
@@ -11,9 +11,9 @@ import {
   ChatIcon,
   UserIcon,
   LogoutIcon,
-  AtSymbolIcon,
-  SunIcon,   // <-- Import SunIcon
-  MoonIcon,  // <-- Import MoonIcon
+  SunIcon,
+  MoonIcon,
+  BuildingLibraryIcon,
 } from './icons';
 
 const MenuIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
@@ -31,7 +31,7 @@ interface LeftSidebarProps {
 const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, username }) => {
   const navigate = useNavigate();
   const { totalUnreadCount } = useChat();
-  const { theme, toggleTheme } = useTheme(); // <-- Get theme state and function
+  const { theme, toggleTheme } = useTheme(); 
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -67,7 +67,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, us
         <nav className="flex-grow mt-4">
           <NavLink to="/" icon={<HomeIcon className="w-7 h-7 flex-shrink-0" />} text="Home" />
           <NavLink to="/directory" icon={<BookOpenIcon className="w-7 h-7 flex-shrink-0" />} text="Directory" />
-          <NavLink to="/mentions" icon={<AtSymbolIcon className="w-7 h-7 flex-shrink-0" />} text="Mentions" />
+          <NavLink to="/campus" icon={<BuildingLibraryIcon className="w-7 h-7 flex-shrink-0" />} text="Campus" />
           <NavLink
             to="/chat"
             icon={

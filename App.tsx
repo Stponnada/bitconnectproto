@@ -1,11 +1,12 @@
 // src/App.tsx
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './hooks/useAuth';
 import { PostsProvider } from './contexts/PostsContext';
 import { ChatProvider } from './contexts/ChatContext';
-import { ThemeProvider } from './contexts/ThemeContext'; // <-- Import ThemeProvider
+import { ThemeProvider } from './contexts/ThemeContext';
 
 import { HomePage as Home } from './pages/Home';
 import Login from './pages/Login';
@@ -13,21 +14,19 @@ import ProfilePage from './pages/Profile';
 import PostPage from './pages/PostPage';
 import ProfileSetup from './pages/ProfileSetup';
 import DirectoryPage from './pages/DirectoryPage';
-import MentionsPage from './pages/MentionsPage';
 import NotFound from './pages/NotFound';
 import Layout from './components/Layout';
 import SearchPage from './pages/SearchPage';
 import ChatPage from './pages/ChatPage';
 import Spinner from './components/Spinner';
+import CampusPage from './pages/CampusPage';
+import CampusDirectoryPage from './pages/CampusDirectoryPage';
+import PlaceDetailPage from './pages/PlaceDetailPage';
+import LostAndFoundPage from './pages/LostAndFoundPage';
 
-/**
- * This component consumes the AuthContext and contains all the routing logic.
- * It will only render after the AuthProvider has a value.
- */
 const AppRoutes = () => {
   const { user, profile, isLoading } = useAuth();
 
-  // 1. Show a full-screen loader while the initial session and profile are being fetched.
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-primary-light dark:bg-primary">
@@ -36,56 +35,62 @@ const AppRoutes = () => {
     );
   }
 
-  // 2. If loading is done and there's no user, show only the login page.
   if (!user) {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
-        {/* Redirect any other path to /login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
   }
 
-  // 3. If there IS a user, but their profile is not complete, show only the setup page.
   if (user && !profile?.profile_complete) {
      return (
         <Routes>
             <Route path="/setup" element={<ProfileSetup />} />
-            {/* Redirect any other path to /setup */}
             <Route path="*" element={<Navigate to="/setup" replace />} />
         </Routes>
      )
   }
 
-  // 4. If the user is logged in AND their profile is complete, show the main app.
   return (
     <Routes>
-      {/* Routes that use the main Layout */}
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/directory" element={<DirectoryPage />} />
-        <Route path="/mentions" element={<MentionsPage />} />
+        <Route path="/campus" element={<CampusPage />} />
+        <Route path="/campus/reviews" element={<CampusDirectoryPage />} />
+        <Route path="/campus/reviews/:placeId" element={<PlaceDetailPage />} />
+        <Route path="/campus/lost-and-found" element={<LostAndFoundPage />} />
         <Route path="/profile/:username" element={<ProfilePage />} />
         <Route path="/post/:postId" element={<PostPage />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/chat/:username" element={<ChatPage />} />
       </Route>
 
-      {/* Standalone protected routes */}
       <Route path="/search" element={<SearchPage />} />
-
-      {/* Redirect login/setup to home if user is already fully authenticated */}
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/setup" element={<Navigate to="/" replace />} />
-
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };
 
-// This is the single, top-level App component
 const App = () => {
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(registration => {
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          })
+          .catch(err => {
+            console.log('ServiceWorker registration failed: ', err);
+          });
+      });
+    }
+  }, []);
+
   return (
     <Router>
       <ThemeProvider>
