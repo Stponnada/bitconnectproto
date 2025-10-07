@@ -9,6 +9,7 @@ import Conversation from '../components/Conversation';
 import { useChat } from '../hooks/useChat';
 import { formatTimestamp } from '../utils/timeUtils';
 import { ChatIcon } from '../components/icons';
+import { requestNotificationPermission } from '../utils/notifications';
 
 const ChatPage: React.FC = () => {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ const ChatPage: React.FC = () => {
   const { conversations, loading, markConversationAsRead } = useChat();
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
 
   useEffect(() => {
     const recipient = location.state?.recipient as Profile | undefined;
@@ -34,6 +36,11 @@ const ChatPage: React.FC = () => {
     markConversationAsRead(profile.user_id);
   }, [markConversationAsRead]);
   
+  const handleEnableNotifications = async () => {
+    const permission = await requestNotificationPermission();
+    setNotificationPermission(permission);
+  };
+
   const filteredConversations = conversations.filter(conv =>
     conv.participant.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     conv.participant.username.toLowerCase().includes(searchTerm.toLowerCase())
@@ -48,7 +55,9 @@ const ChatPage: React.FC = () => {
   }
 
   return (
-    <div className="relative h-[calc(100vh-80px)] md:h-[calc(100vh-120px)] w-full overflow-hidden bg-secondary-light dark:bg-secondary md:rounded-xl md:border md:border-tertiary-light dark:md:border-tertiary md:shadow-2xl">
+    // --- THE FIX IS HERE ---
+    // The height is now calculated as 100vh - 144px (80px for header + 64px for bottom nav).
+    <div className="relative h-[calc(100vh-144px)] md:h-[calc(100vh-120px)] w-full overflow-hidden bg-secondary-light dark:bg-secondary md:rounded-xl md:border md:border-tertiary-light dark:md:border-tertiary md:shadow-2xl">
       
       <div className={`relative w-full h-full flex transition-transform duration-300 ease-in-out md:transform-none ${selectedProfile ? '-translate-x-full' : 'translate-x-0'}`}>
         
@@ -63,6 +72,15 @@ const ChatPage: React.FC = () => {
               className="w-full mt-3 p-2 bg-primary-light dark:bg-primary border border-tertiary-light dark:border-gray-600 rounded-lg text-sm text-text-main-light dark:text-text-main focus:outline-none focus:ring-2 focus:ring-brand-green"
             />
           </div>
+
+          {notificationPermission === 'default' && (
+            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/50 text-center">
+                <button onClick={handleEnableNotifications} className="text-sm text-yellow-800 dark:text-yellow-200 hover:underline font-semibold">
+                    Enable Notifications
+                </button>
+            </div>
+          )}
+
           <ul className="flex-1 overflow-y-auto">
             {filteredConversations.map(conv => (
               <li 
