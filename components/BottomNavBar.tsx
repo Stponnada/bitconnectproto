@@ -38,6 +38,7 @@ const BottomNavBar: React.FC = () => {
       >
         <HomeIcon className="w-7 h-7" />
       </NavLink>
+      {/* --- THE FIX IS HERE --- */}
       <NavLink 
         to="/campus" 
         className={({ isActive }) => `flex-1 flex flex-col items-center justify-center ${isActive ? activeLinkStyle : inactiveLinkStyle}`}
