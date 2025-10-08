@@ -42,6 +42,8 @@ export interface Profile {
   roommates: Roommate[] | null;
   gender: string | null;
   birthday: string | null;
+  avg_seller_rating?: number;
+  total_seller_ratings?: number;
 }
 
 // --- NEW TYPE for the chat list ---
@@ -131,4 +133,25 @@ export interface LostAndFoundItem {
   campus: string;
   created_at: string;
   profiles: Profile | null; // For author info
+}
+
+export interface MarketplaceImage {
+  id: string;
+  listing_id: string;
+  image_url: string;
+}
+
+export interface MarketplaceListing {
+  id: string;
+  seller_id: string;
+  title: string;
+  description: string;
+  price: number;
+  category: 'Books & Notes' | 'Electronics' | 'Furniture' | 'Apparel' | 'Cycles & Vehicles' | 'Other';
+  campus: string;
+  status: 'available' | 'sold';
+  created_at: string;
+  seller_profile: Profile; // The seller's profile is nested
+  primary_image_url: string | null;
+  all_images: string[] | null;
 }

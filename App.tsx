@@ -23,6 +23,8 @@ import CampusPage from './pages/CampusPage';
 import CampusDirectoryPage from './pages/CampusDirectoryPage';
 import PlaceDetailPage from './pages/PlaceDetailPage';
 import LostAndFoundPage from './pages/LostAndFoundPage';
+import MarketplacePage from './pages/MarketplacePage';
+import SellerProfilePage from './pages/SellerProfilePage';
 
 const AppRoutes = () => {
   const { user, profile, isLoading } = useAuth();
@@ -62,6 +64,8 @@ const AppRoutes = () => {
         <Route path="/campus/reviews" element={<CampusDirectoryPage />} />
         <Route path="/campus/reviews/:placeId" element={<PlaceDetailPage />} />
         <Route path="/campus/lost-and-found" element={<LostAndFoundPage />} />
+        <Route path="/campus/marketplace" element={<MarketplacePage />} />
+        <Route path="/marketplace/seller/:username" element={<SellerProfilePage />} />
         <Route path="/profile/:username" element={<ProfilePage />} />
         <Route path="/post/:postId" element={<PostPage />} />
         <Route path="/chat" element={<ChatPage />} />

@@ -162,10 +162,22 @@ const ProfilePage: React.FC = () => {
             
             <div className="w-full max-w-7xl mx-auto">
                 <div className="relative bg-secondary-light dark:bg-secondary">
-                    <div className="h-48 sm:h-80 bg-tertiary-light dark:bg-tertiary">
+                    {/* Banner Container with Image and Gradient Overlay */}
+                    <div className="h-48 sm:h-80 bg-tertiary-light dark:bg-tertiary relative">
                         {profile.banner_url && <img src={profile.banner_url} alt="Banner" className="w-full h-full object-cover" />}
+                        
+                        {/* Gradient Overlay for better text visibility - increased opacity to black/70 */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                        
+                        {/* User Name at the bottom of the banner - increased top padding for a lower position */}
+                        <div className="absolute bottom-0 left-0 right-0 p-4 pt-5 sm:p-6 text-white z-30">
+                            <h1 className="text-3xl font-extrabold sm:text-4xl text-shadow-lg pl-44 sm:pl-48">{profile.full_name}</h1>
+                            <p className="text-lg text-shadow-md pl-44 sm:pl-48">@{profile.username}</p>
+                        </div>
                     </div>
-                    <div className="absolute -bottom-16 left-4 sm:left-6 z-10">
+                    
+                    {/* Avatar positioned absolutely relative to the banner container (z-20) */}
+                    <div className="absolute -bottom-16 left-4 sm:left-6 z-20">
                         <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-primary-light dark:border-primary bg-gray-700">
                            {profile.avatar_url && <img src={profile.avatar_url} alt={profile.full_name || ''} className="w-full h-full rounded-full object-cover" />}
                         </div>
@@ -187,9 +199,9 @@ const ProfilePage: React.FC = () => {
                     )}
                 </div>
 
+                {/* This section for name/username is now empty because it was moved into the banner */}
                 <div className="px-4 pb-4 -mt-4">
-                    <h1 className="text-3xl font-bold">{profile.full_name}</h1>
-                    <p className="text-gray-400">@{profile.username}</p>
+                    {/* Name and username elements were here, but are now inside the banner div. */}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-8 px-4 sm:px-6 mt-4">
