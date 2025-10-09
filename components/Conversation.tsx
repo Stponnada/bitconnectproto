@@ -1,5 +1,3 @@
-// src/components/Conversation.tsx
-
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -9,435 +7,271 @@ import { ImageIcon, XCircleIcon } from './icons';
 import GifPickerModal from './GifPickerModal';
 import LightBox from './lightbox';
 
-// --- ICONS ---
-const BackIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-);
-const GifIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12.75 8.25v7.5m6-7.5h-3.75m3.75 0a3.75 3.75 0 00-3.75-3.75H6.75A3.75 3.75 0 003 8.25v7.5A3.75 3.75 0 006.75 19.5h9A3.75 3.75 0 0019.5 15.75v-7.5A3.75 3.75 0 0015.75 4.5z" /></svg>
-);
-const PlusIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-);
-const SendIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
-);
-const ReplyIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}><path fillRule="evenodd" d="M.02 9.22c.03-.3.15-.59.34-.84a2.25 2.25 0 013.28-1.3l.01.01 4.25 2.13a2.25 2.25 0 010 4.2l-4.25 2.12.01.01a2.25 2.25 0 01-3.28-1.3A2.25 2.25 0 010 12.25v-3.03zm5.02 1.03a.75.75 0 00-1.06-1.06L.24 12l3.72 3.72a.75.75 0 101.06-1.06L2.31 12l2.73-2.75zm3.75 0a.75.75 0 00-1.06-1.06L4.24 12l3.72 3.72a.75.75 0 101.06-1.06L6.31 12l2.73-2.75z" clipRule="evenodd" /></svg>
-);
-const SmileIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9.5a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zM5.5 13a.5.5 0 01.5-.5h8a.5.5 0 010 1H6a.5.5 0 01-.5-.5z" clipRule="evenodd" /></svg>
-);
+// --- Helper Components & Icons ---
 
+const BackIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>);
+const GifIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12.75 8.25v7.5m6-7.5h-3.75m3.75 0a3.75 3.75 0 00-3.75-3.75H6.75A3.75 3.75 0 003 8.25v7.5A3.75 3.75 0 006.75 19.5h9A3.75 3.75 0 0019.5 15.75v-7.5A3.75 3.75 0 0015.75 4.5z" /></svg>);
+const PlusIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>);
+const SendIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>);
 
-// --- TYPE DEFINITIONS ---
-interface Reaction {
-  id: number;
-  message_id: number;
-  user_id: string;
-  emoji: string;
-}
-
-interface ParentMessage {
-    id: number;
-    content: string | null;
-    sender: { full_name: string };
-}
+// --- Types ---
 
 interface Message {
-  id: number;
-  sender_id: string;
-  receiver_id: string;
-  content: string | null;
-  created_at: string;
-  message_type: 'text' | 'image' | 'gif';
-  attachment_url: string | null;
-  reply_to_message_id?: number | null;
-  parent_message?: ParentMessage | null;
-  reactions?: Reaction[];
+    id: number;
+    sender_id: string;
+    receiver_id: string;
+    content: string | null;
+    created_at: string;
+    message_type: 'text' | 'image' | 'gif';
+    attachment_url: string | null;
 }
 
 interface ConversationProps {
-  recipient: Profile;
-  onBack?: () => void;
+    recipient: Profile;
+    onBack?: () => void;
 }
 
-const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+// --- Main Component ---
 
 const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
-  const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isGifPickerOpen, setGifPickerOpen] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
-  const [reactionPickerOpenFor, setReactionPickerOpenFor] = useState<number | null>(null);
+    // --- State and Refs ---
+    const { user } = useAuth();
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [newMessage, setNewMessage] = useState('');
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [isGifPickerOpen, setGifPickerOpen] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    const fetchConversation = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select(`
-            *,
-            parent_message: reply_to_message_id (
-                id,
-                content,
-                sender: sender_id ( full_name )
-            ),
-            reactions ( id, user_id, emoji )
-          `)
-          .or(`and(sender_id.eq.${user.id},receiver_id.eq.${recipient.user_id}),and(sender_id.eq.${recipient.user_id},receiver_id.eq.${user.id})`)
-          .order('created_at', { ascending: true });
-        if (error) throw error;
-        setMessages(data as Message[] || []);
-      } catch (err: any) {
-        setError(err.message);
-      } finally { setLoading(false); }
-    };
-    fetchConversation();
-  }, [recipient.user_id, user]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const resetInput = () => {
-    setNewMessage('');
-    setImageFile(null);
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImagePreview(null);
-    setReplyingTo(null);
-  };
-  
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files[0]) {
-          resetInput();
-          const file = e.target.files[0];
-          setImageFile(file);
-          setImagePreview(URL.createObjectURL(file));
-      }
-  };
-  
-  const handleGifSelect = (gifUrl: string) => {
-      setGifPickerOpen(false);
-      handleSendMessage(undefined, { type: 'gif', url: gifUrl });
-  };
-
-  const handleSendMessage = async (e?: React.FormEvent, media?: { type: 'gif'; url: string }) => {
-    e?.preventDefault();
-    if (!user || (!newMessage.trim() && !imageFile && !media)) return;
-    
-    setIsUploading(true);
-    
-    const tempMessageContent = newMessage;
-    const tempImageFile = imageFile;
-    const tempReplyingTo = replyingTo;
-
-    resetInput();
-
-    try {
-        let messageData: Partial<Message> = {
-            sender_id: user.id,
-            receiver_id: recipient.user_id,
-            reply_to_message_id: tempReplyingTo ? tempReplyingTo.id : null,
+    // --- Effects ---
+    useEffect(() => {
+        if (!user) return;
+        const fetchConversation = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const { data, error } = await supabase
+                    .from('messages')
+                    .select('*')
+                    .or(`and(sender_id.eq.${user.id},receiver_id.eq.${recipient.user_id}),and(sender_id.eq.${recipient.user_id},receiver_id.eq.${user.id})`)
+                    .order('created_at', { ascending: true });
+                if (error) throw error;
+                setMessages(data || []);
+            } catch (err: any) {
+                setError(err.message);
+            } finally { setLoading(false); }
         };
+        fetchConversation();
+    }, [recipient.user_id, user]);
 
-        if (media?.type === 'gif') {
-            messageData = { ...messageData, message_type: 'gif', attachment_url: media.url, content: '[GIF]' };
-        } else if (tempImageFile) {
-            const fileExt = tempImageFile.name.split('.').pop();
-            const filePath = `${user.id}/${Date.now()}.${fileExt}`;
-            const { error: uploadError } = await supabase.storage.from('chat-attachments').upload(filePath, tempImageFile);
-            if (uploadError) throw uploadError;
-            
-            const { data: { publicUrl } } = supabase.storage.from('chat-attachments').getPublicUrl(filePath);
-            messageData = { ...messageData, message_type: 'image', attachment_url: publicUrl, content: '[Image]' };
-        } else {
-            messageData = { ...messageData, message_type: 'text', content: tempMessageContent.trim() };
-        }
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
-        const { data: sentMessage, error } = await supabase.from('messages').insert(messageData).select().single();
-        if (error) throw error;
-
-        setMessages(prev => [...prev, sentMessage as Message]);
-
-    } catch (err: any) {
-        setError(`Failed to send message: ${err.message}`);
-        setNewMessage(tempMessageContent);
-        setImageFile(tempImageFile);
-        setReplyingTo(tempReplyingTo);
-    } finally {
-        setIsUploading(false);
-    }
-  };
-
-  const handleReaction = async (message: Message, emoji: string) => {
-    if (!user) return;
-    setReactionPickerOpenFor(null);
-
-    const existingReaction = message.reactions?.find(r => r.user_id === user.id);
-
-    try {
-        if (existingReaction && existingReaction.emoji === emoji) {
-            // Optimistically remove the reaction
-            setMessages(prev => prev.map(m => m.id === message.id ? { ...m, reactions: m.reactions?.filter(r => r.id !== existingReaction.id) } : m));
-            await supabase.from('message_reactions').delete().match({ id: existingReaction.id });
-        } else {
-            const reactionData = { message_id: message.id, user_id: user.id, emoji: emoji };
-            // Optimistically upsert the reaction
-            setMessages(prev => prev.map(m => {
-                if (m.id !== message.id) return m;
-                const otherReactions = m.reactions?.filter(r => r.user_id !== user.id) || [];
-                return { ...m, reactions: [...otherReactions, { ...reactionData, id: -1 }] }; // Temp ID
-            }));
-            await supabase.from('message_reactions').upsert(reactionData, { onConflict: 'message_id,user_id' });
-        }
-    } catch (err) {
-        setError("Failed to update reaction.");
-        // Consider reverting optimistic update on error
-    }
-  };
-  
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  };
-  
-  const aggregateReactions = (reactions: Reaction[] = []) => {
-      const map = new Map<string, string[]>(); // emoji -> user_id[]
-      for (const reaction of reactions) {
-          if (!map.has(reaction.emoji)) map.set(reaction.emoji, []);
-          map.get(reaction.emoji)!.push(reaction.user_id);
-      }
-      return Array.from(map.entries()).map(([emoji, userIds]) => ({
-          emoji,
-          userIds,
-          count: userIds.length,
-      }));
-  };
-
-  useEffect(() => {
-    if (!user) return;
-    const channelId = `chat-room:${[user.id, recipient.user_id].sort().join(':')}`;
-    
-    const messagesChannel = supabase
-      .channel(`${channelId}:messages`)
-      .on<Message>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-          if ((payload.new.sender_id === recipient.user_id && payload.new.receiver_id === user.id)) {
-            setMessages((prev) => [...prev, payload.new]);
-          }
-        }
-      )
-      .subscribe();
-
-    const reactionsChannel = supabase
-        .channel(`${channelId}:reactions`)
-        .on<Reaction>('postgres_changes', {event: '*', schema: 'public', table: 'message_reactions'}, payload => {
-            const messageId = payload.eventType === 'DELETE' ? payload.old.message_id : payload.new.message_id;
-            setMessages(prev => prev.map(m => {
-                if (m.id !== messageId) return m;
-                let reactions = m.reactions ? [...m.reactions] : [];
-                if (payload.eventType === 'INSERT') {
-                    reactions.push(payload.new);
-                } else if (payload.eventType === 'DELETE') {
-                    reactions = reactions.filter(r => r.id !== payload.old.id);
-                } else if (payload.eventType === 'UPDATE') {
-                    const index = reactions.findIndex(r => r.id === payload.new.id);
-                    if (index > -1) reactions[index] = payload.new;
+    useEffect(() => {
+        if (!user) return;
+        const channel = supabase
+            .channel(`chat-room:${[user.id, recipient.user_id].sort().join(':')}`)
+            .on<Message>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+                if (payload.new.sender_id === recipient.user_id && payload.new.receiver_id === user.id) {
+                    setMessages((prev) => [...prev, payload.new]);
                 }
-                return {...m, reactions};
-            }));
-        })
-        .subscribe();
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [recipient.user_id, user]);
 
-    return () => { 
-        supabase.removeChannel(messagesChannel); 
-        supabase.removeChannel(reactionsChannel);
+
+    // --- Handlers & Helpers ---
+    const resetInput = () => {
+        setNewMessage('');
+        setImageFile(null);
+        if (imagePreview) URL.revokeObjectURL(imagePreview);
+        setImagePreview(null);
     };
-  }, [recipient.user_id, user]);
-  
-  if (loading) return <div className="flex-1 flex items-center justify-center"><Spinner /></div>;
-  if (error) return <div className="flex-1 flex items-center justify-center text-red-400 p-4 text-center">{error}</div>;
 
-  return (
-    <>
-      {isGifPickerOpen && <GifPickerModal onClose={() => setGifPickerOpen(false)} onGifSelect={handleGifSelect} />}
-      {lightboxUrl && <LightBox imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            resetInput();
+            const file = e.target.files[0];
+            setImageFile(file);
+            setImagePreview(URL.createObjectURL(file));
+        }
+    };
 
-      {/* Header */}
-      <div className="relative p-4 md:p-5 border-b border-tertiary-light dark:border-tertiary/50 flex items-center space-x-3 flex-shrink-0 bg-gradient-to-b from-secondary-light/50 to-transparent dark:from-secondary/50 dark:to-transparent backdrop-blur-sm">
-        {onBack && (<button onClick={onBack} className="p-2 ... md:hidden"><BackIcon className="w-6 h-6" /></button>)}
-        <div className="relative">
-          <img src={recipient.avatar_url || `https://ui-avatars.com/api/?name=${recipient.full_name}`} alt={recipient.username} className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover ring-2 ring-brand-green/20 shadow-lg" />
-          <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white dark:border-secondary"></div>
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-lg md:text-xl text-text-main-light dark:text-text-main truncate">{recipient.full_name}</h3>
-          <p className="text-sm text-text-tertiary-light dark:text-text-tertiary">Active now</p>
-        </div>
-      </div>
+    const handleGifSelect = (gifUrl: string) => {
+        setGifPickerOpen(false);
+        handleSendMessage(null, { type: 'gif', url: gifUrl });
+    };
 
-      {/* Messages area */}
-      <div className="flex-1 p-4 md:p-6 overflow-y-auto bg-gradient-to-b from-transparent via-secondary-light/20 to-transparent dark:via-secondary/20">
-        <div className="max-w-4xl mx-auto space-y-2">
-          {messages.map((msg, index) => {
-            const isOwn = msg.sender_id === user?.id;
-            const showAvatar = index === 0 || messages[index - 1].sender_id !== msg.sender_id;
-            const aggregatedReactions = aggregateReactions(msg.reactions);
+    const handleSendMessage = async (e?: React.FormEvent, media?: { type: 'gif'; url: string }) => {
+        e?.preventDefault();
+        if (!user || (!newMessage.trim() && !imageFile && !media)) return;
 
-            return (
-              <div key={msg.id} className={`flex items-end space-x-2 ${isOwn ? 'flex-row-reverse space-x-reverse' : ''} animate-fade-in`}>
-                <div className="flex-shrink-0 w-8 h-8">{!isOwn && showAvatar && (<img src={recipient.avatar_url || `https://ui-avatars.com/api/?name=${recipient.full_name}`} alt={recipient.username} className="w-8 h-8 rounded-full object-cover" />)}</div>
-                
-                <div className={`group relative flex flex-col max-w-[75%] md:max-w-md ${isOwn ? 'items-end' : 'items-start'}`}>
-                  
-                  {/* Message Actions (Reply, React) */}
-                  <div className={`absolute top-1/2 -translate-y-1/2 z-10 flex items-center bg-white dark:bg-secondary shadow-md rounded-full border border-tertiary-light dark:border-tertiary p-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${isOwn ? 'left-0 -translate-x-full ml-[-8px]' : 'right-0 translate-x-full mr-[-8px]'}`}>
-                      <button onClick={() => setReactionPickerOpenFor(msg.id === reactionPickerOpenFor ? null : msg.id)} className="p-1.5 rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary"><SmileIcon className="w-4 h-4" /></button>
-                      <button onClick={() => setReplyingTo(msg)} className="p-1.5 rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary"><ReplyIcon className="w-4 h-4" /></button>
-                  </div>
-                  
-                  {/* Emoji Picker */}
-                  {reactionPickerOpenFor === msg.id && (
-                    <div className={`absolute z-20 bottom-full mb-2 flex items-center space-x-1 bg-white dark:bg-secondary shadow-xl rounded-full border border-tertiary-light dark:border-tertiary p-2 ${isOwn ? 'right-0' : 'left-0'}`}>
-                      {EMOJIS.map(emoji => (
-                        <button key={emoji} onClick={() => handleReaction(msg, emoji)} className="text-xl p-1 rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary transform hover:scale-125 transition-transform">{emoji}</button>
-                      ))}
-                    </div>
-                  )}
+        setIsUploading(true);
+        const tempMessageContent = newMessage;
+        const tempImageFile = imageFile;
+        resetInput();
 
-                  <div className={`rounded-2xl shadow-sm transition-all hover:shadow-md w-fit ${isOwn ? 'bg-gradient-to-br from-brand-green to-brand-green-darker text-black rounded-br-sm' : 'bg-white dark:bg-tertiary text-text-main-light dark:text-text-main rounded-bl-sm border border-tertiary-light/50 dark:border-tertiary/50'}`}>
-                    {/* Render Reply Quote */}
-                    {msg.parent_message && (
-                        <div className="p-2 mx-1.5 mt-1.5 border-l-2 border-brand-green/50 bg-black/5 dark:bg-white/5 rounded-lg opacity-80 cursor-pointer hover:opacity-100">
-                            <p className="font-bold text-xs">{msg.parent_message.sender?.full_name || "User"}</p>
-                            <p className="text-sm opacity-80 truncate">{msg.parent_message.content || '[Media]'}</p>
+        try {
+            let messageData: Partial<Message> = { sender_id: user.id, receiver_id: recipient.user_id };
+
+            if (media?.type === 'gif') {
+                messageData = { ...messageData, message_type: 'gif', attachment_url: media.url, content: '[GIF]' };
+            } else if (tempImageFile) {
+                const fileExt = tempImageFile.name.split('.').pop();
+                const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+                const { error: uploadError } = await supabase.storage.from('chat-attachments').upload(filePath, tempImageFile);
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage.from('chat-attachments').getPublicUrl(filePath);
+                messageData = { ...messageData, message_type: 'image', attachment_url: publicUrl, content: '[Image]' };
+            } else {
+                messageData = { ...messageData, message_type: 'text', content: tempMessageContent.trim() };
+            }
+
+            const { data: sentMessage, error } = await supabase.from('messages').insert(messageData).select().single();
+            if (error) throw error;
+            setMessages(prev => [...prev, sentMessage as Message]);
+        } catch (err: any) {
+            setError(`Failed to send message: ${err.message}`);
+            setNewMessage(tempMessageContent);
+            setImageFile(tempImageFile);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const formatTime = (timestamp: string) => {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+        if (diffInHours < 24) {
+            return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        }
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    if (loading) return <div className="flex-1 flex items-center justify-center"><Spinner /></div>;
+    if (error) return <div className="flex-1 flex items-center justify-center text-red-400 p-4 text-center">{error}</div>;
+
+    // --- Render ---
+    return (
+        <>
+            {isGifPickerOpen && <GifPickerModal onClose={() => setGifPickerOpen(false)} onGifSelect={handleGifSelect} />}
+            {lightboxUrl && <LightBox imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
+
+            {/* Header */}
+            <div className="relative p-4 md:p-5 border-b border-tertiary-light dark:border-tertiary/50 flex items-center space-x-3 flex-shrink-0 bg-gradient-to-b from-secondary-light/50 to-transparent dark:from-secondary/50 dark:to-transparent backdrop-blur-sm">
+                {onBack && (
+                    <button onClick={onBack} className="p-2 text-text-secondary-light dark:text-gray-300 rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary transition-all hover:scale-110 md:hidden">
+                        <BackIcon className="w-6 h-6" />
+                    </button>
+                )}
+                <div className="relative">
+                    <img src={recipient.avatar_url || `https://ui-avatars.com/api/?name=${recipient.full_name}`} alt={recipient.username} className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover ring-2 ring-brand-green/20 shadow-lg" />
+                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white dark:border-secondary"></div>
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-lg md:text-xl text-text-main-light dark:text-text-main truncate">{recipient.full_name}</h3>
+                    <p className="text-sm text-text-tertiary-light dark:text-text-tertiary flex items-center">
+                        <span className="hidden md:inline">@{recipient.username}</span>
+                        <span className="md:hidden">Active now</span>
+                    </p>
+                </div>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 p-4 md:p-6 overflow-y-auto bg-gradient-to-b from-transparent via-secondary-light/20 to-transparent dark:via-secondary/20">
+                <div className="max-w-4xl mx-auto space-y-4">
+                    {messages.map((msg, index) => {
+                        const isOwn = msg.sender_id === user?.id;
+                        const showAvatar = index === 0 || messages[index - 1].sender_id !== msg.sender_id;
+
+                        return (
+                            <div key={msg.id} className={`flex items-end space-x-2 ${isOwn ? 'flex-row-reverse space-x-reverse' : 'flex-row'} animate-fade-in`}>
+                                <div className="flex-shrink-0 w-8 h-8">
+                                    {!isOwn && showAvatar && (
+                                        <img src={recipient.avatar_url || `https://ui-avatars.com/api/?name=${recipient.full_name}`} alt={recipient.username} className="w-8 h-8 rounded-full object-cover" />
+                                    )}
+                                </div>
+                                <div className={`flex flex-col max-w-[75%] md:max-w-md ${isOwn ? 'items-end' : 'items-start'}`}>
+                                    <div className={`group relative rounded-2xl shadow-sm transition-all hover:shadow-md ${isOwn ? 'bg-gradient-to-br from-brand-green to-brand-green-darker text-black rounded-br-sm' : 'bg-white dark:bg-tertiary text-text-main-light dark:text-text-main rounded-bl-sm border border-tertiary-light/50 dark:border-tertiary/50'}`}>
+                                        {msg.message_type === 'text' && <p className="px-4 py-2.5 text-[15px] leading-relaxed break-words">{msg.content}</p>}
+                                        {msg.message_type === 'image' && msg.attachment_url && (
+                                            <button onClick={() => setLightboxUrl(msg.attachment_url!)} className="block p-1 hover:opacity-95 transition-opacity">
+                                                <img src={msg.attachment_url} alt="attachment" className="rounded-xl max-w-xs md:max-w-sm max-h-80 object-cover" />
+                                            </button>
+                                        )}
+                                        {msg.message_type === 'gif' && msg.attachment_url && (
+                                            <div className="p-1"><img src={msg.attachment_url} alt="gif" className="rounded-xl max-w-xs md:max-w-sm" /></div>
+                                        )}
+                                    </div>
+                                    <span className="text-xs text-text-tertiary-light dark:text-text-tertiary mt-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {formatTime(msg.created_at)}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                    <div ref={messagesEndRef} />
+                </div>
+            </div>
+
+            {/* Input Area */}
+            <div className="p-4 md:p-5 border-t border-tertiary-light dark:border-tertiary/50 bg-secondary-light/50 dark:bg-secondary/50 backdrop-blur-sm">
+                <div className="max-w-4xl mx-auto">
+                    {imagePreview && (
+                        <div className="mb-3 animate-fade-in">
+                            <div className="relative inline-block w-28 h-28 rounded-xl overflow-hidden shadow-lg">
+                                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                <button onClick={resetInput} className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg transition-all hover:scale-110">
+                                    <XCircleIcon className="w-5 h-5" />
+                                </button>
+                            </div>
                         </div>
                     )}
-
-                    {/* Render Message Content */}
-                    {msg.message_type === 'text' && <p className="px-4 py-2.5 text-[15px] leading-relaxed break-words">{msg.content}</p>}
-                    {msg.message_type === 'image' && msg.attachment_url && (<button onClick={() => setLightboxUrl(msg.attachment_url!)} className="block p-1 hover:opacity-95 transition-opacity"><img src={msg.attachment_url} alt="attachment" className="rounded-xl max-w-xs md:max-w-sm max-h-80 object-cover" /></button>)}
-                    {msg.message_type === 'gif' && msg.attachment_url && (<div className="p-1"><img src={msg.attachment_url} alt="gif" className="rounded-xl max-w-xs md:max-w-sm" /></div>)}
-                  </div>
-                  
-                  {/* Reactions Display */}
-                  {aggregatedReactions.length > 0 && (
-                      <div className="flex space-x-1 mt-1 pl-2">
-                          {aggregatedReactions.map(reaction => (
-                              <button key={reaction.emoji} onClick={() => handleReaction(msg, reaction.emoji)} className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${reaction.userIds.includes(user!.id) ? 'bg-brand-green/30 border-brand-green' : 'bg-tertiary-light dark:bg-tertiary border-transparent'}`}>
-                                  {reaction.emoji} {reaction.count}
-                              </button>
-                          ))}
-                      </div>
-                  )}
-
-                  <span className="text-xs text-text-tertiary-light dark:text-text-tertiary mt-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity">{formatTime(msg.created_at)}</span>
+                    <form onSubmit={handleSendMessage} className="flex items-center space-x-2 md:space-x-3">
+                        <div className="group relative">
+                            <button type="button" className="p-2.5 md:p-3 text-text-tertiary-light dark:text-text-tertiary rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary transition-all hover:scale-110 hover:rotate-45">
+                                <PlusIcon className="w-5 h-5 md:w-6 md:h-6" />
+                            </button>
+                            <div className="absolute bottom-full mb-2 left-0 min-w-[140px] bg-white dark:bg-secondary border border-tertiary-light dark:border-tertiary rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 group-hover:translate-y-[-4px]">
+                                <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center w-full text-left space-x-3 px-4 py-3 hover:bg-tertiary-light dark:hover:bg-tertiary rounded-t-xl transition-colors">
+                                    <ImageIcon className="w-5 h-5 text-brand-green"/>
+                                    <span className="font-medium">Image</span>
+                                </button>
+                                <button type="button" onClick={() => setGifPickerOpen(true)} className="flex items-center w-full text-left space-x-3 px-4 py-3 hover:bg-tertiary-light dark:hover:bg-tertiary rounded-b-xl transition-colors">
+                                    <GifIcon className="w-5 h-5 text-brand-green"/>
+                                    <span className="font-medium">GIF</span>
+                                </button>
+                            </div>
+                        </div>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" hidden />
+                        <div className="flex-1 relative">
+                            <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full py-3 px-4 md:px-5 bg-white dark:bg-tertiary border border-tertiary-light dark:border-gray-600 rounded-full focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent text-text-main-light dark:text-text-main placeholder-text-tertiary-light dark:placeholder-text-tertiary transition-all shadow-sm" disabled={!!imagePreview}/>
+                        </div>
+                        <button type="submit" disabled={isUploading || (!newMessage.trim() && !imageFile)} className="p-3 md:p-3.5 bg-gradient-to-br from-brand-green to-brand-green-darker text-black font-bold rounded-full hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95">
+                            {isUploading ? <Spinner /> : <SendIcon className="w-5 h-5 md:w-6 md:h-6" />}
+                        </button>
+                    </form>
                 </div>
-              </div>
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
-
-{/* Input area */}
-      <div className="p-4 md:p-5 border-t border-tertiary-light dark:border-tertiary/50 bg-secondary-light/50 dark:bg-secondary/50 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto">
-            {/* Reply Preview */}
-            {replyingTo && (
-                <div className="mb-3 p-3 bg-tertiary-light dark:bg-tertiary rounded-lg relative animate-fade-in text-sm">
-                    <button onClick={() => setReplyingTo(null)} className="absolute top-1.5 right-1.5 p-1 rounded-full hover:bg-gray-300 dark:hover:bg-gray-600">
-                        <XCircleIcon className="w-4 h-4" />
-                    </button>
-                    <p className="font-bold text-brand-green">Replying to {replyingTo.sender_id === user?.id ? 'Yourself' : recipient.full_name}</p>
-                    <p className="text-text-secondary-light dark:text-text-tertiary truncate">{replyingTo.content || (replyingTo.message_type === 'image' ? 'Image' : 'GIF')}</p>
-                </div>
-            )}
-            
-            {/* Image Preview UI */}
-            {imagePreview && (
-              <div className="mb-3 animate-fade-in">
-                <div className="relative inline-block w-28 h-28 rounded-xl overflow-hidden shadow-lg">
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  <button 
-                    onClick={resetInput} 
-                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg transition-all hover:scale-110"
-                  >
-                    <XCircleIcon className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            )}
-          
-          <form onSubmit={handleSendMessage} className="flex items-center space-x-2 md:space-x-3">
-            {/* Attachment menu */}
-            <div className="group relative">
-              <button 
-                type="button" 
-                className="p-2.5 md:p-3 text-text-tertiary-light dark:text-text-tertiary rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary transition-all hover:scale-110 hover:rotate-45"
-              >
-                <PlusIcon className="w-5 h-5 md:w-6 md:h-6" />
-              </button>
-              <div className="absolute bottom-full mb-2 left-0 min-w-[140px] bg-white dark:bg-secondary border border-tertiary-light dark:border-tertiary rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 group-hover:translate-y-[-4px]">
-                <button 
-                  type="button" 
-                  onClick={() => fileInputRef.current?.click()} 
-                  className="flex items-center w-full text-left space-x-3 px-4 py-3 hover:bg-tertiary-light dark:hover:bg-tertiary rounded-t-xl transition-colors"
-                >
-                  <ImageIcon className="w-5 h-5 text-brand-green"/>
-                  <span className="font-medium">Image</span>
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setGifPickerOpen(true)} 
-                  className="flex items-center w-full text-left space-x-3 px-4 py-3 hover:bg-tertiary-light dark:hover:bg-tertiary rounded-b-xl transition-colors"
-                >
-                  <GifIcon className="w-5 h-5 text-brand-green"/>
-                  <span className="font-medium">GIF</span>
-                </button>
-              </div>
             </div>
-            
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" hidden />
-            
-            <div className="flex-1 relative">
-                <input 
-                  type="text" 
-                  value={newMessage} 
-                  onChange={(e) => setNewMessage(e.target.value)} 
-                  placeholder="Type a message..." 
-                  className="w-full py-3 px-4 md:px-5 bg-white dark:bg-tertiary border border-tertiary-light dark:border-gray-600 rounded-full focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent text-text-main-light dark:text-text-main placeholder-text-tertiary-light dark:placeholder-text-tertiary transition-all shadow-sm" 
-                  disabled={!!imagePreview} 
-                />
-            </div>
-            
-            <button 
-              type="submit" 
-              disabled={isUploading || (!newMessage.trim() && !imageFile)} 
-              className="p-3 md:p-3.5 bg-gradient-to-br from-brand-green to-brand-green-darker text-black font-bold rounded-full hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
-            >
-              {isUploading ? <Spinner /> : <SendIcon className="w-5 h-5 md:w-6 md:h-6" />}
-            </button>
-          </form>
-        </div>
-      </div>
 
-      <style>{`@keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .animate-fade-in { animation: fade-in 0.3s ease-out; }`}</style>
-    </>
-  );
+            <style>{`
+                @keyframes fade-in {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in { animation: fade-in 0.3s ease-out; }
+            `}</style>
+        </>
+    );
 };
 
 export default Conversation;
