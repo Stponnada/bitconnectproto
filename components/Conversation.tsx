@@ -7,14 +7,24 @@ import { ImageIcon, XCircleIcon } from './icons';
 import GifPickerModal from './GifPickerModal';
 import LightBox from './lightbox';
 
-// --- Helper Components & Icons ---
+// --- NEW/UPDATED Helper Components & Icons ---
 
 const BackIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>);
 const GifIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12.75 8.25v7.5m6-7.5h-3.75m3.75 0a3.75 3.75 0 00-3.75-3.75H6.75A3.75 3.75 0 003 8.25v7.5A3.75 3.75 0 006.75 19.5h9A3.75 3.75 0 0019.5 15.75v-7.5A3.75 3.75 0 0015.75 4.5z" /></svg>);
 const PlusIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>);
 const SendIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>);
+const ReplyIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}><path fillRule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.128a.75.75 0 010 1.5H3.622l4.146 3.957a.75.75 0 01-1.036 1.085l-5.5-5.25a.75.75 0 010-1.085l5.5-5.25a.75.75 0 011.06.025z" clipRule="evenodd" /></svg>);
+const EmojiIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM6.75 9.25a.75.75 0 000 1.5h6.5a.75.75 0 000-1.5h-6.5z" clipRule="evenodd" /></svg>);
 
-// --- Types ---
+
+// --- Types (UPDATED) ---
+
+interface Reaction {
+    id: number;
+    message_id: number;
+    user_id: string;
+    emoji: string;
+}
 
 interface Message {
     id: number;
@@ -24,12 +34,17 @@ interface Message {
     created_at: string;
     message_type: 'text' | 'image' | 'gif';
     attachment_url: string | null;
+    reply_to_message_id: number | null; // For replies
+    reactions: Reaction[]; // For reactions
 }
 
 interface ConversationProps {
     recipient: Profile;
     onBack?: () => void;
 }
+
+const DEFAULT_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
 
 // --- Main Component ---
 
@@ -45,6 +60,10 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    
+    // --- NEW STATE for Replies ---
+    const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,13 +74,31 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
             setLoading(true);
             setError(null);
             try {
-                const { data, error } = await supabase
+                // 1. Fetch messages
+                const { data: messagesData, error: messagesError } = await supabase
                     .from('messages')
                     .select('*')
                     .or(`and(sender_id.eq.${user.id},receiver_id.eq.${recipient.user_id}),and(sender_id.eq.${recipient.user_id},receiver_id.eq.${user.id})`)
                     .order('created_at', { ascending: true });
-                if (error) throw error;
-                setMessages(data || []);
+                if (messagesError) throw messagesError;
+
+                const messageIds = messagesData.map(m => m.id);
+
+                // 2. Fetch all reactions for these messages
+                const { data: reactionsData, error: reactionsError } = await supabase
+                    .from('message_reactions')
+                    .select('*')
+                    .in('message_id', messageIds);
+                if (reactionsError) throw reactionsError;
+                
+                // 3. Combine messages with their reactions
+                const messagesWithReactions = messagesData.map(message => ({
+                    ...message,
+                    reactions: reactionsData.filter(r => r.message_id === message.id)
+                }));
+
+                setMessages(messagesWithReactions || []);
+
             } catch (err: any) {
                 setError(err.message);
             } finally { setLoading(false); }
@@ -75,15 +112,47 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
 
     useEffect(() => {
         if (!user) return;
-        const channel = supabase
+        // Channel for new messages
+        const messageChannel = supabase
             .channel(`chat-room:${[user.id, recipient.user_id].sort().join(':')}`)
             .on<Message>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
                 if (payload.new.sender_id === recipient.user_id && payload.new.receiver_id === user.id) {
-                    setMessages((prev) => [...prev, payload.new]);
+                    setMessages((prev) => [...prev, { ...payload.new, reactions: [] }]);
                 }
             })
             .subscribe();
-        return () => { supabase.removeChannel(channel); };
+
+        // --- NEW CHANNEL for reactions ---
+        const reactionChannel = supabase
+            .channel(`reactions:${[user.id, recipient.user_id].sort().join(':')}`)
+            .on<Reaction>('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, (payload) => {
+                setMessages(currentMessages => {
+                    const messageId = payload.eventType === 'DELETE' ? payload.old.message_id : payload.new.message_id;
+                    const targetMsg = currentMessages.find(m => m.id === messageId);
+                    if (!targetMsg) return currentMessages;
+
+                    return currentMessages.map(msg => {
+                        if (msg.id === messageId) {
+                            let newReactions = [...msg.reactions];
+                            if (payload.eventType === 'INSERT') {
+                                newReactions.push(payload.new);
+                            } else if (payload.eventType === 'UPDATE') {
+                                newReactions = newReactions.map(r => r.id === payload.new.id ? payload.new : r);
+                            } else if (payload.eventType === 'DELETE') {
+                                newReactions = newReactions.filter(r => r.id !== payload.old.id);
+                            }
+                            return { ...msg, reactions: newReactions };
+                        }
+                        return msg;
+                    });
+                });
+            })
+            .subscribe();
+
+        return () => { 
+            supabase.removeChannel(messageChannel); 
+            supabase.removeChannel(reactionChannel);
+        };
     }, [recipient.user_id, user]);
 
 
@@ -93,6 +162,7 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
         setImageFile(null);
         if (imagePreview) URL.revokeObjectURL(imagePreview);
         setImagePreview(null);
+        setReplyingTo(null); // Also reset reply state
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,10 +186,15 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
         setIsUploading(true);
         const tempMessageContent = newMessage;
         const tempImageFile = imageFile;
+        const tempReplyingTo = replyingTo; // Capture reply state
         resetInput();
 
         try {
-            let messageData: Partial<Message> = { sender_id: user.id, receiver_id: recipient.user_id };
+            let messageData: Partial<Message> = { 
+                sender_id: user.id, 
+                receiver_id: recipient.user_id,
+                reply_to_message_id: tempReplyingTo ? tempReplyingTo.id : null,
+            };
 
             if (media?.type === 'gif') {
                 messageData = { ...messageData, message_type: 'gif', attachment_url: media.url, content: '[GIF]' };
@@ -137,13 +212,30 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
 
             const { data: sentMessage, error } = await supabase.from('messages').insert(messageData).select().single();
             if (error) throw error;
-            setMessages(prev => [...prev, sentMessage as Message]);
+            setMessages(prev => [...prev, { ...(sentMessage as Message), reactions: [] }]);
         } catch (err: any) {
             setError(`Failed to send message: ${err.message}`);
             setNewMessage(tempMessageContent);
             setImageFile(tempImageFile);
+            setReplyingTo(tempReplyingTo); // Restore reply state on error
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    // --- NEW: Reaction Handler ---
+    const handleReaction = async (message: Message, emoji: string) => {
+        if (!user) return;
+        const existingReaction = message.reactions.find(r => r.user_id === user.id);
+
+        if (existingReaction) {
+            if (existingReaction.emoji === emoji) { // User clicked the same emoji again, so remove it
+                await supabase.from('message_reactions').delete().match({ id: existingReaction.id });
+            } else { // User changed their reaction
+                await supabase.from('message_reactions').update({ emoji }).match({ id: existingReaction.id });
+            }
+        } else { // New reaction
+            await supabase.from('message_reactions').insert({ message_id: message.id, user_id: user.id, emoji });
         }
     };
 
@@ -155,6 +247,14 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
             return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
         }
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    // --- NEW: Group Reactions Helper ---
+    const groupReactions = (reactions: Reaction[]) => {
+        return reactions.reduce((acc, reaction) => {
+            acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
     };
 
     if (loading) return <div className="flex-1 flex items-center justify-center"><Spinner /></div>;
@@ -193,15 +293,38 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
                         const isOwn = msg.sender_id === user?.id;
                         const showAvatar = index === 0 || messages[index - 1].sender_id !== msg.sender_id;
 
+                        // --- NEW: Find original message for replies ---
+                        const originalMessage = msg.reply_to_message_id ? messages.find(m => m.id === msg.reply_to_message_id) : null;
+                        const originalSenderName = originalMessage ? (originalMessage.sender_id === user?.id ? 'You' : recipient.full_name) : '';
+                        
+                        const groupedReactions = groupReactions(msg.reactions);
+                        
                         return (
-                            <div key={msg.id} className={`flex items-end space-x-2 ${isOwn ? 'flex-row-reverse space-x-reverse' : 'flex-row'} animate-fade-in`}>
+                            <div key={msg.id} id={`message-${msg.id}`} className={`group flex items-end space-x-2 ${isOwn ? 'flex-row-reverse space-x-reverse' : 'flex-row'} animate-fade-in`}>
                                 <div className="flex-shrink-0 w-8 h-8">
                                     {!isOwn && showAvatar && (
                                         <img src={recipient.avatar_url || `https://ui-avatars.com/api/?name=${recipient.full_name}`} alt={recipient.username} className="w-8 h-8 rounded-full object-cover" />
                                     )}
                                 </div>
                                 <div className={`flex flex-col max-w-[75%] md:max-w-md ${isOwn ? 'items-end' : 'items-start'}`}>
-                                    <div className={`group relative rounded-2xl shadow-sm transition-all hover:shadow-md ${isOwn ? 'bg-gradient-to-br from-brand-green to-brand-green-darker text-black rounded-br-sm' : 'bg-white dark:bg-tertiary text-text-main-light dark:text-text-main rounded-bl-sm border border-tertiary-light/50 dark:border-tertiary/50'}`}>
+                                    <div className={`relative rounded-2xl shadow-sm transition-all hover:shadow-md ${isOwn ? 'bg-gradient-to-br from-brand-green to-brand-green-darker text-black rounded-br-sm' : 'bg-white dark:bg-tertiary text-text-main-light dark:text-text-main rounded-bl-sm border border-tertiary-light/50 dark:border-tertiary/50'}`}>
+                                       
+                                        {/* --- NEW: Hover actions for reactions/replies --- */}
+                                        <div className={`absolute top-0 -translate-y-1/2 flex items-center space-x-1 bg-white dark:bg-secondary shadow-lg rounded-full p-1 border border-tertiary-light/50 dark:border-tertiary/50 opacity-0 group-hover:opacity-100 transition-all duration-200 ${isOwn ? 'right-2' : 'left-2'}`}>
+                                            {DEFAULT_REACTIONS.map(emoji => (
+                                                <button key={emoji} onClick={() => handleReaction(msg, emoji)} className="p-1 hover:scale-125 transition-transform">{emoji}</button>
+                                            ))}
+                                            <button onClick={() => setReplyingTo(msg)} className="p-1.5 text-text-secondary-light dark:text-text-secondary hover:scale-110 transition-transform"><ReplyIcon className="w-4 h-4" /></button>
+                                        </div>
+                                        
+                                        {/* --- NEW: Reply Block --- */}
+                                        {originalMessage && (
+                                            <a href={`#message-${originalMessage.id}`} onClick={(e) => { e.preventDefault(); document.getElementById(`message-${originalMessage.id}`)?.scrollIntoView({behavior:'smooth', block: 'center'}); }} className="block bg-black/10 dark:bg-black/20 m-1 p-2 rounded-lg border-l-2 border-brand-green hover:bg-black/20 dark:hover:bg-black/30">
+                                                <p className="font-bold text-sm text-brand-green">{originalSenderName}</p>
+                                                <p className="text-sm opacity-80 truncate">{originalMessage.content || '[Attachment]'}</p>
+                                            </a>
+                                        )}
+
                                         {msg.message_type === 'text' && <p className="px-4 py-2.5 text-[15px] leading-relaxed break-words">{msg.content}</p>}
                                         {msg.message_type === 'image' && msg.attachment_url && (
                                             <button onClick={() => setLightboxUrl(msg.attachment_url!)} className="block p-1 hover:opacity-95 transition-opacity">
@@ -211,6 +334,18 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
                                         {msg.message_type === 'gif' && msg.attachment_url && (
                                             <div className="p-1"><img src={msg.attachment_url} alt="gif" className="rounded-xl max-w-xs md:max-w-sm" /></div>
                                         )}
+
+                                        {/* --- NEW: Reactions Display --- */}
+                                        {Object.keys(groupedReactions).length > 0 && (
+                                            <div className={`absolute -bottom-3 flex gap-1 ${isOwn ? 'right-1' : 'left-1'}`}>
+                                                {Object.entries(groupedReactions).map(([emoji, count]) => (
+                                                    <div key={emoji} className="bg-white dark:bg-secondary text-xs rounded-full shadow-md px-1.5 py-0.5 border border-tertiary-light/50 dark:border-tertiary/50">
+                                                        {emoji} {count > 1 && <span className="font-semibold">{count}</span>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
                                     </div>
                                     <span className="text-xs text-text-tertiary-light dark:text-text-tertiary mt-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                         {formatTime(msg.created_at)}
@@ -226,6 +361,15 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
             {/* Input Area */}
             <div className="p-4 md:p-5 border-t border-tertiary-light dark:border-tertiary/50 bg-secondary-light/50 dark:bg-secondary/50 backdrop-blur-sm">
                 <div className="max-w-4xl mx-auto">
+                    {/* --- NEW: Reply Preview --- */}
+                    {replyingTo && (
+                        <div className="mb-3 p-3 bg-tertiary-light dark:bg-tertiary rounded-lg relative animate-fade-in">
+                           <button onClick={() => setReplyingTo(null)} className="absolute top-1 right-1 p-1 text-text-tertiary-light dark:text-text-tertiary"><XCircleIcon className="w-4 h-4" /></button>
+                           <p className="text-sm font-bold text-brand-green">Replying to {replyingTo.sender_id === user?.id ? "Yourself" : recipient.full_name}</p>
+                           <p className="text-sm text-text-secondary-light dark:text-text-secondary truncate">{replyingTo.content || '[Attachment]'}</p>
+                        </div>
+                    )}
+
                     {imagePreview && (
                         <div className="mb-3 animate-fade-in">
                             <div className="relative inline-block w-28 h-28 rounded-xl overflow-hidden shadow-lg">
