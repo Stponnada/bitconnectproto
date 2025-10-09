@@ -25,3 +25,4 @@ dist-ssr
 .env.*
 .netlify
 !.env.example
+redirect/
