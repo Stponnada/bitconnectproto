@@ -61,6 +61,7 @@ const BottomNavBar: React.FC = () => {
         >
           <UserIcon className="w-7 h-7" />
         </NavLink>
+        
       )}
     </nav>
   );

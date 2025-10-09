@@ -4,7 +4,8 @@ import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { ConversationSummary } from '../types';
-import { showNotification } from '../utils/notifications';
+// --- REMOVED: Notification import ---
+// import { showNotification } from '../utils/notifications';
 
 interface ChatContextType {
   conversations: ConversationSummary[];
@@ -48,29 +49,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!user) return;
 
+    // --- MODIFIED: Simplified handler, notification logic removed ---
     const handleNewMessage = async (payload: any) => {
         fetchConversations(); 
-
-        const newMessage = payload.new;
-
-        if (document.hidden && newMessage.receiver_id === user.id) {
-            const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('full_name, avatar_url')
-                .eq('user_id', newMessage.sender_id)
-                .single();
-
-            if (error || !profile) {
-                console.error("Could not fetch sender's profile for notification");
-                return;
-            }
-
-            showNotification(profile.full_name || 'New Message', {
-                body: newMessage.content,
-                icon: profile.avatar_url || undefined,
-                tag: newMessage.sender_id,
-            });
-        }
     };
 
     const channel = supabase

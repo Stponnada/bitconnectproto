@@ -1,7 +1,7 @@
 // src/App.tsx
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
+// --- REMOVED: useEffect ---
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './hooks/useAuth';
 import { PostsProvider } from './contexts/PostsContext';
@@ -81,19 +81,7 @@ const AppRoutes = () => {
 };
 
 const App = () => {
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-          .then(registration => {
-            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-          })
-          .catch(err => {
-            console.log('ServiceWorker registration failed: ', err);
-          });
-      });
-    }
-  }, []);
+  // --- REMOVED: Service worker registration useEffect ---
 
   return (
     <Router>
