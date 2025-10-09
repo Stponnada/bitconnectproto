@@ -1,10 +1,11 @@
 // src/types.ts
 
-// src/types.ts (Updated)
-
+// --- NEW: Interface for a roommate ---
 export interface Roommate {
   user_id: string;
   username: string;
+  full_name: string | null;
+  avatar_url: string | null;
 }
 
 export interface Friend {
@@ -34,30 +35,25 @@ export interface Profile {
   profile_complete?: boolean;
   created_at?: string;
   updated_at?: string;
-  // --- NEW FIELDS ---
   following_count: number;
   follower_count: number;
-  is_following: boolean; // Is the current user following this profile?
-  is_followed_by?: boolean; // Is this profile following the current user?
-  roommates: Roommate[] | null;
+  is_following: boolean; 
+  is_followed_by?: boolean; 
+  roommates: Roommate[] | null; // <-- MODIFIED: From string array to Roommate array
   gender: string | null;
   birthday: string | null;
   avg_seller_rating?: number;
   total_seller_ratings?: number;
 }
 
-// --- NEW TYPE for the chat list ---
+// ... (The rest of the file remains the same)
 export interface ConversationSummary {
   participant: Profile;
-  // MODIFIED: These can now be null for contacts without a chat history
   last_message_sender_id: string | null;
   last_message_content: string | null;
   last_message_at: string | null;
   unread_count: number;
 }
-
-// ... Post, Comment, and Search interfaces remain the same
-
 export interface Post {
   id: string;
   user_id: string;
@@ -68,38 +64,31 @@ export interface Post {
   like_count: number;
   dislike_count: number;
   comment_count: number;
-  // --- THIS IS THE FIX ---
-  // Replace `user_has_liked` with `user_vote` to match the component's usage.
   user_vote: 'like' | 'dislike' | null;
 }
-
 export interface Comment {
   id: number;
   content: string;
   user_id: string;
   post_id: string;
   created_at: string;
-  profiles: Profile | null; // The joined profile of the comment author
+  profiles: Profile | null;
 }
-
 export interface UserSearchResult {
   username: string;
   full_name: string;
   avatar_url: string;
 }
-
 export interface PostSearchResult {
   id: string;
   content: string;
   author_username: string;
   author_full_name: string;
 }
-
 export interface SearchResults {
   users: UserSearchResult[];
   posts: PostSearchResult[];
 }
-
 export interface CampusPlace {
   id: string;
   name: string;
@@ -110,7 +99,6 @@ export interface CampusPlace {
   avg_rating: number;
   review_count: number;
 }
-
 export interface Review {
   id: string;
   place_id: string;
@@ -118,9 +106,8 @@ export interface Review {
   rating: number;
   comment: string | null;
   created_at: string;
-  profiles: Profile | null; // This will hold the author's profile
+  profiles: Profile | null;
 }
-
 export interface LostAndFoundItem {
   id: string;
   user_id: string;
@@ -132,15 +119,13 @@ export interface LostAndFoundItem {
   status: 'active' | 'reclaimed';
   campus: string;
   created_at: string;
-  profiles: Profile | null; // For author info
+  profiles: Profile | null;
 }
-
 export interface MarketplaceImage {
   id: string;
   listing_id: string;
   image_url: string;
 }
-
 export interface MarketplaceListing {
   id: string;
   seller_id: string;
@@ -151,7 +136,7 @@ export interface MarketplaceListing {
   campus: string;
   status: 'available' | 'sold';
   created_at: string;
-  seller_profile: Profile; // The seller's profile is nested
+  seller_profile: Profile;
   primary_image_url: string | null;
   all_images: string[] | null;
 }

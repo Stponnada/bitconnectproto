@@ -160,3 +160,9 @@ export const ArchiveBoxIcon: React.FC<{ className?: string }> = ({ className = "
     </svg>
 );
 
+
+export const UserGroupIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 00-12 0m12 0a9.094 9.094 0 00-12 0m12 0A9.094 9.094 0 009 18.72m9 0a9.094 9.094 0 00-9-9.72m9 9.72A9.094 9.094 0 009 18.72M9 18.72A9.094 9.094 0 003 18.72m6 0A9.094 9.094 0 003 18.72m6 0A9.094 9.094 0 009 9.72m0 9a9.094 9.094 0 00-6-3.72M3 15.002a9.094 9.094 0 006 3.72m0 0a9.094 9.094 0 006-3.72m-6 3.72a9.094 9.094 0 00-6-3.72M9 9.72a9.094 9.094 0 016-3.72m-6 3.72a9.094 9.094 0 00-6 3.72M15 9.72a9.094 9.094 0 016 3.72m-6-3.72a9.094 9.094 0 006 3.72" />
+  </svg>
+);
