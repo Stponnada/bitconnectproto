@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom'; // <-- STEP 1: Import Link
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Profile } from '../types';
@@ -70,7 +71,7 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
         return () => { supabase.removeChannel(messageChannel); supabase.removeChannel(reactionChannel); document.removeEventListener('mousedown', handleClickOutside); };
     }, [recipient.user_id, user]);
 
-    // --- Handlers & Helpers ---
+    // --- Handlers & Helpers (No Changes Here) ---
     const resetInput = () => { setNewMessage(''); setImageFile(null); if (imagePreview) URL.revokeObjectURL(imagePreview); setImagePreview(null); setReplyingTo(null); };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files[0]) { resetInput(); const file = e.target.files[0]; setImageFile(file); setImagePreview(URL.createObjectURL(file)); } };
     const handleGifSelect = (gifUrl: string) => { setGifPickerOpen(false); handleSendMessage(null, { type: 'gif', url: gifUrl }); };
@@ -95,51 +96,20 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
         finally { setIsUploading(false); }
     };
     
-    // --- *** THE FIX IS HERE: OPTIMISTIC UPDATES *** ---
     const handleReaction = async (message: Message, emoji: string) => {
         if (!user) return;
         setOpenReactionMenuId(null);
-
         const existingReaction = message.reactions.find(r => r.user_id === user.id);
         const originalReactions = [...message.reactions];
         let newReactions: Reaction[];
         let dbOperation: Promise<any>;
-
-        // 1. Determine the optimistic state and the DB operation
         if (existingReaction) {
-            if (existingReaction.emoji === emoji) { // Remove reaction
-                newReactions = message.reactions.filter(r => r.user_id !== user.id);
-                dbOperation = supabase.from('message_reactions').delete().match({ id: existingReaction.id });
-            } else { // Change reaction
-                newReactions = message.reactions.map(r => r.user_id === user.id ? { ...r, emoji } : r);
-                dbOperation = supabase.from('message_reactions').update({ emoji }).match({ id: existingReaction.id });
-            }
-        } else { // Add new reaction
-            const tempReaction: Reaction = { id: Date.now(), message_id: message.id, user_id: user.id, emoji }; // temp ID for UI
-            newReactions = [...message.reactions, tempReaction];
-            dbOperation = supabase.from('message_reactions').insert({ message_id: message.id, user_id: user.id, emoji });
-        }
-
-        // 2. Optimistically update the UI immediately
-        setMessages(currentMessages =>
-            currentMessages.map(m =>
-                m.id === message.id ? { ...m, reactions: newReactions } : m
-            )
-        );
-
-        // 3. Perform the DB operation and rollback on error
-        try {
-            const { error } = await dbOperation;
-            if (error) throw error;
-        } catch (error) {
-            console.error("Failed to update reaction:", error);
-            // Rollback UI to original state on failure
-            setMessages(currentMessages =>
-                currentMessages.map(m =>
-                    m.id === message.id ? { ...m, reactions: originalReactions } : m
-                )
-            );
-        }
+            if (existingReaction.emoji === emoji) { newReactions = message.reactions.filter(r => r.user_id !== user.id); dbOperation = supabase.from('message_reactions').delete().match({ id: existingReaction.id }); } 
+            else { newReactions = message.reactions.map(r => r.user_id === user.id ? { ...r, emoji } : r); dbOperation = supabase.from('message_reactions').update({ emoji }).match({ id: existingReaction.id }); }
+        } else { const tempReaction: Reaction = { id: Date.now(), message_id: message.id, user_id: user.id, emoji }; newReactions = [...message.reactions, tempReaction]; dbOperation = supabase.from('message_reactions').insert({ message_id: message.id, user_id: user.id, emoji }); }
+        setMessages(currentMessages => currentMessages.map(m => m.id === message.id ? { ...m, reactions: newReactions } : m ));
+        try { const { error } = await dbOperation; if (error) throw error; } 
+        catch (error) { console.error("Failed to update reaction:", error); setMessages(currentMessages => currentMessages.map(m => m.id === message.id ? { ...m, reactions: originalReactions } : m )); }
     };
 
     const formatTime = (timestamp: string) => { const date = new Date(timestamp); const now = new Date(); const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60); if (diffInHours < 24) { return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }); } return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
@@ -148,7 +118,7 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
     if (loading) return <div className="flex-1 flex items-center justify-center"><Spinner /></div>;
     if (error) return <div className="flex-1 flex items-center justify-center text-red-400 p-4 text-center">{error}</div>;
 
-    // --- Render (No Changes Below This Line) ---
+    // --- Render ---
     return (
         <>
             {isGifPickerOpen && <GifPickerModal onClose={() => setGifPickerOpen(false)} onGifSelect={handleGifSelect} />}
@@ -162,7 +132,11 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
                     <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white dark:border-secondary"></div>
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg md:text-xl text-text-main-light dark:text-text-main truncate">{recipient.full_name}</h3>
+                    {/* --- *** THE FIX IS HERE *** --- */}
+                    <Link to={`/profile/${recipient.username}`}>
+                        <h3 className="font-bold text-lg md:text-xl text-text-main-light dark:text-text-main truncate hover:underline">{recipient.full_name}</h3>
+                    </Link>
+                    {/* --- *** END OF FIX *** --- */}
                     <p className="text-sm text-text-tertiary-light dark:text-text-tertiary flex items-center"><span className="hidden md:inline">@{recipient.username}</span><span className="md:hidden">Active now</span></p>
                 </div>
             </div>
