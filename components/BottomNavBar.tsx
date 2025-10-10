@@ -5,7 +5,8 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../hooks/useChat.ts';
 import { supabase } from '../services/supabase';
-import { HomeIcon, BuildingLibraryIcon, ChatIcon, UserIcon } from './icons';
+// --- STEP 1: Import the BookOpenIcon ---
+import { HomeIcon, BuildingLibraryIcon, ChatIcon, UserIcon, BookOpenIcon } from './icons';
 
 const BottomNavBar: React.FC = () => {
   const { user } = useAuth();
@@ -38,7 +39,6 @@ const BottomNavBar: React.FC = () => {
       >
         <HomeIcon className="w-7 h-7" />
       </NavLink>
-      {/* --- THE FIX IS HERE --- */}
       <NavLink 
         to="/campus" 
         className={({ isActive }) => `flex-1 flex flex-col items-center justify-center ${isActive ? activeLinkStyle : inactiveLinkStyle}`}
@@ -54,6 +54,15 @@ const BottomNavBar: React.FC = () => {
           {totalUnreadCount > 0 && <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-brand-green ring-2 ring-secondary-light dark:ring-secondary" />}
         </div>
       </NavLink>
+
+      {/* --- STEP 2: Add the NavLink for the Directory --- */}
+      <NavLink 
+        to="/directory" 
+        className={({ isActive }) => `flex-1 flex flex-col items-center justify-center ${isActive ? activeLinkStyle : inactiveLinkStyle}`}
+      >
+        <BookOpenIcon className="w-7 h-7" />
+      </NavLink>
+
       {username && (
         <NavLink 
           to={`/profile/${username}`} 
@@ -61,7 +70,6 @@ const BottomNavBar: React.FC = () => {
         >
           <UserIcon className="w-7 h-7" />
         </NavLink>
-        
       )}
     </nav>
   );
