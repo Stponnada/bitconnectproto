@@ -21,6 +21,7 @@ const Login: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [typedText, setTypedText] = useState('');
   const navigate = useNavigate();
   const { session, isLoading: authLoading } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -39,6 +40,23 @@ const Login: React.FC = () => {
       navigate('/');
     }
   }, [session, navigate]);
+
+  // Typewriter effect for tagline
+  useEffect(() => {
+    const fullText = 'The exclusive social network for BITSians.';
+    let index = 0;
+    
+    const typeInterval = setInterval(() => {
+      if (index <= fullText.length) {
+        setTypedText(fullText.slice(0, index));
+        index++;
+      } else {
+        clearInterval(typeInterval);
+      }
+    }, 50);
+
+    return () => clearInterval(typeInterval);
+  }, []);
 
   const validateEmail = (email: string) => {
     const domain = email.split('@')[1];
@@ -190,11 +208,12 @@ const Login: React.FC = () => {
       {/* === Right Side: Branding === */}
       <div className="relative z-10 w-full max-w-md lg:w-1/2 flex items-center justify-center p-8 order-first lg:order-last">
         <div className="text-center lg:text-left">
-          <h1 className="text-7xl lg:text-8xl font-raleway font-black text-brand-green drop-shadow-[0_0_20px_rgba(0,255,150,0.3)]">
+          <h1 className="text-8xl lg:text-8xl font-raleway font-black text-brand-green drop-shadow-[0_0_20px_rgba(0,255,150,0.3)]">
             litelelo.
           </h1>
-          <p className="text-text-tertiary-light dark:text-text-tertiary mt-4 text-lg">
-            The exclusive social network for BITSians.
+          <p className="text-text-tertiary-light dark:text-text-tertiary mt-4 text-lg min-h-[28px]">
+            {typedText}
+            {typedText.length < 45 && <span className="animate-pulse">|</span>}
           </p>
         </div>
       </div>

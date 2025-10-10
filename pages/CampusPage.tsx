@@ -89,6 +89,29 @@ const CampusPage: React.FC = () => {
     const [latestLostItem, setLatestLostItem] = useState<LostAndFoundItem | null>(null);
     const [loadingPreviews, setLoadingPreviews] = useState(true);
     const [selectedListing, setSelectedListing] = useState<MarketplaceListing | null>(null);
+    const [displayedText, setDisplayedText] = useState('');
+    const [isTyping, setIsTyping] = useState(true);
+
+    // Typewriter effect for campus name
+    useEffect(() => {
+        if (!campusName) return;
+        
+        setDisplayedText('');
+        setIsTyping(true);
+        let currentIndex = 0;
+        
+        const typingInterval = setInterval(() => {
+            if (currentIndex <= campusName.length) {
+                setDisplayedText(campusName.slice(0, currentIndex));
+                currentIndex++;
+            } else {
+                setIsTyping(false);
+                clearInterval(typingInterval);
+            }
+        }, 100);
+        
+        return () => clearInterval(typingInterval);
+    }, [campusName]);
 
     useEffect(() => {
         if (!profile?.campus) return;
@@ -127,7 +150,7 @@ const CampusPage: React.FC = () => {
                         <span className="text-sm font-semibold text-brand-green">Your Campus Hub</span>
                     </div>
                     <h1 className="text-4xl md:text-6xl font-bold text-text-main-light dark:text-text-main mb-4">
-                       Today at BITS <span className="text-brand-green">{campusName}</span>
+                       Today at BITS <span className="text-brand-green">{displayedText}</span><span className={`text-brand-green ${isTyping ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>|</span>
                     </h1>
                     <p className="text-lg md:text-xl text-text-secondary-light dark:text-text-secondary max-w-2xl mx-auto">
                         Your one-stop destination for campus services, reviews, and community connections
