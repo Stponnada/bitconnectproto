@@ -48,10 +48,13 @@ export interface Profile {
 
 // ... (The rest of the file remains the same)
 export interface ConversationSummary {
-  participant: Profile;
-  last_message_sender_id: string | null;
+  conversation_id: string;
+  type: 'dm' | 'group';
+  name: string | null; // Group name or other user's name for DMs
+  participants: ConversationParticipant[];
   last_message_content: string | null;
   last_message_at: string | null;
+  last_message_sender_id: string | null;
   unread_count: number;
 }
 export interface Post {
@@ -139,4 +142,18 @@ export interface MarketplaceListing {
   seller_profile: Profile;
   primary_image_url: string | null;
   all_images: string[] | null;
+}
+
+export interface ConversationParticipant {
+  user_id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  name: string | null;
+  type: 'dm' | 'group';
+  participants: ConversationParticipant[];
 }

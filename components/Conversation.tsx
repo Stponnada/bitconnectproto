@@ -1,10 +1,13 @@
+// src/components/Conversation.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom'; // <-- STEP 1: Import Link
+import { Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { Profile } from '../types';
+import { useChat } from '../hooks/useChat';
+import { ConversationSummary, ConversationParticipant, Profile } from '../types';
 import Spinner from './Spinner';
-import { ImageIcon, XCircleIcon } from './icons';
+import { ImageIcon, XCircleIcon, UserGroupIcon } from './icons';
 import GifPickerModal from './GifPickerModal';
 import LightBox from './lightbox';
 
@@ -16,15 +19,19 @@ const SendIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) =
 const ReplyIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}><path fillRule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.128a.75.75 0 010 1.5H3.622l4.146 3.957a.75.75 0 01-1.036 1.085l-5.5-5.25a.75.75 0 010-1.085l5.5-5.25a.75.75 0 011.06.025z" clipRule="evenodd" /></svg>);
 const EmojiIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9.25a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7zM5.5 5.5a2 2 0 114 0 2 2 0 01-4 0zM10.5 5.5a2 2 0 114 0 2 2 0 01-4 0z" /></svg>);
 
-// --- Types ---
 interface Reaction { id: number; message_id: number; user_id: string; emoji: string; }
-interface Message { id: number; sender_id: string; receiver_id: string; content: string | null; created_at: string; message_type: 'text' | 'image' | 'gif'; attachment_url: string | null; reply_to_message_id: number | null; reactions: Reaction[]; }
-interface ConversationProps { recipient: Profile; onBack?: () => void; }
+interface Message { id: number; sender_id: string; content: string | null; created_at: string; message_type: 'text' | 'image' | 'gif'; attachment_url: string | null; reply_to_message_id: number | null; reactions: Reaction[]; profiles: ConversationParticipant | null; }
+interface ConversationProps {
+  conversation: ConversationSummary;
+  onBack?: () => void;
+  onConversationCreated: (placeholderId: string, newConversationId: string) => void;
+}
 const DEFAULT_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
-// --- Main Component ---
-const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
-    const { user } = useAuth();
+
+const Conversation: React.FC<ConversationProps> = ({ conversation, onBack, onConversationCreated }) => {
+    const { user, profile: currentUserProfile } = useAuth();
+    const { fetchConversations } = useChat();
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -39,61 +46,129 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const reactionMenuRef = useRef<HTMLDivElement>(null);
+    
+    const otherParticipant = conversation.type === 'dm'
+      ? conversation.participants.find(p => p.user_id !== user?.id) ?? conversation.participants[0]
+      : null;
 
-    // --- Effects (No Changes Here) ---
     useEffect(() => {
-        if (!user) return;
+        if (!user || conversation.conversation_id.startsWith('placeholder_')) {
+            setLoading(false);
+            setMessages([]);
+            return;
+        }
         const fetchConversation = async () => {
             setLoading(true);
             setError(null);
             try {
-                const { data: messagesData, error: messagesError } = await supabase.from('messages').select('*').or(`and(sender_id.eq.${user.id},receiver_id.eq.${recipient.user_id}),and(sender_id.eq.${recipient.user_id},receiver_id.eq.${user.id})`).order('created_at', { ascending: true });
+                const { data: messagesData, error: messagesError } = await supabase.from('messages').select('*').eq('conversation_id', conversation.conversation_id).order('created_at', { ascending: true });
                 if (messagesError) throw messagesError;
+                if (!messagesData || messagesData.length === 0) {
+                    setMessages([]); setLoading(false); return;
+                }
+                const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
+                const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('user_id, username, full_name, avatar_url').in('user_id', senderIds);
+                if (profilesError) throw profilesError;
+                const profilesMap = new Map(profilesData.map(p => [p.user_id, p]));
+                const messagesWithProfiles = messagesData.map(message => ({ ...message, profiles: profilesMap.get(message.sender_id) || null }));
                 const messageIds = messagesData.map(m => m.id);
-                if (messageIds.length === 0) { setMessages([]); setLoading(false); return; }
                 const { data: reactionsData, error: reactionsError } = await supabase.from('message_reactions').select('*').in('message_id', messageIds);
                 if (reactionsError) throw reactionsError;
-                const messagesWithReactions = messagesData.map(message => ({ ...message, reactions: reactionsData.filter(r => r.message_id === message.id) }));
-                setMessages(messagesWithReactions || []);
+                const finalMessages = messagesWithProfiles.map(message => ({ ...message, reactions: reactionsData.filter(r => r.message_id === message.id) }));
+                setMessages(finalMessages as any[]);
             } catch (err: any) { setError(err.message); } finally { setLoading(false); }
         };
         fetchConversation();
-    }, [recipient.user_id, user]);
-
-    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-
+    }, [conversation.conversation_id, user]);
+    
     useEffect(() => {
-        if (!user) return;
-        const messageChannel = supabase.channel(`chat-room:${[user.id, recipient.user_id].sort().join(':')}`).on<Message>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => { if (payload.new.sender_id === recipient.user_id && payload.new.receiver_id === user.id) { setMessages((prev) => [...prev, { ...payload.new, reactions: [] }]); } }).subscribe();
-        const reactionChannel = supabase.channel(`reactions:${[user.id, recipient.user_id].sort().join(':')}`).on<Reaction>('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, (payload) => { setMessages(currentMessages => { const messageId = payload.eventType === 'DELETE' ? payload.old.message_id : payload.new.message_id; if (!currentMessages.find(m => m.id === messageId)) return currentMessages; return currentMessages.map(msg => { if (msg.id === messageId) { let newReactions = [...msg.reactions]; if (payload.eventType === 'INSERT') { newReactions.push(payload.new); } else if (payload.eventType === 'UPDATE') { newReactions = newReactions.map(r => r.id === payload.new.id ? payload.new : r); } else if (payload.eventType === 'DELETE') { newReactions = newReactions.filter(r => r.id !== payload.old.id); } return { ...msg, reactions: newReactions }; } return msg; }); }); }).subscribe();
+        if (!user || conversation.conversation_id.startsWith('placeholder_')) return;
+        const handleNewMessage = async (payload: any) => {
+            const newMessage: Message = payload.new;
+            if (newMessage.sender_id === user.id) return;
+            if (messages.some(msg => msg.id === newMessage.id)) return;
+            const { data: profile } = await supabase.from('profiles').select('user_id, username, full_name, avatar_url').eq('user_id', newMessage.sender_id).single();
+            setMessages((prev) => [...prev, { ...newMessage, reactions: [], profiles: profile }]);
+        };
+        const messageChannel = supabase.channel(`conversation:${conversation.conversation_id}`).on<Message>('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversation.conversation_id}` }, handleNewMessage).subscribe();
+        const reactionChannel = supabase.channel(`reactions:${conversation.conversation_id}`).on<Reaction>('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, (payload) => { setMessages(currentMessages => { const messageId = payload.eventType === 'DELETE' ? payload.old.message_id : payload.new.message_id; if (!currentMessages.find(m => m.id === messageId)) return currentMessages; return currentMessages.map(msg => { if (msg.id === messageId) { let newReactions = [...msg.reactions]; if (payload.eventType === 'INSERT') { newReactions.push(payload.new); } else if (payload.eventType === 'UPDATE') { newReactions = newReactions.map(r => r.id === payload.new.id ? payload.new : r); } else if (payload.eventType === 'DELETE') { newReactions = newReactions.filter(r => r.id !== payload.old.id); } return { ...msg, reactions: newReactions }; } return msg; }); }); }).subscribe();
         const handleClickOutside = (event: MouseEvent) => { if (reactionMenuRef.current && !reactionMenuRef.current.contains(event.target as Node)) { setOpenReactionMenuId(null); } };
         document.addEventListener('mousedown', handleClickOutside);
         return () => { supabase.removeChannel(messageChannel); supabase.removeChannel(reactionChannel); document.removeEventListener('mousedown', handleClickOutside); };
-    }, [recipient.user_id, user]);
+    }, [conversation.conversation_id, user, messages]);
+    
+    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-    // --- Handlers & Helpers (No Changes Here) ---
     const resetInput = () => { setNewMessage(''); setImageFile(null); if (imagePreview) URL.revokeObjectURL(imagePreview); setImagePreview(null); setReplyingTo(null); };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files[0]) { resetInput(); const file = e.target.files[0]; setImageFile(file); setImagePreview(URL.createObjectURL(file)); } };
     const handleGifSelect = (gifUrl: string) => { setGifPickerOpen(false); handleSendMessage(null, { type: 'gif', url: gifUrl }); };
-    
+
     const handleSendMessage = async (e?: React.FormEvent, media?: { type: 'gif'; url: string }) => {
         e?.preventDefault();
-        if (!user || (!newMessage.trim() && !imageFile && !media)) return;
+        if (!user || !currentUserProfile || (!newMessage.trim() && !imageFile && !media)) return;
+
         setIsUploading(true);
+        setError(null);
+        
+        let currentConversationId = conversation.conversation_id;
+        
         const tempMessageContent = newMessage;
         const tempImageFile = imageFile;
         const tempReplyingTo = replyingTo;
+        const tempId = Date.now();
+        
+        // Optimistic UI update
+        setMessages(prev => [...prev, {
+            id: tempId, sender_id: user.id,
+            content: tempMessageContent.trim() || (media?.type === 'gif' ? '[GIF]' : '[Image]'),
+            created_at: new Date().toISOString(),
+            message_type: media?.type || (tempImageFile ? 'image' : 'text'),
+            attachment_url: media?.url || (tempImageFile ? URL.createObjectURL(tempImageFile) : null),
+            reply_to_message_id: tempReplyingTo ? tempReplyingTo.id : null,
+            reactions: [], profiles: currentUserProfile
+        }]);
         resetInput();
+
         try {
-            let messageData: Partial<Message> = { sender_id: user.id, receiver_id: recipient.user_id, reply_to_message_id: tempReplyingTo ? tempReplyingTo.id : null, };
+            // If it's a placeholder, call the RPC to create/get the real DM conversation
+            if (currentConversationId.startsWith('placeholder_') && otherParticipant) {
+                const { data: newConversationId, error: rpcError } = await supabase
+                    .rpc('create_dm_conversation', { recipient_id: otherParticipant.user_id });
+
+                if (rpcError) throw rpcError;
+                
+                currentConversationId = newConversationId;
+                onConversationCreated(conversation.conversation_id, currentConversationId);
+            }
+            
+            // Continue with sending the message...
+            let messageData: any = {
+                sender_id: user.id,
+                conversation_id: currentConversationId,
+                reply_to_message_id: tempReplyingTo ? tempReplyingTo.id : null,
+            };
+            
             if (media?.type === 'gif') { messageData = { ...messageData, message_type: 'gif', attachment_url: media.url, content: '[GIF]' }; } 
             else if (tempImageFile) { const fileExt = tempImageFile.name.split('.').pop(); const filePath = `${user.id}/${Date.now()}.${fileExt}`; const { error: uploadError } = await supabase.storage.from('chat-attachments').upload(filePath, tempImageFile); if (uploadError) throw uploadError; const { data: { publicUrl } } = supabase.storage.from('chat-attachments').getPublicUrl(filePath); messageData = { ...messageData, message_type: 'image', attachment_url: publicUrl, content: '[Image]' }; } 
             else { messageData = { ...messageData, message_type: 'text', content: tempMessageContent.trim() }; }
+            
             const { data: sentMessage, error } = await supabase.from('messages').insert(messageData).select().single();
             if (error) throw error;
-            setMessages(prev => [...prev, { ...(sentMessage as Message), reactions: [] }]);
-        } catch (err: any) { setError(`Failed to send message: ${err.message}`); setNewMessage(tempMessageContent); setImageFile(tempImageFile); setReplyingTo(tempReplyingTo); } 
-        finally { setIsUploading(false); }
+            
+            setMessages(prev => prev.map(msg => 
+                msg.id === tempId ? { ...msg, ...sentMessage, profiles: currentUserProfile } : msg
+            ));
+            
+        } catch (err: any) { 
+            setError(`Failed to send message: ${err.message}`);
+            // Rollback optimistic update on failure
+            setMessages(prev => prev.filter(msg => msg.id !== tempId));
+            setNewMessage(tempMessageContent); 
+            setImageFile(tempImageFile); 
+            setReplyingTo(tempReplyingTo);
+        } finally { 
+            setIsUploading(false); 
+        }
     };
     
     const handleReaction = async (message: Message, emoji: string) => {
@@ -115,87 +190,107 @@ const Conversation: React.FC<ConversationProps> = ({ recipient, onBack }) => {
     const formatTime = (timestamp: string) => { const date = new Date(timestamp); const now = new Date(); const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60); if (diffInHours < 24) { return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }); } return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
     const groupReactions = (reactions: Reaction[]) => { return reactions.reduce((acc, reaction) => { acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1; return acc; }, {} as Record<string, number>); };
 
+    const renderHeader = () => {
+      if (conversation.type === 'group') {
+        return (
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-tertiary flex items-center justify-center">
+              <UserGroupIcon className="w-7 h-7 text-brand-green" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-lg md:text-xl text-text-main-light dark:text-text-main truncate">{conversation.name}</h3>
+              <p className="text-sm text-text-tertiary-light dark:text-text-tertiary">{conversation.participants.length} members</p>
+            </div>
+          </div>
+        );
+      }
+      
+      if (otherParticipant) {
+        return (
+          <div className="flex items-center space-x-3">
+              <img src={otherParticipant.avatar_url || `https://ui-avatars.com/api/?name=${otherParticipant.full_name}`} alt={otherParticipant.username} className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover" />
+              <div className="flex-1 min-w-0">
+                  <Link to={`/profile/${otherParticipant.username}`}>
+                      <h3 className="font-bold text-lg md:text-xl text-text-main-light dark:text-text-main truncate hover:underline">{otherParticipant.full_name}</h3>
+                  </Link>
+                  <p className="text-sm text-text-tertiary-light dark:text-text-tertiary">@{otherParticipant.username}</p>
+              </div>
+          </div>
+        );
+      }
+      return null;
+    };
+    
+    const renderMessages = () => {
+        return messages.map((msg, index) => {
+            const isOwn = msg.sender_id === user?.id;
+            const senderProfile = msg.profiles;
+            const originalMessage = msg.reply_to_message_id ? messages.find(m => m.id === msg.reply_to_message_id) : null;
+            const originalSenderName = originalMessage ? (originalMessage.sender_id === user?.id ? 'You' : originalMessage.profiles?.full_name) : '';
+            const groupedReactions = groupReactions(msg.reactions);
+
+            const showAvatar = !isOwn && (
+                index === 0 || 
+                messages[index - 1].sender_id !== msg.sender_id
+            );
+            
+            return (
+                <div key={msg.id} id={`message-${msg.id}`} className={`group relative flex items-end space-x-2 ${isOwn ? 'flex-row-reverse space-x-reverse' : 'flex-row'} animate-fade-in`}>
+                    <div className="flex-shrink-0 w-8 h-8">
+                        {showAvatar && (
+                            <img src={senderProfile?.avatar_url || `https://ui-avatars.com/api/?name=${senderProfile?.full_name}`} alt={senderProfile?.username} className="w-8 h-8 rounded-full object-cover" />
+                        )}
+                    </div>
+                    <div className={`flex flex-col max-w-[75%] md:max-w-md ${isOwn ? 'items-end' : 'items-start'}`}>
+                        {conversation.type === 'group' && !isOwn && showAvatar && (
+                            <p className="text-xs text-brand-green font-semibold ml-3 mb-1">{senderProfile?.full_name}</p>
+                        )}
+                        
+                        <div className={`relative rounded-2xl shadow-sm transition-all hover:shadow-md ${isOwn ? 'bg-gradient-to-br from-brand-green to-brand-green-darker text-black rounded-br-sm' : 'bg-white dark:bg-tertiary text-text-main-light dark:text-text-main rounded-bl-sm border border-tertiary-light/50 dark:border-tertiary/50'}`}>
+                           {openReactionMenuId === msg.id && ( <div ref={reactionMenuRef} className={`absolute bottom-full mb-2 flex items-center space-x-1 bg-white dark:bg-secondary shadow-xl rounded-full p-2 border border-tertiary-light/50 dark:border-tertiary/50 ${isOwn ? 'right-0' : 'left-0'}`}> {DEFAULT_REACTIONS.map(emoji => ( <button key={emoji} onClick={() => handleReaction(msg, emoji)} className="p-1 text-2xl hover:scale-125 transition-transform">{emoji}</button> ))} </div> )}
+                           {originalMessage && ( <a href={`#message-${originalMessage.id}`} onClick={(e) => { e.preventDefault(); document.getElementById(`message-${originalMessage.id}`)?.scrollIntoView({behavior:'smooth', block: 'center'}); }} className={`block m-1 p-2 rounded-lg border-l-2 hover:bg-black/20 dark:hover:bg-black/30 ${isOwn ? 'bg-white/40 text-black/90 border-green-800/50' : 'bg-black/10 dark:bg-black/20 border-brand-green'}`}> <p className={`font-bold text-sm ${isOwn ? 'text-green-800' : 'text-brand-green'}`}>{originalSenderName}</p> <p className="text-sm opacity-80 truncate">{originalMessage.content || '[Attachment]'}</p> </a> )}
+                           {msg.message_type === 'text' && <p className="px-4 py-2.5 text-[15px] leading-relaxed break-words">{msg.content}</p>}
+                           {msg.message_type === 'image' && msg.attachment_url && ( <button onClick={() => setLightboxUrl(msg.attachment_url!)} className="block p-1 hover:opacity-95 transition-opacity"><img src={msg.attachment_url} alt="attachment" className="rounded-xl max-w-xs md:max-w-sm max-h-80 object-cover" /></button> )}
+                           {msg.message_type === 'gif' && msg.attachment_url && ( <div className="p-1"><img src={msg.attachment_url} alt="gif" className="rounded-xl max-w-xs md:max-w-sm" /></div> )}
+                           {Object.keys(groupedReactions).length > 0 && ( <div className={`absolute -bottom-4 flex gap-1 ${isOwn ? 'right-1' : 'left-1'}`}> {Object.entries(groupedReactions).map(([emoji, count]) => ( <div key={emoji} className="bg-white dark:bg-secondary text-sm rounded-full shadow-md px-2 py-1 border border-tertiary-light/50 dark:border-tertiary/50">{emoji} {count > 1 && <span className="font-semibold text-xs">{count}</span>}</div> ))} </div> )}
+                        </div>
+                        <span className="text-xs text-text-tertiary-light dark:text-text-tertiary mt-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity">{formatTime(msg.created_at)}</span>
+                    </div>
+                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity self-center">
+                        <button onClick={(e) => { e.stopPropagation(); setOpenReactionMenuId(msg.id === openReactionMenuId ? null : msg.id); }} className="p-1.5 rounded-full text-text-tertiary-light dark:text-text-tertiary hover:bg-tertiary-light dark:hover:bg-tertiary"><EmojiIcon className="w-5 h-5" /></button>
+                        <button onClick={() => setReplyingTo(msg)} className="p-1.5 rounded-full text-text-tertiary-light dark:text-text-tertiary hover:bg-tertiary-light dark:hover:bg-tertiary"><ReplyIcon className="w-5 h-5" /></button>
+                    </div>
+                </div>
+            );
+        });
+    };
+
     if (loading) return <div className="flex-1 flex items-center justify-center"><Spinner /></div>;
     if (error) return <div className="flex-1 flex items-center justify-center text-red-400 p-4 text-center">{error}</div>;
 
-    // --- Render ---
     return (
         <>
             {isGifPickerOpen && <GifPickerModal onClose={() => setGifPickerOpen(false)} onGifSelect={handleGifSelect} />}
             {lightboxUrl && <LightBox imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
 
-            {/* Header */}
             <div className="relative p-4 md:p-5 border-b border-tertiary-light dark:border-tertiary/50 flex items-center space-x-3 flex-shrink-0 bg-gradient-to-b from-secondary-light/50 to-transparent dark:from-secondary/50 dark:to-transparent backdrop-blur-sm">
-                {onBack && ( <button onClick={onBack} className="p-2 text-text-secondary-light dark:text-gray-300 rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary transition-all hover:scale-110 md:hidden"><BackIcon className="w-6 h-6" /></button> )}
-                <div className="relative">
-                    <img src={recipient.avatar_url || `https://ui-avatars.com/api/?name=${recipient.full_name}`} alt={recipient.username} className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover ring-2 ring-brand-green/20 shadow-lg" />
-                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white dark:border-secondary"></div>
-                </div>
-                <div className="flex-1 min-w-0">
-                    {/* --- *** THE FIX IS HERE *** --- */}
-                    <Link to={`/profile/${recipient.username}`}>
-                        <h3 className="font-bold text-lg md:text-xl text-text-main-light dark:text-text-main truncate hover:underline">{recipient.full_name}</h3>
-                    </Link>
-                    {/* --- *** END OF FIX *** --- */}
-                    <p className="text-sm text-text-tertiary-light dark:text-text-tertiary flex items-center"><span className="hidden md:inline">@{recipient.username}</span><span className="md:hidden">Active now</span></p>
-                </div>
+                {onBack && <button onClick={onBack} className="p-2 text-text-secondary-light dark:text-gray-300 rounded-full hover:bg-tertiary-light dark:hover:bg-tertiary transition-all hover:scale-110 md:hidden"><BackIcon className="w-6 h-6" /></button>}
+                {renderHeader()}
             </div>
 
-            {/* Messages Area */}
             <div className="flex-1 p-4 md:p-6 overflow-y-auto bg-gradient-to-b from-transparent via-secondary-light/20 to-transparent dark:via-secondary/20">
                 <div className="max-w-4xl mx-auto space-y-4">
-                    {messages.map((msg, index) => {
-                        const isOwn = msg.sender_id === user?.id;
-                        const showAvatar = index === 0 || messages[index - 1].sender_id !== msg.sender_id;
-                        const originalMessage = msg.reply_to_message_id ? messages.find(m => m.id === msg.reply_to_message_id) : null;
-                        const originalSenderName = originalMessage ? (originalMessage.sender_id === user?.id ? 'You' : recipient.full_name) : '';
-                        const groupedReactions = groupReactions(msg.reactions);
-                        
-                        return (
-                            <div key={msg.id} id={`message-${msg.id}`} className={`group relative flex items-end space-x-2 ${isOwn ? 'flex-row-reverse space-x-reverse' : 'flex-row'} animate-fade-in`}>
-                                <div className="flex-shrink-0 w-8 h-8">{!isOwn && showAvatar && ( <img src={recipient.avatar_url || `https://ui-avatars.com/api/?name=${recipient.full_name}`} alt={recipient.username} className="w-8 h-8 rounded-full object-cover" /> )}</div>
-                                <div className={`flex flex-col max-w-[75%] md:max-w-md ${isOwn ? 'items-end' : 'items-start'}`}>
-                                    <div className={`relative rounded-2xl shadow-sm transition-all hover:shadow-md ${isOwn ? 'bg-gradient-to-br from-brand-green to-brand-green-darker text-black rounded-br-sm' : 'bg-white dark:bg-tertiary text-text-main-light dark:text-text-main rounded-bl-sm border border-tertiary-light/50 dark:border-tertiary/50'}`}>
-                                       {openReactionMenuId === msg.id && (
-                                            <div ref={reactionMenuRef} className={`absolute bottom-full mb-2 flex items-center space-x-1 bg-white dark:bg-secondary shadow-xl rounded-full p-2 border border-tertiary-light/50 dark:border-tertiary/50 transition-all duration-200 ${isOwn ? 'right-0' : 'left-0'}`}>
-                                                {DEFAULT_REACTIONS.map(emoji => ( <button key={emoji} onClick={() => handleReaction(msg, emoji)} className="p-1 text-2xl hover:scale-125 transition-transform">{emoji}</button> ))}
-                                            </div>
-                                       )}
-                                        {originalMessage && (
-                                            <a href={`#message-${originalMessage.id}`} onClick={(e) => { e.preventDefault(); document.getElementById(`message-${originalMessage.id}`)?.scrollIntoView({behavior:'smooth', block: 'center'}); }} className={`block m-1 p-2 rounded-lg border-l-2 hover:bg-black/20 dark:hover:bg-black/30 ${isOwn ? 'bg-white/40 text-black/90 border-green-800/50' : 'bg-black/10 dark:bg-black/20 border-brand-green'}`}>
-                                                <p className={`font-bold text-sm ${isOwn ? 'text-green-800' : 'text-brand-green'}`}>{originalSenderName}</p>
-                                                <p className="text-sm opacity-80 truncate">{originalMessage.content || '[Attachment]'}</p>
-                                            </a>
-                                        )}
-                                        {msg.message_type === 'text' && <p className="px-4 py-2.5 text-[15px] leading-relaxed break-words">{msg.content}</p>}
-                                        {msg.message_type === 'image' && msg.attachment_url && ( <button onClick={() => setLightboxUrl(msg.attachment_url!)} className="block p-1 hover:opacity-95 transition-opacity"><img src={msg.attachment_url} alt="attachment" className="rounded-xl max-w-xs md:max-w-sm max-h-80 object-cover" /></button> )}
-                                        {msg.message_type === 'gif' && msg.attachment_url && ( <div className="p-1"><img src={msg.attachment_url} alt="gif" className="rounded-xl max-w-xs md:max-w-sm" /></div> )}
-                                        {Object.keys(groupedReactions).length > 0 && (
-                                            <div className={`absolute -bottom-4 flex gap-1 ${isOwn ? 'right-1' : 'left-1'}`}>
-                                                {Object.entries(groupedReactions).map(([emoji, count]) => ( <div key={emoji} className="bg-white dark:bg-secondary text-sm rounded-full shadow-md px-2 py-1 border border-tertiary-light/50 dark:border-tertiary/50">{emoji} {count > 1 && <span className="font-semibold text-xs">{count}</span>}</div> ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <span className="text-xs text-text-tertiary-light dark:text-text-tertiary mt-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity">{formatTime(msg.created_at)}</span>
-                                </div>
-                                <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity self-center">
-                                    <button onClick={(e) => { e.stopPropagation(); setOpenReactionMenuId(msg.id === openReactionMenuId ? null : msg.id); }} className="p-1.5 rounded-full text-text-tertiary-light dark:text-text-tertiary hover:bg-tertiary-light dark:hover:bg-tertiary"><EmojiIcon className="w-5 h-5" /></button>
-                                    <button onClick={() => setReplyingTo(msg)} className="p-1.5 rounded-full text-text-tertiary-light dark:text-text-tertiary hover:bg-tertiary-light dark:hover:bg-tertiary"><ReplyIcon className="w-5 h-5" /></button>
-                                </div>
-                            </div>
-                        );
-                    })}
+                    {renderMessages()}
                     <div ref={messagesEndRef} />
                 </div>
             </div>
 
-            {/* Input Area */}
             <div className="p-4 md:p-5 border-t border-tertiary-light dark:border-tertiary/50 bg-secondary-light/50 dark:bg-secondary/50 backdrop-blur-sm">
                 <div className="max-w-4xl mx-auto">
                     {replyingTo && (
                         <div className="mb-3 p-3 bg-tertiary-light dark:bg-tertiary rounded-lg relative animate-fade-in">
                            <button onClick={() => setReplyingTo(null)} className="absolute top-1 right-1 p-1 text-text-tertiary-light dark:text-text-tertiary"><XCircleIcon className="w-4 h-4" /></button>
-                           <p className="text-sm font-bold text-brand-green">Replying to {replyingTo.sender_id === user?.id ? "Yourself" : recipient.full_name}</p>
+                           <p className="text-sm font-bold text-brand-green">Replying to {replyingTo.sender_id === user?.id ? "Yourself" : replyingTo.profiles?.full_name}</p>
                            <p className="text-sm text-text-secondary-light dark:text-text-secondary truncate">{replyingTo.content || '[Attachment]'}</p>
                         </div>
                     )}

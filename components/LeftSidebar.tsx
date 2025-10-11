@@ -99,7 +99,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ isExpanded, setIsExpanded, us
           >
             {theme === 'light' ? <MoonIcon className="w-7 h-7 flex-shrink-0" /> : <SunIcon className="w-7 h-7 flex-shrink-0" />}
             <span className={`whitespace-nowrap transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
-              {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+              {theme === 'light' ? 'Dark Mode' : 'Lite Mode'}
             </span>
           </button>
            <button
